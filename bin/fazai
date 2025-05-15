@@ -1,0 +1,221 @@
+#!/usr/bin/env node
+
+/**
+ * FazAI - Orquestrador Inteligente de Automação
+ * 
+ * CLI - Interface de linha de comando para interagir com o daemon FazAI
+ */
+
+const axios = require('axios');
+const readline = require('readline');
+const fs = require('fs');
+const path = require('path');
+
+// Configurações
+const API_URL = process.env.FAZAI_API_URL || 'http://localhost:3000/api';
+const CONFIG_DIR = process.env.HOME ? path.join(process.env.HOME, '.fazai') : '/etc/fazai';
+const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+
+// Configuração padrão
+const defaultConfig = {
+  apiUrl: API_URL,
+  timeout: 30000, // 30 segundos
+  retryAttempts: 3,
+  retryDelay: 1000, // 1 segundo
+};
+
+// Carrega a configuração
+const loadConfig = () => {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const configData = fs.readFileSync(CONFIG_FILE, 'utf8');
+      return { ...defaultConfig, ...JSON.parse(configData) };
+    }
+  } catch (error) {
+    console.error(`Erro ao carregar configuração: ${error.message}`);
+  }
+  
+  return defaultConfig;
+};
+
+// Salva a configuração
+const saveConfig = (config) => {
+  try {
+    if (!fs.existsSync(CONFIG_DIR)) {
+      fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    }
+    
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  } catch (error) {
+    console.error(`Erro ao salvar configuração: ${error.message}`);
+  }
+};
+
+// Carrega a configuração
+const config = loadConfig();
+
+// Função para enviar comandos ao daemon
+const sendCommand = async (command, retryCount = 0) => {
+  try {
+    const response = await axios.post(`${config.apiUrl}/command`, { command }, {
+      timeout: config.timeout
+    });
+    
+    return response.data;
+  } catch (error) {
+    if (error.code === 'ECONNREFUSED' && retryCount < config.retryAttempts) {
+      console.log(`Não foi possível conectar ao daemon. Tentando novamente em ${config.retryDelay / 1000} segundos...`);
+      await new Promise(resolve => setTimeout(resolve, config.retryDelay));
+      return sendCommand(command, retryCount + 1);
+    }
+    
+    if (error.response) {
+      return {
+        success: false,
+        message: `Erro ${error.response.status}: ${error.response.statusText}`,
+        error: error.response.data
+      };
+    } else {
+      return {
+        success: false,
+        message: `Erro de conexão: ${error.message}`,
+        error: error.toString()
+      };
+    }
+  }
+};
+
+// Verifica o status do daemon
+const checkStatus = async () => {
+  try {
+    const response = await axios.get(`${config.apiUrl}/status`, {
+      timeout: config.timeout
+    });
+    
+    return response.data;
+  } catch (error) {
+    return {
+      status: 'offline',
+      error: error.message
+    };
+  }
+};
+
+// Função principal
+const main = async () => {
+  // Obtém os argumentos da linha de comando
+  const args = process.argv.slice(2);
+  
+  // Se não houver argumentos, mostra a ajuda
+  if (args.length === 0) {
+    showHelp();
+    return;
+  }
+  
+  // Comandos especiais
+  if (args[0] === '--help' || args[0] === '-h') {
+    showHelp();
+    return;
+  }
+  
+  if (args[0] === '--version' || args[0] === '-v') {
+    console.log('FazAI CLI v0.1.0');
+    return;
+  }
+  
+  if (args[0] === '--status') {
+    const status = await checkStatus();
+    console.log('Status do FazAI daemon:');
+    console.log(JSON.stringify(status, null, 2));
+    return;
+  }
+  
+  if (args[0] === '--interactive' || args[0] === '-i') {
+    startInteractiveMode();
+    return;
+  }
+  
+  // Comando normal
+  const command = args.join(' ');
+  const result = await sendCommand(command);
+  
+  if (result.success) {
+    if (result.stdout) console.log(result.stdout);
+    if (result.stderr) console.error(result.stderr);
+    if (result.answer) console.log(result.answer);
+    if (!result.stdout && !result.stderr && !result.answer) {
+      console.log(result.message || 'Comando executado com sucesso.');
+    }
+  } else {
+    console.error(result.message || 'Erro ao executar comando.');
+    if (result.error) console.error(result.error);
+  }
+};
+
+// Mostra a ajuda
+const showHelp = () => {
+  console.log(`
+FazAI - Orquestrador Inteligente de Automação
+
+Uso: fazai [opções] [comando]
+
+Opções:
+  --help, -h          Mostra esta ajuda
+  --version, -v       Mostra a versão
+  --status            Verifica o status do daemon
+  --interactive, -i   Inicia o modo interativo
+
+Exemplos:
+  fazai mostra os processos em execucao
+  fazai cria um usuario com nome teste com a senha teste321 no grupo printers
+  fazai instale os modulos mod_security do apache
+  `);
+};
+
+// Modo interativo
+const startInteractiveMode = () => {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: 'fazai> '
+  });
+  
+  console.log('FazAI - Modo Interativo (digite "sair" para encerrar)');
+  rl.prompt();
+  
+  rl.on('line', async (line) => {
+    const command = line.trim();
+    
+    if (command === 'sair' || command === 'exit' || command === 'quit') {
+      rl.close();
+      return;
+    }
+    
+    if (command) {
+      const result = await sendCommand(command);
+      
+      if (result.success) {
+        if (result.stdout) console.log(result.stdout);
+        if (result.stderr) console.error(result.stderr);
+        if (result.answer) console.log(result.answer);
+        if (!result.stdout && !result.stderr && !result.answer) {
+          console.log(result.message || 'Comando executado com sucesso.');
+        }
+      } else {
+        console.error(result.message || 'Erro ao executar comando.');
+        if (result.error) console.error(result.error);
+      }
+    }
+    
+    rl.prompt();
+  }).on('close', () => {
+    console.log('Encerrando modo interativo. Até logo!');
+    process.exit(0);
+  });
+};
+
+// Executa a função principal
+main().catch(error => {
+  console.error(`Erro fatal: ${error.message}`);
+  process.exit(1);
+});
