@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/*
+ * FazAI - Orquestrador Inteligente de Automação
+ * Autor: Roger Luft
+ * Licença: Creative Commons Attribution 4.0 International (CC BY 4.0)
+ * https://creativecommons.org/licenses/by/4.0/
+ */
+
 /**
  * FazAI - Orquestrador Inteligente de Automação
  * Daemon principal

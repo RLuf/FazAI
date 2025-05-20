@@ -1,5 +1,7 @@
 # FazAI - Orquestrador Inteligente de Automação
 
+> **Licença:** Este projeto está licenciado sob a [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+
 FazAI é um sistema de automação inteligente para servidores Linux, que permite executar comandos complexos usando linguagem natural e inteligência artificial.
 
 ## Visão Geral
@@ -208,7 +210,7 @@ Na versão inicial, o FazAI é executado como root e não implementa mecanismos 
 
 ## Licença
 
-Este projeto está licenciado sob a licença MIT - veja o arquivo LICENSE para detalhes.
+Este projeto está licenciado sob a [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
 
 ## Autor
 

@@ -20,7 +20,7 @@
     "cli"
   ],
   "author": "Roger Luft",
-  "license": "MIT",
+  "license": "CC-BY-4.0",
   "dependencies": {
     "axios": "^0.27.2",
     "express": "^4.18.1",
