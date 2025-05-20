@@ -1,0 +1,24 @@
+[Unit]
+Description=FazAI - Orquestrador Inteligente de Automação
+Documentation=https://github.com/fazai/docs
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/node /etc/fazai/main.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=fazai
+Environment=NODE_ENV=production
+
+# Configurações de segurança (para implementação futura)
+# NoNewPrivileges=true
+# ProtectSystem=full
+# ProtectHome=true
+# PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

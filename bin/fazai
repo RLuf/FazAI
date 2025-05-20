@@ -1,0 +1,259 @@
+#!/usr/bin/env node
+
+/**
+ * FazAI - Orquestrador Inteligente de Automação
+ * CLI (Command Line Interface)
+ * 
+ * Este arquivo implementa a interface de linha de comando do FazAI, responsável por:
+ * - Receber comandos do usuário
+ * - Enviar comandos para o daemon
+ * - Exibir resultados para o usuário
+ */
+
+const axios = require('axios');
+const readline = require('readline');
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+
+// Configuração do cliente
+const API_URL = process.env.FAZAI_API_URL || 'http://localhost:3000';
+const LOG_FILE = '/var/log/fazai.log';
+
+// Cores para saída no terminal
+const colors = {
+  reset: '\x1b[0m',
+  bright: '\x1b[1m',
+  dim: '\x1b[2m',
+  underscore: '\x1b[4m',
+  blink: '\x1b[5m',
+  reverse: '\x1b[7m',
+  hidden: '\x1b[8m',
+  
+  fg: {
+    black: '\x1b[30m',
+    red: '\x1b[31m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    blue: '\x1b[34m',
+    magenta: '\x1b[35m',
+    cyan: '\x1b[36m',
+    white: '\x1b[37m'
+  },
+  
+  bg: {
+    black: '\x1b[40m',
+    red: '\x1b[41m',
+    green: '\x1b[42m',
+    yellow: '\x1b[43m',
+    blue: '\x1b[44m',
+    magenta: '\x1b[45m',
+    cyan: '\x1b[46m',
+    white: '\x1b[47m'
+  }
+};
+
+/**
+ * Exibe mensagem de erro formatada
+ * @param {string} message - Mensagem de erro
+ */
+function printError(message) {
+  console.error(`${colors.fg.red}[ERRO] ${message}${colors.reset}`);
+}
+
+/**
+ * Exibe mensagem de sucesso formatada
+ * @param {string} message - Mensagem de sucesso
+ */
+function printSuccess(message) {
+  console.log(`${colors.fg.green}[SUCESSO] ${message}${colors.reset}`);
+}
+
+/**
+ * Exibe mensagem informativa formatada
+ * @param {string} message - Mensagem informativa
+ */
+function printInfo(message) {
+  console.log(`${colors.fg.cyan}[INFO] ${message}${colors.reset}`);
+}
+
+/**
+ * Envia comando para o daemon
+ * @param {string} command - Comando a ser enviado
+ * @returns {Promise<object>} - Resposta do daemon
+ */
+async function sendCommand(command) {
+  try {
+    const response = await axios.post(`${API_URL}/command`, { command });
+    return response.data;
+  } catch (err) {
+    if (err.response) {
+      throw new Error(`Erro do servidor: ${err.response.data.error || 'Desconhecido'}`);
+    } else if (err.request) {
+      throw new Error('Não foi possível conectar ao daemon. Verifique se o serviço está em execução.');
+    } else {
+      throw new Error(`Erro ao enviar comando: ${err.message}`);
+    }
+  }
+}
+
+/**
+ * Solicita recarga de plugins e módulos
+ * @returns {Promise<object>} - Resposta do daemon
+ */
+async function reloadModules() {
+  try {
+    const response = await axios.post(`${API_URL}/reload`);
+    return response.data;
+  } catch (err) {
+    if (err.response) {
+      throw new Error(`Erro do servidor: ${err.response.data.error || 'Desconhecido'}`);
+    } else if (err.request) {
+      throw new Error('Não foi possível conectar ao daemon. Verifique se o serviço está em execução.');
+    } else {
+      throw new Error(`Erro ao recarregar módulos: ${err.message}`);
+    }
+  }
+}
+
+/**
+ * Exibe as últimas linhas do arquivo de log
+ * @param {number} lines - Número de linhas a exibir
+ */
+function showLogs(lines = 10) {
+  try {
+    if (!fs.existsSync(LOG_FILE)) {
+      printError(`Arquivo de log não encontrado: ${LOG_FILE}`);
+      return;
+    }
+    
+    const logContent = fs.readFileSync(LOG_FILE, 'utf8');
+    const logLines = logContent.split('\n').filter(line => line.trim() !== '');
+    
+    const lastLines = logLines.slice(-lines);
+    
+    console.log(`\n${colors.bright}${colors.fg.yellow}=== Últimas ${lines} entradas de log ===${colors.reset}\n`);
+    
+    lastLines.forEach(line => {
+      try {
+        const logEntry = JSON.parse(line);
+        const timestamp = new Date(logEntry.timestamp).toLocaleString();
+        const level = logEntry.level.toUpperCase();
+        const message = logEntry.message;
+        
+        let levelColor = colors.fg.white;
+        switch (level) {
+          case 'ERROR':
+            levelColor = colors.fg.red;
+            break;
+          case 'WARN':
+            levelColor = colors.fg.yellow;
+            break;
+          case 'INFO':
+            levelColor = colors.fg.green;
+            break;
+          case 'DEBUG':
+            levelColor = colors.fg.cyan;
+            break;
+        }
+        
+        console.log(`${colors.dim}[${timestamp}]${colors.reset} ${levelColor}${level}${colors.reset}: ${message}`);
+      } catch (err) {
+        console.log(line);
+      }
+    });
+    
+    console.log(`\n${colors.bright}${colors.fg.yellow}=== Fim dos logs ===${colors.reset}\n`);
+  } catch (err) {
+    printError(`Erro ao ler logs: ${err.message}`);
+  }
+}
+
+/**
+ * Função principal
+ */
+async function main() {
+  // Obtém argumentos da linha de comando
+  const args = process.argv.slice(2);
+  
+  // Comandos especiais
+  if (args.length === 0) {
+    printError('Nenhum comando fornecido. Use "fazai ajuda" para ver os comandos disponíveis.');
+    process.exit(1);
+  }
+  
+  if (args[0] === 'ajuda' || args[0] === 'help') {
+    console.log(`
+${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação${colors.reset}
+
+${colors.bright}Uso:${colors.reset}
+  fazai <comando>
+
+${colors.bright}Comandos especiais:${colors.reset}
+  ajuda, help       Exibe esta mensagem de ajuda
+  logs [n]          Exibe as últimas n entradas de log (padrão: 10)
+  reload            Recarrega plugins e módulos
+  versao, version   Exibe a versão do FazAI
+
+${colors.bright}Exemplos:${colors.reset}
+  fazai mostra os processos em execucao
+  fazai cria um usuario com nome teste com a senha teste321 no grupo printers
+  fazai instale os modulos mod_security do apache
+    `);
+    process.exit(0);
+  }
+  
+  if (args[0] === 'logs') {
+    const lines = args[1] ? parseInt(args[1], 10) : 10;
+    showLogs(isNaN(lines) ? 10 : lines);
+    process.exit(0);
+  }
+  
+  if (args[0] === 'reload') {
+    try {
+      const result = await reloadModules();
+      printSuccess('Plugins e módulos recarregados com sucesso.');
+      process.exit(0);
+    } catch (err) {
+      printError(err.message);
+      process.exit(1);
+    }
+  }
+  
+  if (args[0] === 'versao' || args[0] === 'version') {
+    console.log(`FazAI v1.0.0`);
+    process.exit(0);
+  }
+  
+  // Comando normal para o FazAI
+  const command = args.join(' ');
+  
+  try {
+    printInfo(`Enviando comando: "${command}"`);
+    
+    const result = await sendCommand(command);
+    
+    if (result.success) {
+      printSuccess('Comando executado com sucesso.');
+      
+      if (result.interpretation) {
+        console.log(`\n${colors.bright}${colors.fg.yellow}Interpretação:${colors.reset} ${result.interpretation}\n`);
+      }
+      
+      if (result.result) {
+        console.log(`\n${colors.bright}${colors.fg.yellow}Resultado:${colors.reset}\n${result.result}\n`);
+      }
+    } else {
+      printError(`Falha ao executar comando: ${result.error || 'Erro desconhecido'}`);
+    }
+  } catch (err) {
+    printError(err.message);
+    process.exit(1);
+  }
+}
+
+// Executa a função principal
+main().catch(err => {
+  printError(`Erro não tratado: ${err.message}`);
+  process.exit(1);
+});

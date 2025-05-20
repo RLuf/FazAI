@@ -1,0 +1,44 @@
+{
+  "name": "fazai",
+  "version": "1.0.0",
+  "description": "FazAI - Orquestrador Inteligente de Automação",
+  "main": "etc/fazai/main.js",
+  "bin": {
+    "fazai": "bin/fazai"
+  },
+  "scripts": {
+    "start": "node etc/fazai/main.js",
+    "dev": "nodemon etc/fazai/main.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "chmod +x bin/fazai"
+  },
+  "keywords": [
+    "ai",
+    "automation",
+    "linux",
+    "server",
+    "cli"
+  ],
+  "author": "Roger Luft",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.27.2",
+    "express": "^4.18.1",
+    "ffi-napi": "^4.0.3",
+    "winston": "^3.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.19"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fazai/fazai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fazai/fazai/issues"
+  },
+  "homepage": "https://github.com/fazai/fazai#readme"
+}
