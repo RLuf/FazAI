@@ -1,6 +1,6 @@
 {
   "name": "fazai",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "FazAI - Orquestrador Inteligente de Automação",
   "main": "etc/fazai/main.js",
   "bin": {

@@ -71,6 +71,16 @@ if ! command -v node &> /dev/null; then
 else
     NODE_VERSION=$(node -v)
     print_success "Node.js já instalado: $NODE_VERSION"
+    
+    # Verifica a versão mínima do Node.js (>=14.0.0)
+    NODE_VERSION_NUM=$(echo $NODE_VERSION | cut -c 2-)
+    NODE_MAJOR=$(echo $NODE_VERSION_NUM | cut -d. -f1)
+    
+    if [ $NODE_MAJOR -lt 14 ]; then
+        print_error "FazAI requer Node.js versão 14.0.0 ou superior. Versão atual: $NODE_VERSION"
+        print_warning "Por favor, atualize o Node.js para continuar."
+        exit 1
+    fi
 fi
 
 # Verifica se o npm está instalado
@@ -128,8 +138,82 @@ print_success "Arquivos copiados."
 
 # Instala dependências do Node.js
 print_message "Instalando dependências do Node.js..."
-npm install
-print_success "Dependências instaladas."
+echo -e "${BLUE}[INFO]${NC} Executando npm install com verbose para melhor diagnóstico..."
+npm install --verbose
+
+# Verifica se a instalação foi bem-sucedida
+if [ $? -ne 0 ]; then
+    print_error "Falha ao instalar dependências do Node.js. Verifique os erros acima."
+    exit 1
+fi
+
+# Verifica se as dependências críticas foram instaladas corretamente
+print_message "Verificando dependências críticas..."
+
+# Verifica se o módulo axios está instalado
+if [ ! -d "node_modules/axios" ]; then
+    print_error "Módulo 'axios' não foi instalado corretamente."
+    print_warning "Tentando instalar axios explicitamente..."
+    npm install axios --verbose
+    
+    if [ ! -d "node_modules/axios" ]; then
+        print_error "Falha ao instalar o módulo 'axios'. Por favor, instale manualmente."
+        exit 1
+    fi
+fi
+
+# Verifica se o módulo express está instalado
+if [ ! -d "node_modules/express" ]; then
+    print_error "Módulo 'express' não foi instalado corretamente."
+    print_warning "Tentando instalar express explicitamente..."
+    npm install express --verbose
+    
+    if [ ! -d "node_modules/express" ]; then
+        print_error "Falha ao instalar o módulo 'express'. Por favor, instale manualmente."
+        exit 1
+    fi
+fi
+
+# Verifica se o módulo winston está instalado
+if [ ! -d "node_modules/winston" ]; then
+    print_error "Módulo 'winston' não foi instalado corretamente."
+    print_warning "Tentando instalar winston explicitamente..."
+    npm install winston --verbose
+    
+    if [ ! -d "node_modules/winston" ]; then
+        print_error "Falha ao instalar o módulo 'winston'. Por favor, instale manualmente."
+        exit 1
+    fi
+fi
+
+# Verifica se o módulo ffi-napi está instalado
+if [ ! -d "node_modules/ffi-napi" ]; then
+    print_error "Módulo 'ffi-napi' não foi instalado corretamente."
+    print_warning "Tentando instalar ffi-napi explicitamente..."
+    npm install ffi-napi --verbose
+    
+    if [ ! -d "node_modules/ffi-napi" ]; then
+        print_error "Falha ao instalar o módulo 'ffi-napi'. Por favor, instale manualmente."
+        exit 1
+    fi
+fi
+
+print_success "Todas as dependências críticas foram instaladas."
+
+# Instala dependências no diretório /etc/fazai
+print_message "Instalando dependências no diretório de instalação..."
+cp package.json /etc/fazai/
+cd /etc/fazai
+npm install --verbose
+
+if [ $? -ne 0 ]; then
+    print_error "Falha ao instalar dependências em /etc/fazai. Verifique os erros acima."
+    cd - > /dev/null
+    exit 1
+fi
+
+cd - > /dev/null
+print_success "Dependências instaladas em /etc/fazai."
 
 # Compila módulos nativos
 print_message "Compilando módulos nativos..."
@@ -165,6 +249,15 @@ else
     exit 1
 fi
 
+# Verifica se o CLI pode ser executado corretamente
+print_message "Verificando se o CLI pode ser executado..."
+if ! /bin/fazai --version &> /dev/null; then
+    print_error "O CLI não pode ser executado corretamente. Verifique as dependências."
+    print_warning "Tente executar 'fazai --version' manualmente para ver o erro."
+else
+    print_success "CLI verificado com sucesso."
+fi
+
 # Conclusão
 echo
 echo -e "${GREEN}=================================================${NC}"
@@ -179,6 +272,11 @@ echo -e "  ${BLUE}fazai mostra os processos em execucao${NC}"
 echo
 echo -e "Para verificar o status do serviço: ${BLUE}systemctl status fazai${NC}"
 echo -e "Para ver os logs: ${BLUE}fazai logs${NC} ou ${BLUE}journalctl -u fazai${NC}"
+echo
+echo -e "${YELLOW}[IMPORTANTE]${NC} Se encontrar erros relacionados a módulos Node.js faltantes:"
+echo -e "  1. Verifique se todas as dependências foram instaladas: ${BLUE}npm list${NC}"
+echo -e "  2. Instale manualmente qualquer dependência faltante: ${BLUE}npm install <nome-do-pacote> --save${NC}"
+echo -e "  3. Copie o package.json atualizado para /etc/fazai/ e execute ${BLUE}cd /etc/fazai && npm install${NC}"
 echo
 
 exit 0

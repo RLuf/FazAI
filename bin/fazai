@@ -17,11 +17,31 @@
  * - Exibir resultados para o usuário
  */
 
-const axios = require('axios');
-const readline = require('readline');
-const fs = require('fs');
-const path = require('path');
-const { spawn } = require('child_process');
+// Verificação de dependências
+let axios;
+try {
+  axios = require('axios');
+} catch (err) {
+  console.error('\x1b[31m[ERRO] Módulo axios não encontrado. Por favor, instale-o com:\x1b[0m');
+  console.error('\x1b[33m  npm install -g axios\x1b[0m');
+  console.error('\x1b[33m  ou\x1b[0m');
+  console.error('\x1b[33m  cd /etc/fazai && npm install axios\x1b[0m');
+  process.exit(1);
+}
+
+// Verificação de outras dependências críticas
+let fs, path, readline, spawn;
+try {
+  fs = require('fs');
+  path = require('path');
+  readline = require('readline');
+  const childProcess = require('child_process');
+  spawn = childProcess.spawn;
+} catch (err) {
+  console.error('\x1b[31m[ERRO] Módulo Node.js básico não encontrado: ' + err.message + '\x1b[0m');
+  console.error('\x1b[33m  Verifique sua instalação do Node.js\x1b[0m');
+  process.exit(1);
+}
 
 // Configuração do cliente
 const API_URL = process.env.FAZAI_API_URL || 'http://localhost:3000';
@@ -82,6 +102,14 @@ function printSuccess(message) {
  */
 function printInfo(message) {
   console.log(`${colors.fg.cyan}[INFO] ${message}${colors.reset}`);
+}
+
+/**
+ * Exibe mensagem de aviso formatada
+ * @param {string} message - Mensagem de aviso
+ */
+function printWarning(message) {
+  console.log(`${colors.fg.yellow}[AVISO] ${message}${colors.reset}`);
 }
 
 /**
@@ -197,10 +225,11 @@ ${colors.bright}Uso:${colors.reset}
   fazai <comando>
 
 ${colors.bright}Comandos especiais:${colors.reset}
-  ajuda, help       Exibe esta mensagem de ajuda
-  logs [n]          Exibe as últimas n entradas de log (padrão: 10)
-  reload            Recarrega plugins e módulos
-  versao, version   Exibe a versão do FazAI
+  ajuda, help                 Exibe esta mensagem de ajuda
+  logs [n]                    Exibe as últimas n entradas de log (padrão: 10)
+  reload                      Recarrega plugins e módulos
+  versao, version             Exibe a versão do FazAI
+  check-deps, verificar-deps  Verifica dependências e instalação do sistema
 
 ${colors.bright}Exemplos:${colors.reset}
   fazai mostra os processos em execucao
@@ -228,7 +257,109 @@ ${colors.bright}Exemplos:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version') {
-    console.log(`FazAI v1.0.0`);
+    console.log(`FazAI v1.0.1`);
+    process.exit(0);
+  }
+  
+  if (args[0] === 'check-deps' || args[0] === 'verificar-deps') {
+    printInfo("Verificando dependências do FazAI...");
+    
+    // Verifica dependências do Node.js
+    try {
+      const nodeVersion = process.version;
+      printSuccess(`Node.js: ${nodeVersion}`);
+      
+      // Verifica versão mínima
+      const versionNum = nodeVersion.substring(1); // Remove o 'v'
+      const major = parseInt(versionNum.split('.')[0], 10);
+      
+      if (major < 14) {
+        printError(`Versão do Node.js (${nodeVersion}) é menor que a mínima requerida (v14.0.0)`);
+      } else {
+        printSuccess("Versão do Node.js é compatível");
+      }
+    } catch (err) {
+      printError(`Erro ao verificar versão do Node.js: ${err.message}`);
+    }
+    
+    // Verifica dependências npm
+    const dependencies = [
+      { name: 'axios', version: '0.27.2' },
+      { name: 'express', version: '4.18.1' },
+      { name: 'winston', version: '3.8.1' },
+      { name: 'ffi-napi', version: '4.0.3' }
+    ];
+    
+    dependencies.forEach(dep => {
+      try {
+        const depPackage = require(`${dep.name}/package.json`);
+        printSuccess(`${dep.name}: ${depPackage.version} (requerido: ${dep.version})`);
+      } catch (err) {
+        printError(`${dep.name}: Não encontrado ou não pode ser carregado`);
+      }
+    });
+    
+    // Verifica diretórios e arquivos
+    const paths = [
+      { path: '/etc/fazai', type: 'dir', desc: 'Diretório de instalação' },
+      { path: '/etc/fazai/main.js', type: 'file', desc: 'Arquivo principal' },
+      { path: '/etc/fazai/tools', type: 'dir', desc: 'Diretório de ferramentas' },
+      { path: '/etc/fazai/mods', type: 'dir', desc: 'Diretório de módulos' },
+      { path: '/var/log/fazai.log', type: 'file', desc: 'Arquivo de log', optional: true }
+    ];
+    
+    paths.forEach(item => {
+      try {
+        const exists = fs.existsSync(item.path);
+        if (exists) {
+          const stats = fs.statSync(item.path);
+          if ((item.type === 'dir' && stats.isDirectory()) || 
+              (item.type === 'file' && stats.isFile())) {
+            printSuccess(`${item.desc} (${item.path}): OK`);
+          } else {
+            printError(`${item.desc} (${item.path}): Tipo incorreto`);
+          }
+        } else if (item.optional) {
+          printInfo(`${item.desc} (${item.path}): Não encontrado (opcional)`);
+        } else {
+          printError(`${item.desc} (${item.path}): Não encontrado`);
+        }
+      } catch (err) {
+        printError(`Erro ao verificar ${item.path}: ${err.message}`);
+      }
+    });
+    
+    // Verifica serviço systemd
+    try {
+      const systemctl = spawn('systemctl', ['status', 'fazai']);
+      let output = '';
+      
+      systemctl.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+      
+      systemctl.stderr.on('data', (data) => {
+        output += data.toString();
+      });
+      
+      systemctl.on('close', (code) => {
+        if (code === 0) {
+          if (output.includes('Active: active (running)')) {
+            printSuccess('Serviço systemd: Ativo e em execução');
+          } else if (output.includes('Active: inactive')) {
+            printError('Serviço systemd: Inativo');
+          } else {
+            printWarning('Serviço systemd: Status desconhecido');
+            console.log(output);
+          }
+        } else {
+          printError(`Serviço systemd: Não encontrado ou erro ao verificar (código ${code})`);
+        }
+      });
+    } catch (err) {
+      printError(`Erro ao verificar serviço systemd: ${err.message}`);
+    }
+    
     process.exit(0);
   }
   
