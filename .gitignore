@@ -64,5 +64,5 @@ config.dev.js
 
 #arquivos locais particulas
 
-baseDeConhecimento
-pesquisa
+baseDeConhecimento/
+pesquisa/
