@@ -10,11 +10,10 @@ yarn.lock
 
 # Logs
 logs
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-/var/log/
+
 
 # Arquivos compilados
 *.so
@@ -61,3 +60,8 @@ config.dev.js
 *.bak
 *.backup
 *~
+
+#arquivos locais particulas
+
+#baseDeConhecimento/
+#pesquisa/
