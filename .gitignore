@@ -61,3 +61,8 @@ config.dev.js
 *.bak
 *.backup
 *~
+
+#arquivos locais particulas
+
+baseDeConhecimento
+pesquisa
