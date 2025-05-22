@@ -47,12 +47,17 @@ cd ../../..
 
 ```bash
 # Criar diretórios necessários
-sudo mkdir -p /etc/fazai/tools /etc/fazai/mods /var/log
+sudo mkdir -p /opt/fazai/{bin,lib,tools,mods,conf} /etc/fazai /var/log/fazai /var/lib/fazai/{history,cache,training}
 
 # Copiar arquivos
-sudo cp -r etc/fazai/* /etc/fazai/
-sudo cp bin/fazai /bin/
-sudo chmod +x /bin/fazai
+sudo cp -r etc/fazai/tools/* /opt/fazai/tools/
+sudo cp -r etc/fazai/mods/* /opt/fazai/mods/
+sudo cp etc/fazai/main.js /opt/fazai/lib/
+sudo cp etc/fazai/fazai.conf.example /opt/fazai/conf/fazai.conf.default
+sudo cp etc/fazai/fazai.conf.example /etc/fazai/fazai.conf
+sudo cp bin/fazai /opt/fazai/bin/
+sudo chmod +x /opt/fazai/bin/fazai
+sudo ln -sf /opt/fazai/bin/fazai /usr/local/bin/fazai
 
 # Configurar serviço systemd
 sudo cp etc/fazai/fazai.service /etc/systemd/system/
@@ -86,6 +91,37 @@ sudo ./reinstall.sh
 
 Este script permite escolher entre reinstalar a versão atual, uma branch específica ou um commit específico, com opções para preservar suas configurações.
 
+### 8. Instalação Portable (Standalone)
+
+Para sistemas com restrições de rede ou onde a instalação normal falha, use a versão portable:
+
+```bash
+# Baixar pacote portable
+wget https://github.com/RLuf/FazAI/releases/latest/download/fazai-portable.tar.gz
+
+# Extrair
+tar -xzf fazai-portable.tar.gz
+cd fazai-portable-*
+
+# Instalar
+sudo ./install-portable.sh
+```
+
+Esta versão inclui todas as dependências pré-instaladas e módulos nativos pré-compilados, oferecendo:
+
+- **Confiabilidade**: Menos pontos de falha durante a instalação
+- **Compatibilidade**: Evita problemas de versões de dependências
+- **Offline**: Funciona em ambientes sem acesso à internet
+- **Velocidade**: Instalação mais rápida sem downloads de dependências
+- **Consistência**: Garante que todos os usuários tenham o mesmo ambiente
+
+Para verificar a autenticidade do pacote portable, use:
+
+```bash
+# Verificar checksum
+sha256sum -c fazai-portable-v*.tar.gz.sha256
+```
+
 ## Uso
 
 ### Comandos Básicos
@@ -115,7 +151,7 @@ fazai altere a porta do ssh de 22 para 31052
 ```bash
 # Exibir logs
 fazai logs [número de linhas]
-
+  
 # Recarregar plugins e módulos
 fazai reload
 
@@ -126,18 +162,26 @@ fazai versao
 ## Estrutura de Diretórios
 
 ```
-/etc/fazai/
-    main.js           # Daemon principal
-    fazai.conf        # Arquivo de configuração principal
-    fazai.conf.example # Exemplo de configuração
-    /tools/           # Plugins e scripts auxiliares
+/opt/fazai/           # Código e binários da aplicação
+    /bin/             # Executáveis
+    /lib/             # Bibliotecas principais (main.js)
+    /tools/           # Ferramentas e plugins
     /mods/            # Módulos nativos (.so)
-    fazai.service     # Arquivo de serviço systemd
-/bin/fazai            # CLI (interface de linha de comando)
-/var/log/fazai.log    # Arquivo de log
-/var/lib/fazai/       # Diretório para dados persistentes
+    /conf/            # Arquivos de configuração padrão
+        fazai.conf.default
+
+/etc/fazai/           # Configurações do sistema
+    fazai.conf        # Arquivo de configuração principal
+
+/var/log/fazai/       # Logs da aplicação
+    fazai.log         # Arquivo de log principal
+
+/var/lib/fazai/       # Dados persistentes
     /history/         # Histórico de conversas
     /cache/           # Cache de respostas
+    /training/        # Dados para treinamento futuro
+
+/usr/local/bin/fazai  # Link simbólico para o CLI
 ```
 
 ## Configuração Avançada

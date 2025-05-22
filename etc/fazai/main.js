@@ -29,14 +29,14 @@ const winston = require('winston');
 
 // Configuração do logger
 const logger = winston.createLogger({
-  level: 'info',
+  level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.json()
   ),
   defaultMeta: { service: 'fazai-daemon' },
   transports: [
-    new winston.transports.File({ filename: '/var/log/fazai.log' }),
+    new winston.transports.File({ filename: '/var/log/fazai/fazai.log' }),
     new winston.transports.Console()
   ]
 });
@@ -49,8 +49,8 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 // Diretório de plugins e módulos
-const TOOLS_DIR = '/etc/fazai/tools';
-const MODS_DIR = '/etc/fazai/mods';
+const TOOLS_DIR = '/opt/fazai/tools';
+const MODS_DIR = '/opt/fazai/mods';
 
 // Cache para plugins e módulos carregados
 const loadedTools = {};
@@ -129,6 +129,34 @@ function loadNativeModules() {
   }
 }
 
+// Carrega configuração
+let config = {};
+try {
+  const configPath = '/etc/fazai/fazai.conf';
+  if (fs.existsSync(configPath)) {
+    const configContent = fs.readFileSync(configPath, 'utf8');
+    // Implementação simples de parser de configuração no estilo INI
+    let currentSection = '';
+    configContent.split('\n').forEach(line => {
+      line = line.trim();
+      if (line.startsWith('#') || line === '') return;
+      
+      if (line.startsWith('[') && line.endsWith(']')) {
+        currentSection = line.slice(1, -1);
+        config[currentSection] = {};
+      } else if (currentSection && line.includes('=')) {
+        const [key, value] = line.split('=').map(part => part.trim());
+        config[currentSection][key] = value;
+      }
+    });
+    logger.info('Configuração carregada com sucesso');
+  } else {
+    logger.warn('Arquivo de configuração não encontrado, usando valores padrão');
+  }
+} catch (err) {
+  logger.error('Erro ao carregar configuração:', err);
+}
+
 /**
  * Consulta modelo de IA para interpretar comando
  * @param {string} command - Comando a ser interpretado
@@ -138,40 +166,154 @@ async function queryAI(command) {
   logger.info(`Consultando IA para interpretar: "${command}"`);
   
   try {
-    // Aqui seria a integração com a API da OpenAI ou outro modelo
-    // Este é um exemplo simplificado
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: 'Você é o FazAI, um assistente para automação de servidores Linux. Interprete o comando e forneça instruções para execução.'
-        },
-        {
-          role: 'user',
-          content: command
-        }
-      ]
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    // Determina qual provedor de IA usar
+    const provider = config.ai_provider?.provider || 'openai';
     
-    return {
-      interpretation: response.data.choices[0].message.content,
-      success: true
-    };
+    if (provider === 'openrouter') {
+      return await queryOpenRouter(command);
+    } else if (provider === 'requesty') {
+      return await queryRequesty(command);
+    } else {
+      return await queryOpenAI(command);
+    }
   } catch (err) {
     logger.error('Erro ao consultar IA:', err);
     
-    // Fallback para modelo secundário ou interpretação local
+    // Tenta fallback se habilitado
+    if (config.ai_provider?.enable_fallback === 'true') {
+      logger.info('Tentando fallback para outro provedor');
+      try {
+        return await queryOpenAI(command);
+      } catch (fallbackErr) {
+        logger.error('Erro no fallback:', fallbackErr);
+      }
+    }
+    
+    // Fallback final para interpretação local
     return {
       interpretation: 'Não foi possível interpretar o comando via IA. Executando fallback.',
       success: false
     };
   }
+}
+
+/**
+ * Consulta OpenAI para interpretar comando
+ * @param {string} command - Comando a ser interpretado
+ * @returns {Promise<object>} - Interpretação do comando
+ */
+async function queryOpenAI(command) {
+  const apiKey = config.openai?.api_key || process.env.OPENAI_API_KEY;
+  const model = config.openai?.default_model || 'gpt-4-turbo';
+  const endpoint = config.openai?.endpoint || 'https://api.openai.com/v1';
+  
+  if (!apiKey) {
+    throw new Error('Chave de API da OpenAI não configurada');
+  }
+  
+  const response = await axios.post(`${endpoint}/chat/completions`, {
+    model: model,
+    messages: [
+      {
+        role: 'system',
+        content: 'Você é o FazAI, um assistente para automação de servidores Linux. Interprete o comando e forneça instruções para execução.'
+      },
+      {
+        role: 'user',
+        content: command
+      }
+    ]
+  }, {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  return {
+    interpretation: response.data.choices[0].message.content,
+    success: true
+  };
+}
+
+/**
+ * Consulta OpenRouter para interpretar comando
+ * @param {string} command - Comando a ser interpretado
+ * @returns {Promise<object>} - Interpretação do comando
+ */
+async function queryOpenRouter(command) {
+  const apiKey = config.openrouter?.api_key;
+  const model = config.openrouter?.default_model || 'openai/gpt-4-turbo';
+  const endpoint = config.openrouter?.endpoint || 'https://openrouter.ai/api/v1';
+  
+  if (!apiKey) {
+    throw new Error('Chave de API do OpenRouter não configurada');
+  }
+  
+  const response = await axios.post(`${endpoint}/chat/completions`, {
+    model: model,
+    messages: [
+      {
+        role: 'system',
+        content: 'Você é o FazAI, um assistente para automação de servidores Linux. Interprete o comando e forneça instruções para execução.'
+      },
+      {
+        role: 'user',
+        content: command
+      }
+    ]
+  }, {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://github.com/RLuf/FazAI',
+      'X-Title': 'FazAI',
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  return {
+    interpretation: response.data.choices[0].message.content,
+    success: true
+  };
+}
+
+/**
+ * Consulta Requesty para interpretar comando
+ * @param {string} command - Comando a ser interpretado
+ * @returns {Promise<object>} - Interpretação do comando
+ */
+async function queryRequesty(command) {
+  const apiKey = config.requesty?.api_key;
+  const model = config.requesty?.default_model || 'gpt-4-turbo';
+  const endpoint = config.requesty?.endpoint || 'https://api.requesty.ai/v1';
+  
+  if (!apiKey) {
+    throw new Error('Chave de API do Requesty não configurada');
+  }
+  
+  const response = await axios.post(`${endpoint}/chat/completions`, {
+    model: model,
+    messages: [
+      {
+        role: 'system',
+        content: 'Você é o FazAI, um assistente para automação de servidores Linux. Interprete o comando e forneça instruções para execução.'
+      },
+      {
+        role: 'user',
+        content: command
+      }
+    ]
+  }, {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  return {
+    interpretation: response.data.choices[0].message.content,
+    success: true
+  };
 }
 
 /**

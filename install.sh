@@ -117,22 +117,53 @@ fi
 
 # Cria diretórios
 print_message "Criando diretórios..."
-mkdir -p /etc/fazai/tools /etc/fazai/mods /var/log
+mkdir -p /opt/fazai/{bin,lib,tools,mods,conf} /etc/fazai /var/log/fazai /var/lib/fazai/{history,cache,training}
 print_success "Diretórios criados."
 
 # Copia arquivos
 print_message "Copiando arquivos..."
 
-# Copia arquivos do daemon
-cp -r etc/fazai/* /etc/fazai/
-chmod 755 /etc/fazai/main.js
+# Copia arquivos do daemon para /opt/fazai
+cp -r etc/fazai/tools/* /opt/fazai/tools/
+cp -r etc/fazai/mods/* /opt/fazai/mods/
+cp etc/fazai/main.js /opt/fazai/lib/
+chmod 755 /opt/fazai/lib/main.js
+
+# Copia arquivo de configuração padrão
+cp etc/fazai/fazai.conf.example /opt/fazai/conf/fazai.conf.default
+if [ ! -f "/etc/fazai/fazai.conf" ]; then
+    cp etc/fazai/fazai.conf.example /etc/fazai/fazai.conf
+    print_success "Arquivo de configuração padrão criado em /etc/fazai/fazai.conf"
+else
+    print_message "Arquivo de configuração existente mantido em /etc/fazai/fazai.conf"
+fi
+
+# Verifica se existe arquivo .env em /root
+if [ -f "/root/.env" ]; then
+    print_message "Arquivo .env encontrado em /root. Deseja importar configurações? (s/n)"
+    read -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Ss]$ ]]; then
+        print_message "Importando configurações de /root/.env..."
+        # Extrai chave da OpenAI
+        OPENAI_KEY=$(grep "OPENAI_API_KEY" /root/.env | cut -d'=' -f2)
+        if [ ! -z "$OPENAI_KEY" ]; then
+            # Atualiza a configuração
+            sed -i "s/api_key = sua_chave_openai_aqui/api_key = $OPENAI_KEY/" /etc/fazai/fazai.conf
+            print_success "Chave da OpenAI importada com sucesso."
+        fi
+    fi
+fi
 
 # Copia CLI
-cp bin/fazai /bin/
-chmod 755 /bin/fazai
+cp bin/fazai /opt/fazai/bin/
+chmod 755 /opt/fazai/bin/fazai
+ln -sf /opt/fazai/bin/fazai /usr/local/bin/fazai
+print_message "CLI instalado em /usr/local/bin/fazai"
 
-# Copia serviço systemd
-cp etc/fazai/fazai.service /etc/systemd/system/
+# Atualiza o serviço systemd para apontar para o novo local
+sed "s|ExecStart=/usr/bin/node /etc/fazai/main.js|ExecStart=/usr/bin/node /opt/fazai/lib/main.js|" etc/fazai/fazai.service > /etc/systemd/system/fazai.service
+chmod 644 /etc/systemd/system/fazai.service
 
 print_success "Arquivos copiados."
 
@@ -200,24 +231,38 @@ fi
 
 print_success "Todas as dependências críticas foram instaladas."
 
-# Instala dependências no diretório /etc/fazai
+# Instala dependências no diretório /opt/fazai
 print_message "Instalando dependências no diretório de instalação..."
-cp package.json /etc/fazai/
-cd /etc/fazai
+cp package.json /opt/fazai/
+cd /opt/fazai
 npm install --verbose
 
 if [ $? -ne 0 ]; then
-    print_error "Falha ao instalar dependências em /etc/fazai. Verifique os erros acima."
+    print_error "Falha ao instalar dependências em /opt/fazai. Verifique os erros acima."
+    print_warning "Deseja tentar a instalação portable com dependências pré-empacotadas? (s/n)"
+    read -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Ss]$ ]]; then
+        if [ -f "./install-portable.sh" ]; then
+            print_message "Iniciando instalação portable..."
+            bash ./install-portable.sh
+            exit $?
+        else
+            print_error "Instalação portable não disponível. Baixe o pacote portable em:"
+            print_message "https://github.com/RLuf/FazAI/releases/latest/download/fazai-portable.tar.gz"
+            print_message "E execute: tar -xzf fazai-portable.tar.gz && cd fazai-portable && sudo ./install-portable.sh"
+        fi
+    fi
     cd - > /dev/null
     exit 1
 fi
 
 cd - > /dev/null
-print_success "Dependências instaladas em /etc/fazai."
+print_success "Dependências instaladas em /opt/fazai."
 
 # Compila módulos nativos
 print_message "Compilando módulos nativos..."
-cd /etc/fazai/mods
+cd /opt/fazai/mods
 gcc -shared -fPIC -o system_mod.so system_mod.c
 if [ $? -ne 0 ]; then
     print_error "Falha ao compilar módulos nativos."

@@ -90,12 +90,12 @@ fi
 # Remove arquivos do sistema
 print_message "Removendo arquivos do sistema..."
 
-# Remove o executável CLI
-if [ -f /bin/fazai ]; then
-    rm -f /bin/fazai
-    print_success "CLI removido."
+# Remove o executável CLI e link simbólico
+if [ -f /usr/local/bin/fazai ]; then
+    rm -f /usr/local/bin/fazai
+    print_success "Link simbólico do CLI removido."
 else
-    print_warning "CLI não encontrado."
+    print_warning "Link simbólico do CLI não encontrado."
 fi
 
 # Remove o serviço systemd
@@ -106,55 +106,53 @@ else
     print_warning "Arquivo de serviço não encontrado."
 fi
 
-# Remove diretórios
+# Preserva ou remove configurações
 if [ "$PRESERVE_CONFIG" = true ]; then
-    # Remove tudo exceto configurações
-    print_message "Removendo arquivos, preservando configurações..."
+    # Faz backup das configurações
+    print_message "Fazendo backup das configurações..."
+    BACKUP_DIR="/tmp/fazai_config_backup_$(date +%Y%m%d%H%M%S)"
+    mkdir -p "$BACKUP_DIR"
     
-    # Lista de arquivos a preservar
-    PRESERVE_FILES=("fazai.conf")
+    # Copia arquivos de configuração
+    if [ -f /etc/fazai/fazai.conf ]; then
+        cp /etc/fazai/fazai.conf "$BACKUP_DIR/"
+        print_success "Configuração principal salva em $BACKUP_DIR/fazai.conf"
+    fi
     
-    # Cria diretório temporário para configurações
-    TMP_CONFIG_DIR="/tmp/fazai_tmp_config"
-    mkdir -p "$TMP_CONFIG_DIR"
+    # Remove diretório de código
+    print_message "Removendo diretório de código..."
+    rm -rf /opt/fazai
+    print_success "Diretório /opt/fazai removido."
     
-    # Move arquivos de configuração para o diretório temporário
-    for file in "${PRESERVE_FILES[@]}"; do
-        if [ -f "/etc/fazai/$file" ]; then
-            cp "/etc/fazai/$file" "$TMP_CONFIG_DIR/"
-        fi
-    done
-    
-    # Remove diretório e recria
-    rm -rf /etc/fazai
-    mkdir -p /etc/fazai
-    
-    # Restaura arquivos de configuração
-    for file in "${PRESERVE_FILES[@]}"; do
-        if [ -f "$TMP_CONFIG_DIR/$file" ]; then
-            cp "$TMP_CONFIG_DIR/$file" "/etc/fazai/"
-        fi
-    done
-    
-    # Remove diretório temporário
-    rm -rf "$TMP_CONFIG_DIR"
-    
-    print_success "Arquivos removidos, configurações preservadas."
+    print_message "Configurações preservadas em /etc/fazai/"
 else
     # Remove tudo
     print_message "Removendo todos os arquivos e diretórios..."
+    rm -rf /opt/fazai
     rm -rf /etc/fazai
-    print_success "Diretório /etc/fazai removido."
-    
-    # Opcionalmente, remove diretórios de dados
-    read -p "Deseja remover também os dados e logs? (s/n): " -n 1 -r
+    print_success "Diretórios /opt/fazai e /etc/fazai removidos."
+fi
+
+# Opcionalmente, remove diretórios de dados
+read -p "Deseja remover também os dados e logs? (s/n): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Ss]$ ]]; then
+    rm -rf /var/lib/fazai
+    rm -rf /var/log/fazai
+    print_success "Dados e logs removidos."
+else
+    print_message "Dados e logs preservados."
+fi
+
+# Opcionalmente, preserva dados de treinamento
+if [ -d "/var/lib/fazai/training" ] && [[ ! $REPLY =~ ^[Ss]$ ]]; then
+    read -p "Deseja preservar os dados de treinamento? (s/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Ss]$ ]]; then
-        rm -rf /var/lib/fazai
-        rm -f /var/log/fazai.log
-        print_success "Dados e logs removidos."
-    else
-        print_message "Dados e logs preservados."
+        TRAINING_BACKUP="/tmp/fazai_training_backup_$(date +%Y%m%d%H%M%S)"
+        mkdir -p "$TRAINING_BACKUP"
+        cp -r /var/lib/fazai/training/* "$TRAINING_BACKUP/"
+        print_success "Dados de treinamento preservados em $TRAINING_BACKUP"
     fi
 fi
 

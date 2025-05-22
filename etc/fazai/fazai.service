@@ -6,13 +6,14 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/bin/node /etc/fazai/main.js
+ExecStart=/usr/bin/node /opt/fazai/lib/main.js
 Restart=on-failure
 RestartSec=10
 StandardOutput=syslog
 StandardError=syslog
 SyslogIdentifier=fazai
 Environment=NODE_ENV=production
+WorkingDirectory=/opt/fazai
 
 # Configurações de segurança (para implementação futura)
 # NoNewPrivileges=true

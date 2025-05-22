@@ -40,7 +40,7 @@ echo -e "${BLUE}=================================================${NC}"
 echo
 
 # Verifica se o FazAI está instalado
-if [ ! -d "/etc/fazai" ] && [ ! -f "/bin/fazai" ]; then
+if [ ! -d "/opt/fazai" ] && [ ! -d "/etc/fazai" ] && [ ! -f "/usr/local/bin/fazai" ]; then
     print_warning "FazAI não parece estar instalado. Este script é para reinstalação."
     read -p "Deseja continuar com uma instalação limpa? (s/n): " -n 1 -r
     echo
@@ -53,25 +53,29 @@ fi
 # Backup de configurações
 print_message "Fazendo backup das configurações existentes..."
 BACKUP_DIR="/tmp/fazai_backup_$(date +%Y%m%d%H%M%S)"
-mkdir -p "$BACKUP_DIR"
+mkdir -p "$BACKUP_DIR/conf" "$BACKUP_DIR/tools" "$BACKUP_DIR/mods" "$BACKUP_DIR/data"
 
 # Copia arquivos de configuração se existirem
 if [ -f "/etc/fazai/fazai.conf" ]; then
-    cp /etc/fazai/fazai.conf "$BACKUP_DIR/"
+    cp /etc/fazai/fazai.conf "$BACKUP_DIR/conf/"
     print_success "Configuração principal salva."
 fi
 
 # Backup de outros arquivos importantes
-if [ -d "/etc/fazai/tools" ]; then
-    mkdir -p "$BACKUP_DIR/tools"
-    cp -r /etc/fazai/tools/* "$BACKUP_DIR/tools/"
+if [ -d "/opt/fazai/tools" ]; then
+    cp -r /opt/fazai/tools/* "$BACKUP_DIR/tools/"
     print_success "Plugins personalizados salvos."
 fi
 
-if [ -d "/etc/fazai/mods" ]; then
-    mkdir -p "$BACKUP_DIR/mods"
-    cp -r /etc/fazai/mods/* "$BACKUP_DIR/mods/"
+if [ -d "/opt/fazai/mods" ]; then
+    cp -r /opt/fazai/mods/* "$BACKUP_DIR/mods/"
     print_success "Módulos personalizados salvos."
+fi
+
+# Backup de dados de treinamento
+if [ -d "/var/lib/fazai/training" ]; then
+    cp -r /var/lib/fazai/training/* "$BACKUP_DIR/data/"
+    print_success "Dados de treinamento salvos."
 fi
 
 print_success "Backup concluído em $BACKUP_DIR"
@@ -208,23 +212,29 @@ if [ $INSTALL_RESULT -ne 0 ]; then
     if [[ $REPLY =~ ^[Ss]$ ]]; then
         print_message "Restaurando configurações..."
         
-        # Restaura arquivos de configuração
-        if [ -f "$BACKUP_DIR/fazai.conf" ]; then
-            cp "$BACKUP_DIR/fazai.conf" /etc/fazai/
-            print_success "Configuração principal restaurada."
-        fi
-        
-        # Restaura plugins personalizados
-        if [ -d "$BACKUP_DIR/tools" ] && [ -d "/etc/fazai/tools" ]; then
-            cp -r "$BACKUP_DIR/tools/"* /etc/fazai/tools/
-            print_success "Plugins personalizados restaurados."
-        fi
-        
-        # Restaura módulos personalizados
-        if [ -d "$BACKUP_DIR/mods" ] && [ -d "/etc/fazai/mods" ]; then
-            cp -r "$BACKUP_DIR/mods/"* /etc/fazai/mods/
-            print_success "Módulos personalizados restaurados."
-        fi
+# Restaura arquivos de configuração
+if [ -f "$BACKUP_DIR/conf/fazai.conf" ]; then
+    cp "$BACKUP_DIR/conf/fazai.conf" /etc/fazai/
+    print_success "Configuração principal restaurada."
+fi
+
+# Restaura plugins personalizados
+if [ -d "$BACKUP_DIR/tools" ] && [ -d "/opt/fazai/tools" ]; then
+    cp -r "$BACKUP_DIR/tools/"* /opt/fazai/tools/
+    print_success "Plugins personalizados restaurados."
+fi
+
+# Restaura módulos personalizados
+if [ -d "$BACKUP_DIR/mods" ] && [ -d "/opt/fazai/mods" ]; then
+    cp -r "$BACKUP_DIR/mods/"* /opt/fazai/mods/
+    print_success "Módulos personalizados restaurados."
+fi
+
+# Restaura dados de treinamento
+if [ -d "$BACKUP_DIR/data" ] && [ -d "/var/lib/fazai/training" ]; then
+    cp -r "$BACKUP_DIR/data/"* /var/lib/fazai/training/
+    print_success "Dados de treinamento restaurados."
+fi
         
         print_success "Backup restaurado."
     fi
@@ -259,18 +269,18 @@ if [[ $REPLY =~ ^[Ss]$ ]]; then
         print_success "Módulos personalizados restaurados."
     fi
     
-    # Recompila módulos nativos se necessário
-    if [ -d "/etc/fazai/mods" ]; then
-        print_message "Recompilando módulos nativos..."
-        cd /etc/fazai/mods
-        gcc -shared -fPIC -o system_mod.so system_mod.c
-        if [ $? -eq 0 ]; then
-            print_success "Módulos nativos recompilados."
-        else
-            print_error "Falha ao recompilar módulos nativos."
-        fi
-        cd - > /dev/null
+# Recompila módulos nativos se necessário
+if [ -d "/opt/fazai/mods" ]; then
+    print_message "Recompilando módulos nativos..."
+    cd /opt/fazai/mods
+    gcc -shared -fPIC -o system_mod.so system_mod.c
+    if [ $? -eq 0 ]; then
+        print_success "Módulos nativos recompilados."
+    else
+        print_error "Falha ao recompilar módulos nativos."
     fi
+    cd - > /dev/null
+fi
     
     # Reinicia o serviço
     print_message "Reiniciando o serviço..."
