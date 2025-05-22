@@ -25,8 +25,8 @@ O sistema é altamente extensível através de plugins e módulos nativos, permi
 ### 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/Rluf/fazai/fazai.git
-cd fazai
+git clone https://github.com/RLuf/FazAI.git
+cd FazAI
 ```
 
 ### 2. Instalar dependências

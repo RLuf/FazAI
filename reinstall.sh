@@ -132,7 +132,7 @@ case $REPLY in
         
         # Clona o repositório
         print_message "Clonando repositório..."
-        git clone -b "$BRANCH_NAME" https://github.com/Rluf/fazai.git
+        git clone -b "$BRANCH_NAME" https://github.com/RLuf/FazAI.git
         
         if [ $? -ne 0 ]; then
             print_error "Falha ao clonar o repositório ou branch não encontrada."
@@ -141,7 +141,7 @@ case $REPLY in
         fi
         
         # Executa o script de instalação
-        cd fazai
+        cd FazAI
         bash ./install.sh
         INSTALL_RESULT=$?
         
@@ -166,7 +166,7 @@ case $REPLY in
         
         # Clona o repositório
         print_message "Clonando repositório..."
-        git clone https://github.com/Rluf/fazai.git
+        git clone https://github.com/RLuf/FazAI.git
         
         if [ $? -ne 0 ]; then
             print_error "Falha ao clonar o repositório."
@@ -175,7 +175,7 @@ case $REPLY in
         fi
         
         # Checkout para o commit específico
-        cd fazai
+        cd FazAI
         git checkout "$COMMIT_HASH"
         
         if [ $? -ne 0 ]; then
