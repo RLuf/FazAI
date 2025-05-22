@@ -63,6 +63,7 @@ config.dev.js
 
 #arquivos locais particulas
 
+github-howto.txt
 baseDeConhecimento/
 pesquisa/
 *.pdf

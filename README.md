@@ -108,12 +108,68 @@ fazai versao
 ```
 /etc/fazai/
     main.js           # Daemon principal
+    fazai.conf        # Arquivo de configuração principal
+    fazai.conf.example # Exemplo de configuração
     /tools/           # Plugins e scripts auxiliares
     /mods/            # Módulos nativos (.so)
     fazai.service     # Arquivo de serviço systemd
 /bin/fazai            # CLI (interface de linha de comando)
 /var/log/fazai.log    # Arquivo de log
+/var/lib/fazai/       # Diretório para dados persistentes
+    /history/         # Histórico de conversas
+    /cache/           # Cache de respostas
 ```
+
+## Configuração Avançada
+
+O FazAI agora suporta um sistema avançado de configuração através do arquivo `fazai.conf`, que permite personalizar o comportamento do sistema, incluindo a escolha de provedores de IA e o sistema de orquestração.
+
+### Arquivo de Configuração
+
+O arquivo de configuração principal está localizado em `/etc/fazai/fazai.conf`. Este arquivo permite configurar:
+
+- **Provedores de IA**: Escolha entre OpenRouter, Requesty ou OpenAI diretamente
+- **Sistema de Orquestração**: Configure os modos de planejamento e ação
+- **Ferramentas**: Habilite ou desabilite ferramentas específicas
+- **Configurações Gerais**: Logging, cache, limites de tokens, etc.
+
+Para criar o arquivo de configuração:
+
+```bash
+# Copiar o modelo de configuração
+sudo cp /etc/fazai/fazai.conf.example /etc/fazai/fazai.conf
+
+# Editar o arquivo de configuração
+sudo nano /etc/fazai/fazai.conf
+```
+
+### Sistema de Orquestração
+
+O FazAI agora implementa um sistema de orquestração inspirado em LLMs avançados, com dois modos distintos:
+
+1. **Modo de Planejamento**: Focado em entender o problema, fazer perguntas de esclarecimento e criar um plano detalhado antes de executar qualquer ação.
+
+2. **Modo de Ação**: Focado em executar o plano estabelecido, utilizando as ferramentas disponíveis para realizar tarefas concretas no sistema.
+
+Para alternar entre os modos:
+
+```bash
+# Alternar para o modo de planejamento
+fazai planejar
+
+# Alternar para o modo de ação
+fazai executar
+```
+
+### Provedores de IA
+
+O FazAI agora suporta múltiplos provedores de IA:
+
+- **OpenRouter**: Acesse múltiplos modelos de IA através da API do OpenRouter
+- **Requesty**: Acesse múltiplos modelos de IA através da API do Requesty
+- **OpenAI**: Acesse diretamente os modelos da OpenAI
+
+Para configurar os provedores, edite as seções correspondentes no arquivo `fazai.conf`.
 
 ## Desenvolvimento
 

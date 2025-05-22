@@ -4,6 +4,23 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.1.0] - 2025-05-21
+### Adicionado
+- Novo arquivo de configuração `fazai.conf` para personalização avançada do sistema
+- Suporte para múltiplos provedores de IA: OpenRouter, Requesty e OpenAI
+- Sistema de orquestração com modos de planejamento e ação
+- Novas opções de configuração para ferramentas, cache e limites de contexto
+- Documentação detalhada sobre o novo sistema de configuração
+
+### Alterado
+- Melhorado o sistema de fallback para modelos de IA
+- Aprimorada a documentação com exemplos de configuração
+- Otimizado o gerenciamento de contexto para conversas longas
+
+### Corrigido
+- Problemas de timeout em chamadas de API
+- Tratamento de erros em comandos complexos
+
 ## [1.0.1] - 2025-05-20
 ### Corrigido
 - Adicionada verificação robusta de dependências no install.sh
