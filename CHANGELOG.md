@@ -4,6 +4,21 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.2.0] - 2025-05-22
+### Adicionado
+- Novo script `uninstall.sh` para desinstalação completa do sistema
+- Novo script `reinstall.sh` para reinstalação e testes de diferentes versões
+- Suporte para preservação de configurações durante a desinstalação
+- Backup automático de configurações durante a reinstalação
+- Opções para reinstalar a partir de branches ou commits específicos
+
+### Alterado
+- Melhorado o processo de instalação para lidar com instalações existentes
+- Aprimorada a documentação sobre desinstalação e reinstalação
+
+### Corrigido
+- Problemas com resíduos de arquivos após desinstalação manual
+
 ## [1.1.0] - 2025-05-21
 ### Adicionado
 - Novo arquivo de configuração `fazai.conf` para personalização avançada do sistema

@@ -66,6 +66,26 @@ sudo systemctl enable fazai
 sudo systemctl start fazai
 ```
 
+### 6. Desinstalação (opcional)
+
+Se precisar desinstalar o FazAI, use o script de desinstalação:
+
+```bash
+sudo ./uninstall.sh
+```
+
+Este script oferece opções para preservar suas configurações e dados.
+
+### 7. Reinstalação (opcional)
+
+Para reinstalar ou testar diferentes versões do FazAI:
+
+```bash
+sudo ./reinstall.sh
+```
+
+Este script permite escolher entre reinstalar a versão atual, uma branch específica ou um commit específico, com opções para preservar suas configurações.
+
 ## Uso
 
 ### Comandos Básicos
