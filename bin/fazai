@@ -43,6 +43,14 @@ try {
   process.exit(1);
 }
 
+// Verificação do arquivo principal
+const mainJsPath = '/opt/fazai/lib/main.js';
+if (!fs.existsSync(mainJsPath)) {
+  console.error('\x1b[31m[ERRO] Arquivo principal não encontrado: ' + mainJsPath + '\x1b[0m');
+  console.error('\x1b[33m  Verifique se o FazAI está instalado corretamente\x1b[0m');
+  process.exit(1);
+}
+
 // Configuração do cliente
 const API_URL = process.env.FAZAI_API_URL || 'http://localhost:3000';
 const LOG_FILE = '/var/log/fazai/fazai.log';
@@ -119,14 +127,42 @@ function printWarning(message) {
  */
 async function sendCommand(command) {
   try {
-    const response = await axios.post(`${API_URL}/command`, { command });
+    printInfo(`Conectando ao daemon em ${API_URL}...`);
+    const response = await axios.post(`${API_URL}/command`, { command }, {
+      timeout: 30000 // 30 segundos de timeout
+    });
+    
+    if (!response.data.success) {
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      } else if (response.data.interpretation) {
+        printWarning(`O comando foi interpretado, mas a execução falhou: ${response.data.interpretation}`);
+        if (response.data.details) {
+          printError(`Detalhes do erro: ${response.data.details}`);
+        }
+        return response.data;
+      } else {
+        throw new Error('Resposta do servidor indica falha, mas sem detalhes específicos');
+      }
+    }
+    
     return response.data;
   } catch (err) {
     if (err.response) {
-      throw new Error(`Erro do servidor: ${err.response.data.error || 'Desconhecido'}`);
+      // Erro com resposta do servidor
+      const errorData = err.response.data;
+      if (errorData && errorData.error) {
+        throw new Error(`Erro do servidor: ${errorData.error}`);
+      } else if (errorData && errorData.details) {
+        throw new Error(`Erro do servidor: ${errorData.details}`);
+      } else {
+        throw new Error(`Erro do servidor: ${err.response.status} ${err.response.statusText}`);
+      }
     } else if (err.request) {
-      throw new Error('Não foi possível conectar ao daemon. Verifique se o serviço está em execução.');
+      // Erro sem resposta (problema de conexão)
+      throw new Error('Não foi possível conectar ao daemon. Verifique se o serviço está em execução na porta 3000.');
     } else {
+      // Erro na configuração da requisição
       throw new Error(`Erro ao enviar comando: ${err.message}`);
     }
   }
@@ -328,6 +364,20 @@ ${colors.bright}Exemplos:${colors.reset}
       printError(`Erro ao verificar versão do Node.js: ${err.message}`);
     }
     
+    // Verifica arquivo principal
+    try {
+      if (fs.existsSync('/opt/fazai/lib/main.js')) {
+        printSuccess('Arquivo principal: Encontrado em /opt/fazai/lib/main.js');
+      } else if (fs.existsSync('/etc/fazai/main.js')) {
+        printWarning('Arquivo principal: Encontrado em /etc/fazai/main.js (localização antiga)');
+        printInfo('Sugestão: O arquivo principal foi movido para /opt/fazai/lib/main.js');
+      } else {
+        printError('Arquivo principal: Não encontrado');
+      }
+    } catch (err) {
+      printError(`Erro ao verificar arquivo principal: ${err.message}`);
+    }
+    
     // Verifica dependências npm
     const dependencies = [
       { name: 'axios', version: '0.27.2' },
@@ -431,10 +481,39 @@ ${colors.bright}Exemplos:${colors.reset}
         console.log(`\n${colors.bright}${colors.fg.yellow}Resultado:${colors.reset}\n${result.result}\n`);
       }
     } else {
+      if (result.interpretation) {
+        console.log(`\n${colors.bright}${colors.fg.yellow}Interpretação:${colors.reset} ${result.interpretation}\n`);
+      }
+      
       printError(`Falha ao executar comando: ${result.error || 'Erro desconhecido'}`);
+      
+      if (result.details) {
+        printInfo(`Detalhes técnicos: ${result.details}`);
+      }
+      
+      // Sugestões para problemas comuns
+      if (result.error && result.error.includes('API')) {
+        printInfo('Sugestão: Verifique se as chaves de API estão configuradas corretamente no arquivo .env ou /etc/fazai/fazai.conf');
+      } else if (result.error && (result.error.includes('conectar') || result.error.includes('conexão'))) {
+        printInfo('Sugestão: Verifique se o daemon está em execução com "systemctl status fazai" ou inicie-o com "systemctl start fazai"');
+      }
     }
   } catch (err) {
     printError(err.message);
+    
+    // Sugestões para erros comuns
+    if (err.message.includes('conectar') || err.message.includes('ECONNREFUSED')) {
+      printInfo('Sugestão: O daemon FazAI parece não estar em execução. Tente iniciar o serviço com:');
+      console.log(`${colors.fg.cyan}  sudo systemctl start fazai${colors.reset}`);
+      printInfo('Para verificar o status do serviço, use:');
+      console.log(`${colors.fg.cyan}  sudo systemctl status fazai${colors.reset}`);
+    } else if (err.message.includes('timeout')) {
+      printInfo('Sugestão: A conexão com o daemon expirou. Isso pode ocorrer se:');
+      console.log(`${colors.fg.cyan}  1. O daemon está sobrecarregado${colors.reset}`);
+      console.log(`${colors.fg.cyan}  2. A conexão com o provedor de IA está lenta${colors.reset}`);
+      console.log(`${colors.fg.cyan}  3. O comando é muito complexo e está demorando para ser processado${colors.reset}`);
+    }
+    
     process.exit(1);
   }
 }
