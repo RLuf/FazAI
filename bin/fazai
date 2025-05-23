@@ -228,8 +228,18 @@ ${colors.bright}Comandos especiais:${colors.reset}
   ajuda, help                 Exibe esta mensagem de ajuda
   logs [n]                    Exibe as últimas n entradas de log (padrão: 10)
   reload                      Recarrega plugins e módulos
-  versao, version             Exibe a versão do FazAI
+  versao, version, -v         Exibe a versão do FazAI
   check-deps, verificar-deps  Verifica dependências e instalação do sistema
+
+${colors.bright}Comandos básicos do sistema:${colors.reset}
+  kernel                      Exibe a versão do kernel (uname -r)
+  sistema                     Exibe informações do sistema (uname -a)
+  memoria                     Exibe informações de memória (free -h)
+  disco                       Exibe informações de disco (df -h)
+  processos                   Lista processos em execução (ps aux)
+  rede                        Exibe informações de rede (ip a)
+  data                        Exibe data e hora atual (date)
+  uptime                      Exibe tempo de atividade do sistema (uptime)
 
 ${colors.bright}Exemplos:${colors.reset}
   fazai mostra os processos em execucao
@@ -256,9 +266,45 @@ ${colors.bright}Exemplos:${colors.reset}
     }
   }
   
-  if (args[0] === 'versao' || args[0] === 'version') {
-    console.log(`FazAI v1.0.1`);
+  if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
+    console.log(`FazAI v1.3.1`);
     process.exit(0);
+  }
+  
+  // Comandos básicos do sistema que podem ser executados diretamente
+  const basicCommands = {
+    'kernel': 'uname -r',
+    'sistema': 'uname -a',
+    'memoria': 'free -h',
+    'disco': 'df -h',
+    'processos': 'ps aux',
+    'rede': 'ip a',
+    'data': 'date',
+    'uptime': 'uptime'
+  };
+  
+  if (basicCommands[args[0]]) {
+    try {
+      const { exec } = require('child_process');
+      printInfo(`Executando comando básico: ${basicCommands[args[0]]}`);
+      
+      exec(basicCommands[args[0]], (error, stdout, stderr) => {
+        if (error) {
+          printError(`Erro ao executar comando: ${error.message}`);
+          process.exit(1);
+        }
+        if (stderr) {
+          console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
+        }
+        console.log(`\n${colors.bright}${colors.fg.yellow}Resultado:${colors.reset}\n${stdout}\n`);
+        process.exit(0);
+      });
+      
+      return; // Importante para evitar que o código continue enquanto o comando é executado
+    } catch (err) {
+      printError(`Erro ao executar comando básico: ${err.message}`);
+      process.exit(1);
+    }
   }
   
   if (args[0] === 'check-deps' || args[0] === 'verificar-deps') {

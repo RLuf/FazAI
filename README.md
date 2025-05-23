@@ -157,7 +157,42 @@ fazai reload
 
 # Exibir versão
 fazai versao
+fazai version
+fazai --version
+fazai -v
 ```
+
+### Comandos Básicos do Sistema
+
+O FazAI agora inclui comandos básicos do sistema que funcionam mesmo sem conexão com a IA:
+
+```bash
+# Exibir versão do kernel
+fazai kernel
+
+# Exibir informações do sistema
+fazai sistema
+
+# Exibir informações de memória
+fazai memoria
+
+# Exibir informações de disco
+fazai disco
+
+# Listar processos em execução
+fazai processos
+
+# Exibir informações de rede
+fazai rede
+
+# Exibir data e hora atual
+fazai data
+
+# Exibir tempo de atividade do sistema
+fazai uptime
+```
+
+Estes comandos são executados diretamente no sistema, sem necessidade de interpretação por IA, garantindo funcionamento mesmo quando os serviços de IA estão indisponíveis.
 
 ## Estrutura de Diretórios
 
@@ -230,8 +265,13 @@ fazai executar
 O FazAI agora suporta múltiplos provedores de IA:
 
 - **OpenRouter**: Acesse múltiplos modelos de IA através da API do OpenRouter
-- **Requesty**: Acesse múltiplos modelos de IA através da API do Requesty
+- **Requesty**: Acesse múltiplos modelos de IA através da API do Requesty (endpoint: https://router.requesty.ai/v1)
 - **OpenAI**: Acesse diretamente os modelos da OpenAI
+
+Ao usar o Requesty, os modelos devem ser especificados com o prefixo do provedor, por exemplo:
+- `openai/gpt-4o`
+- `anthropic/claude-3-opus`
+- `google/gemini-pro`
 
 Para configurar os provedores, edite as seções correspondentes no arquivo `fazai.conf`.
 

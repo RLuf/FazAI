@@ -4,6 +4,21 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.3.1] - 2025-05-23
+### Adicionado
+- Suporte para comandos básicos do sistema que funcionam sem IA (kernel, sistema, memoria, etc.)
+- Suporte para flags padrão como --version e -v
+
+### Alterado
+- Atualizado o endpoint da Requesty para https://router.requesty.ai/v1
+- Modificado o formato do modelo para incluir o prefixo do provedor (ex: openai/gpt-4o)
+- Alterado o versionamento de dependências para usar ">=" em vez de "^" para maior compatibilidade
+- Atualizado o repositório Git para apontar para github.com/rluf/fazai
+
+### Corrigido
+- Corrigido o problema onde o sistema tentava executar a mensagem de erro como comando
+- Corrigido o endpoint incorreto da API Requesty que causava erro 404
+
 ## [1.2.0] - 2025-05-22
 ### Adicionado
 - Novo script `uninstall.sh` para desinstalação completa do sistema

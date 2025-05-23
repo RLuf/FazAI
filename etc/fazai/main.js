@@ -167,7 +167,7 @@ async function queryAI(command) {
   
   try {
     // Determina qual provedor de IA usar
-    const provider = config.ai_provider?.provider || 'openai';
+    const provider = process.env.DEFAULT_PROVIDER || config.ai_provider?.provider || 'openai';
     
     if (provider === 'openrouter') {
       return await queryOpenRouter(command);
@@ -180,7 +180,7 @@ async function queryAI(command) {
     logger.error('Erro ao consultar IA:', err);
     
     // Tenta fallback se habilitado
-    if (config.ai_provider?.enable_fallback === 'true') {
+    if (process.env.ENABLE_FALLBACK === 'true' || config.ai_provider?.enable_fallback === 'true') {
       logger.info('Tentando fallback para outro provedor');
       try {
         return await queryOpenAI(command);
@@ -191,7 +191,7 @@ async function queryAI(command) {
     
     // Fallback final para interpretação local
     return {
-      interpretation: 'Não foi possível interpretar o comando via IA. Executando fallback.',
+      interpretation: 'echo "Não foi possível interpretar o comando via IA."',
       success: false
     };
   }
@@ -204,8 +204,8 @@ async function queryAI(command) {
  */
 async function queryOpenAI(command) {
   const apiKey = config.openai?.api_key || process.env.OPENAI_API_KEY;
-  const model = config.openai?.default_model || 'gpt-4-turbo';
-  const endpoint = config.openai?.endpoint || 'https://api.openai.com/v1';
+  const model = config.openai?.default_model || process.env.OPENAI_MODEL || 'gpt-4-turbo';
+  const endpoint = config.openai?.endpoint || process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1';
   
   if (!apiKey) {
     throw new Error('Chave de API da OpenAI não configurada');
@@ -242,9 +242,9 @@ async function queryOpenAI(command) {
  * @returns {Promise<object>} - Interpretação do comando
  */
 async function queryOpenRouter(command) {
-  const apiKey = config.openrouter?.api_key;
-  const model = config.openrouter?.default_model || 'openai/gpt-4-turbo';
-  const endpoint = config.openrouter?.endpoint || 'https://openrouter.ai/api/v1';
+  const apiKey = config.openrouter?.api_key || process.env.OPENROUTER_API_KEY;
+  const model = config.openrouter?.default_model || process.env.OPENROUTER_MODEL || 'openai/gpt-4-turbo';
+  const endpoint = config.openrouter?.endpoint || process.env.OPENROUTER_ENDPOINT || 'https://openrouter.ai/api/v1';
   
   if (!apiKey) {
     throw new Error('Chave de API do OpenRouter não configurada');
@@ -283,9 +283,9 @@ async function queryOpenRouter(command) {
  * @returns {Promise<object>} - Interpretação do comando
  */
 async function queryRequesty(command) {
-  const apiKey = config.requesty?.api_key;
-  const model = config.requesty?.default_model || 'gpt-4-turbo';
-  const endpoint = config.requesty?.endpoint || 'https://api.requesty.ai/v1';
+  const apiKey = config.requesty?.api_key || process.env.REQUESTY_API_KEY;
+  const model = config.requesty?.default_model || process.env.REQUESTY_MODEL || 'openai/gpt-4o';
+  const endpoint = config.requesty?.endpoint || process.env.REQUESTY_ENDPOINT || 'https://router.requesty.ai/v1';
   
   if (!apiKey) {
     throw new Error('Chave de API do Requesty não configurada');

@@ -19,17 +19,17 @@
 # - openrouter: Utiliza a API do OpenRouter para acessar múltiplos modelos
 # - requesty: Utiliza a API do Requesty para acessar múltiplos modelos
 # - openai: Utiliza diretamente a API da OpenAI
-provider = openrouter
+provider = requesty
 
 # Habilita fallback automático para outro provedor em caso de falha
 # Se true, tentará o próximo provedor na ordem: openrouter -> requesty -> openai
-enable_fallback = true
+enable_fallback = false
 
 # Número máximo de tentativas antes de desistir
-max_retries = 3
+max_retries = 1
 
 # Tempo de espera entre tentativas (em segundos)
-retry_delay = 2
+retry_delay = 1
 
 ###############################################################################
 # CONFIGURAÇÃO DO OPENROUTER
@@ -72,14 +72,15 @@ max_tokens = 2000
 api_key = sua_chave_requesty_aqui
 
 # Endpoint da API
-endpoint = https://api.requesty.ai/v1
+endpoint = https://router.requesty.ai/v1
 
 # Modelo padrão a ser utilizado
-default_model = gpt-4-turbo
+# Formato: provedor/modelo
+default_model = openai/gpt-4o
 
 # Lista de modelos alternativos que podem ser utilizados
 # Separe múltiplos modelos com vírgulas
-models = claude-3-opus, gemini-pro, llama-3-70b
+models = openai/gpt-4-turbo, anthropic/claude-3-opus, google/gemini-pro
 
 # Temperatura para geração (0.0 a 1.0)
 temperature = 0.7

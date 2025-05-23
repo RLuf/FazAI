@@ -55,6 +55,8 @@ desktop.ini
 # Arquivos de configuração local
 config.local.js
 config.dev.js
+/etc/fazai/fazai.conf
+/etc/fazai/fazai.conf.local
 
 # Arquivos de backup
 *.bak

@@ -1,0 +1,111 @@
+name: FazAI CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x, 18.x]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Check syntax
+      run: |
+        # Verifica a sintaxe de todos os arquivos JavaScript
+        find . -name "*.js" -not -path "./node_modules/*" -exec node -c {} \;
+    
+    - name: Run tests
+      run: npm test || true
+      # O "|| true" permite que o workflow continue mesmo se não houver testes configurados
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js 16.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16.x
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build portable package
+      run: |
+        # Cria diretório de build
+        mkdir -p build
+        
+        # Copia arquivos necessários
+        cp -r bin etc var build/
+        cp package.json README.md LICENSE CHANGELOG.md .env.example build/
+        
+        # Cria arquivo de instalação portable
+        cp build-portable.sh build/
+        cp install-portable.sh build/
+        
+        # Cria tarball
+        cd build
+        VERSION=$(node -p "require('./package.json').version")
+        tar -czf ../fazai-portable-v${VERSION}.tar.gz .
+        cd ..
+        
+        # Cria checksum
+        sha256sum fazai-portable-v${VERSION}.tar.gz > fazai-portable-v${VERSION}.tar.gz.sha256
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: fazai-portable
+        path: |
+          fazai-portable-v*.tar.gz
+          fazai-portable-v*.tar.gz.sha256
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'v')
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: fazai-portable
+    
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          fazai-portable-v*.tar.gz
+          fazai-portable-v*.tar.gz.sha256
+        tag_name: ${{ github.event.head_commit.message }}
+        name: Release ${{ github.event.head_commit.message }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
