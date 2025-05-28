@@ -66,7 +66,8 @@ config.dev.js
 #arquivos locais particulas
 
 github-howto.txt
-baseDeConhecimento/
-pesquisa/
+baseDeConhecimento*
+pesquisa*
 *.pdf
 .aider*
+.kilocode*
