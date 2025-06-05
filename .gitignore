@@ -71,3 +71,6 @@ pesquisa*
 *.pdf
 .aider*
 .kilocode*
+
+# Diretórios do sistema
+/mnt/

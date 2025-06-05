@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 # FazAI - Script de Instalação
 # Este script instala o FazAI em sistemas Debian/Ubuntu
@@ -94,7 +94,7 @@ if ! command -v npm &> /dev/null; then
     fi
     
     print_success "npm instalado com sucesso."
-else
+else$ https://github.com/RLuf/Fazai
     NPM_VERSION=$(npm -v)
     print_success "npm já instalado: $NPM_VERSION"
 fi

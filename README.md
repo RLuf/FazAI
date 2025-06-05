@@ -264,7 +264,8 @@ fazai executar
 
 O FazAI agora suporta múltiplos provedores de IA:
 
-- **OpenRouter**: Acesse múltiplos modelos de IA através da API do OpenRouter
+- **OpenRouter**: Acesse múltiplos modelos de IA através da API do 
+ https://openrouter.ai/api/v1
 - **Requesty**: Acesse múltiplos modelos de IA através da API do Requesty (endpoint: https://router.requesty.ai/v1)
 - **OpenAI**: Acesse diretamente os modelos da OpenAI
 
