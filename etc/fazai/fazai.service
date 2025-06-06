@@ -1,25 +1,46 @@
 [Unit]
-Description=FazAI - Orquestrador Inteligente de Automação
-Documentation=https://github.com/fazai/docs
+Description=FazAI Service - Sistema de Inteligência Artificial
+Documentation=https://github.com/RLuf/Fazai
 After=network.target
+Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/bin/node /opt/fazai/lib/main.js
-Restart=on-failure
-RestartSec=10
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=fazai
-Environment=NODE_ENV=production
+Group=root
 WorkingDirectory=/opt/fazai
+ExecStart=/usr/bin/node /opt/fazai/lib/main.js
+ExecStartPre=/usr/bin/bash -c 'mkdir -p /var/log/fazai'
+ExecStartPost=/usr/bin/bash -c 'echo "FazAI iniciado em $(date)" >> /var/log/fazai/startup.log'
 
-# Configurações de segurança (para implementação futura)
-# NoNewPrivileges=true
-# ProtectSystem=full
-# ProtectHome=true
-# PrivateTmp=true
+# Logs aprimorados
+StandardOutput=append:/var/log/fazai/stdout.log
+StandardError=append:/var/log/fazai/stderr.log
+
+# Definição de ambiente
+Environment=NODE_ENV=production
+EnvironmentFile=-/etc/fazai/env
+
+# Limites de sistema
+LimitNOFILE=65535
+LimitNPROC=4096
+MemoryLimit=512M
+
+# Reinicialização automática com atraso exponencial
+Restart=on-failure
+RestartSec=5s
+RestartPreventExitStatus=1 2 78
+
+# Configurações de segurança
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+# Configuração de saúde
+ExecStartPost=/usr/bin/bash -c 'systemctl status fazai >> /var/log/fazai/status_init.log'
+ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target

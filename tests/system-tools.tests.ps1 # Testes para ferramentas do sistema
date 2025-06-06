@@ -1,0 +1,10 @@
+Describe 'Testando ferramentas do sistema' {
+    It 'Deve retornar o resultado esperado para a função ExemploFuncao' {
+        $resultado = ExemploFuncao
+        $resultado | Should -Be 'Resultado Esperado'
+    }
+    
+    It 'Deve lançar uma exceção para entrada inválida na função ExemploFuncao' {
+        { ExemploFuncao -Argumento 'Entrada Inválida' } | Should -Throw
+    }
+}

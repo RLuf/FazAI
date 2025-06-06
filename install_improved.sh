@@ -1,22 +1,7 @@
-#!/usr/bin/bash
+to#!/usr/bin/bash
 
 # FazAI - Script de Instalação Oficial
 # Este script instala o FazAI em **** Debian/Ubuntu com suporte **** à interface TUI
-# Suporte a Windows via WSL (Windows Subsystem for Linux)
-
-# Verifica se está rodando no WSL
-if ! grep -q microsoft /proc/version && ! grep -q Microsoft /proc/version; then
-    echo "ERRO: Este script deve ser executado dentro do WSL (Windows Subsystem for Linux) quando usado no Windows."
-    echo "Por favor, execute usando: wsl --root bash install.sh"
-    exit 1
-fi
-
-# Verifica se está rodando como root no WSL
-if [ "$EUID" -ne 0 ]; then
-    echo "ERRO: Este script precisa ser executado como root no WSL."
-    echo "Por favor, execute usando: wsl --root bash install.sh"
-    exit 1
-fi
 
 # Cores para saída no ****
 RED='\033[0;31m'
@@ -31,35 +16,20 @@ NC='\033[0m' # No Color
 VERSION="1.3.3"
 LOG_FILE="/var/log/fazai_install.log"
 RETRY_COUNT=3
-INSTALL_STATE_FILE="/var/lib/fazai/install.state"
-
-# Dependências do sistema e suas versões mínimas
-declare -A SYSTEM_DEPENDENCIES=(
-    ["node"]="14.0.0"
-    ["npm"]="6.0.0"
-    ["gcc"]="7.0.0"
-    ["curl"]="7.0.0"
-)
-
-# Repositórios alternativos para fallback
 NODE_VERSIONS=("16" "18" "20")
 REPOSITORIES=(
-    "https://deb.nodesource.com/setup_"
-    "https://nodejs.org/dist/v"
+  "https://deb.nodesource.com/setup_"
+  "https://nodejs.org/dist/v"
 )
-
-# Módulos Node.js necessários
 DEPENDENCY_MODULES=(
-    "axios"
-    "express"
-    "winston"
-    "ffi-napi"
-    "dotenv"
-    "commander"
+  "axios"
+  "express"
+  "winston"
+  "ffi-napi"
+  "dotenv"
+  "****"
+  "commander"
 )
-
-# Estado da instalação
-declare -A INSTALL_STATE
 
 # Função para registrar logs
 log() {
@@ -90,91 +60,6 @@ log() {
       fi
       ;;
   esac
-}
-
-# Função para salvar estado da instalação
-save_install_state() {
-    local step=$1
-    local status=$2
-    INSTALL_STATE["$step"]="$status"
-    mkdir -p $(dirname "$INSTALL_STATE_FILE")
-    for key in "${!INSTALL_STATE[@]}"; do
-        echo "$key=${INSTALL_STATE[$key]}" >> "$INSTALL_STATE_FILE"
-    done
-    log "DEBUG" "Estado salvo: $step = $status"
-}
-
-# Função para carregar estado da instalação
-load_install_state() {
-    if [ -f "$INSTALL_STATE_FILE" ]; then
-        while IFS='=' read -r key value; do
-            INSTALL_STATE["$key"]="$value"
-        done < "$INSTALL_STATE_FILE"
-        log "INFO" "Estado da instalação carregado de $INSTALL_STATE_FILE"
-    fi
-}
-
-# Função para verificar versão de uma dependência
-check_dependency_version() {
-    local cmd=$1
-    local min_version=$2
-    local version_cmd=$3
-    local version_regex=$4
-    
-    if ! command -v "$cmd" &> /dev/null; then
-        log "DEBUG" "Comando $cmd não encontrado"
-        return 1
-    fi
-    
-    local current_version
-    current_version=$($version_cmd | grep -oE "$version_regex" | head -n1)
-    
-    if [ -z "$current_version" ]; then
-        log "WARNING" "Não foi possível determinar a versão de $cmd"
-        return 2
-    }
-    
-    if printf '%s\n' "$min_version" "$current_version" | sort -V | head -n1 | grep -q "^$min_version$"; then
-        log "SUCCESS" "$cmd versão $current_version atende requisito mínimo ($min_version)"
-        return 0
-    else
-        log "WARNING" "$cmd versão $current_version é menor que a mínima requerida ($min_version)"
-        return 3
-    fi
-}
-
-# Função para instalar bash completion
-install_bash_completion() {
-    log "INFO" "Instalando bash completion..."
-    
-    # Verifica se o bash-completion está instalado
-    if ! dpkg -l | grep -q bash-completion; then
-        log "INFO" "Instalando pacote bash-completion..."
-        apt-get update && apt-get install -y bash-completion
-    fi
-    
-    # Copia o script de completion
-    local completion_dir="/etc/bash_completion.d"
-    mkdir -p "$completion_dir"
-    
-    if [ -f "etc/fazai/fazai-completion.sh" ]; then
-        cp "etc/fazai/fazai-completion.sh" "$completion_dir/fazai"
-        chmod 644 "$completion_dir/fazai"
-        log "SUCCESS" "Script de completion instalado em $completion_dir/fazai"
-        
-        # Carrega o completion imediatamente
-        source "$completion_dir/fazai"
-        
-        # Adiciona ao .bashrc se não existir
-        if ! grep -q "source $completion_dir/fazai" /root/.bashrc; then
-            echo "# FazAI bash completion" >> /root/.bashrc
-            echo "source $completion_dir/fazai" >> /root/.bashrc
-            log "SUCCESS" "Bash completion configurado no .bashrc"
-        fi
-    else
-        log "ERROR" "Script de completion não encontrado em etc/fazai/fazai-completion.sh"
-        return 1
-    fi
 }
 
 # Função para verificar e criar diretório de logs
@@ -904,102 +789,48 @@ start_and_verify_service() {
 
 # Função principal
 main() {
-    # Banner
-    echo -e "${BLUE}=================================================${NC}"
-    echo -e "${BLUE}       FazAI v$VERSION - Instalação Oficial      ${NC}"
-    echo -e "${BLUE}=================================================${NC}"
-    echo
-
-    # Ativa modo de debug se solicitado
-    if [ "$1" = "--debug" ]; then
-        DEBUG_MODE=true
-        log "INFO" "Modo debug ativado"
-    fi
-
-    # Carrega estado anterior se existir
-    load_install_state
-
-    # Verifica se é uma retomada de instalação
-    if [ -n "${INSTALL_STATE[last_step]}" ]; then
-        log "INFO" "Retomando instalação do passo: ${INSTALL_STATE[last_step]}"
-    fi
-
-    # Setup inicial
-    setup_logging
-    check_root
-    check_system
-    save_install_state "initial_checks" "done"
-
-    # Verifica e instala dependências do sistema
-    for dep in "${!SYSTEM_DEPENDENCIES[@]}"; do
-        min_version="${SYSTEM_DEPENDENCIES[$dep]}"
-        log "INFO" "Verificando $dep (versão mínima: $min_version)..."
-        
-        case $dep in
-            "node")
-                check_dependency_version "$dep" "$min_version" "node -v" "v?([0-9]+\.[0-9]+\.[0-9]+)"
-                if [ $? -ne 0 ]; then
-                    install_nodejs
-                fi
-                ;;
-            "npm")
-                check_dependency_version "$dep" "$min_version" "npm -v" "([0-9]+\.[0-9]+\.[0-9]+)"
-                if [ $? -ne 0 ]; then
-                    install_npm
-                fi
-                ;;
-            "gcc")
-                check_dependency_version "$dep" "$min_version" "gcc --version" "([0-9]+\.[0-9]+\.[0-9]+)"
-                if [ $? -ne 0 ]; then
-                    install_gcc
-                fi
-                ;;
-            "curl")
-                if ! command -v curl &> /dev/null; then
-                    apt-get update && apt-get install -y curl
-                fi
-                ;;
-        esac
-    done
-    save_install_state "dependencies" "done"
-
-    # Cria estrutura de diretórios
-    create_directories
-    save_install_state "directories" "done"
-
-    # Copia arquivos
-    copy_files
-    save_install_state "files" "done"
-
-    # Instala dependências Node.js
-    install_node_dependencies
-    save_install_state "node_dependencies" "done"
-
-    # Compila módulos nativos
-    compile_native_modules
-    save_install_state "native_modules" "done"
-
-    # Importa configurações do .env
-    import_env_config
-    save_install_state "env_config" "done"
-
-    # Configura serviço systemd
-    configure_systemd
-    save_install_state "systemd" "done"
-
-    # Instala bash completion
-    install_bash_completion
-    save_install_state "bash_completion" "done"
-
-    # Inicia e verifica o serviço
-    start_and_verify_service
-    save_install_state "service_verification" "done"
-
-    # Limpa arquivo de estado
-    rm -f "$INSTALL_STATE_FILE"
-
-    # Mensagem final
-    log "SUCCESS" "Instalação do FazAI v$VERSION concluída com sucesso!"
-    log "INFO" "Use 'fazai --help' para ver os comandos disponíveis"
-    log "INFO" "O autocompletar está disponível para bash. Reinicie o shell ou execute: source /etc/bash_completion.d/fazai"
-}
+  # Banner
+  echo -e "${BLUE}=================================================${NC}"
+  echo -e "${BLUE}       FazAI v$VERSION - Instalação Oficial      ${NC}"
+  echo -e "${BLUE}=================================================${NC}"
+  echo
+  
+  # Ativa modo de debug se solicitado
+  if [ "$1" = "--debug" ]; then
+    DEBUG_MODE=true
+    log "DEBUG" "Modo de debug ativado"
+  else
+    DEBUG_MODE=false
+  fi
+  
+  # Inicializa log
+  setup_logging
+  
+  # ****ções ****
+  check_root
+  check_system
+  
+  # Instala dependências
+  install_nodejs
+  install_npm
+  install_gcc
+  
+  # Prepara sistema
+  create_directories
+  copy_files
+  import_env_config
+  configure_systemd
+  
+  # Instala e compila
+  install_node_dependencies
+  compile_native_modules
+  install_tui
+  
+  # Inicia e ****
+  start_and_verify_service
+  
+  # Conclusão
+  echo
+  echo -e "${GREEN}=================================================${NC}"
+  echo -e "${GREEN}       FazAI v$VERSION instalado com sucesso!    ${NC}"
+  echo -e "${GREEN}================================================

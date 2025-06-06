@@ -1,0 +1,11 @@
+Describe 'FazAI Tests' {
+    It 'should return the expected output for function A' {
+        $result = FunctionA
+        $expected = 'Expected Output'
+        $result | Should -BeExactly $expected
+    }
+
+    It 'should handle errors for function B' {
+        { FunctionB -InvalidInput } | Should -Throw
+    }
+}
