@@ -19,7 +19,7 @@
 # - openrouter: Utiliza a API do OpenRouter para acessar múltiplos modelos
 # - requesty: Utiliza a API do Requesty para acessar múltiplos modelos
 # - openai: Utiliza diretamente a API da OpenAI
-provider = requesty
+provider = openai
 
 # Habilita fallback automático para outro provedor em caso de falha
 # Se true, tentará o próximo provedor na ordem: openrouter -> requesty -> openai
@@ -38,7 +38,7 @@ retry_delay = 1
 [openrouter]
 # Chave de API do OpenRouter
 # Obtenha em: https://openrouter.ai/keys
-api_key = sua_chave_openrouter_aqui
+api_key =
 
 # Endpoint da API
 # Não altere a menos que a URL da API mude oficialmente
@@ -69,7 +69,7 @@ max_tokens = 2000
 [requesty]
 # Chave de API do Requesty
 # Obtenha em: https://requesty.ai/
-api_key = sua_chave_requesty_aqui
+api_key =
 
 # Endpoint da API
 endpoint = https://router.requesty.ai/v1
@@ -95,7 +95,7 @@ max_tokens = 2000
 [openai]
 # Chave de API da OpenAI
 # Obtenha em: https://platform.openai.com/api-keys
-api_key = sua_chave_openai_aqui
+api_key =
 
 # Endpoint da API
 # Não altere a menos que a URL da API mude oficialmente
@@ -208,7 +208,7 @@ forbidden_commands = rm -rf /
 [system]
 # Nível de log
 # Valores possíveis: debug, info, warn, error
-log_level = info
+log_level = debug
 
 # Timeout para chamadas de API (em segundos)
 api_timeout = 60

@@ -13,7 +13,7 @@ const os = require('os');
 
 // Configurações padrão
 const CONFIG_FILE = '/etc/fazai/fazai.conf';
-const CONFIG_TEMPLATE = '/opt/fazai/conf/fazai.conf.default';
+const CONFIG_TEMPLATE = '/etc/fazai/fazai.conf.default';
 const ENV_FILE = '/etc/fazai/env';
 const LOG_DIR = '/var/log/fazai';
 
