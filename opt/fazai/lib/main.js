@@ -481,6 +481,128 @@ app.post('/reload', (req, res) => {
   res.json({ success: true, message: 'Plugins e módulos recarregados' });
 });
 
+/**
+ * Endpoint para verificar status do daemon
+ */
+app.get('/status', (req, res) => {
+  logger.info('Verificação de status solicitada');
+  res.json({ 
+    success: true, 
+    status: 'online',
+    timestamp: new Date().toISOString(),
+    version: '1.3.1'
+  });
+});
+
+/**
+ * Endpoint para visualizar logs
+ */
+app.get('/logs', (req, res) => {
+  const lines = parseInt(req.query.lines) || 10;
+  logger.info(`Solicitação para visualizar ${lines} linhas de log`);
+  
+  try {
+    if (!fs.existsSync('/var/log/fazai/fazai.log')) {
+      return res.json({ 
+        success: false, 
+        error: 'Arquivo de log não encontrado' 
+      });
+    }
+    
+    const logContent = fs.readFileSync('/var/log/fazai/fazai.log', 'utf8');
+    const logLines = logContent.split('\n').filter(line => line.trim() !== '');
+    const lastLines = logLines.slice(-lines);
+    
+    const parsedLogs = lastLines.map(line => {
+      try {
+        return JSON.parse(line);
+      } catch (err) {
+        return { message: line, level: 'info', timestamp: new Date().toISOString() };
+      }
+    });
+    
+    res.json({ 
+      success: true, 
+      logs: parsedLogs,
+      total: logLines.length
+    });
+  } catch (err) {
+    logger.error(`Erro ao ler logs: ${err.message}`);
+    res.status(500).json({ 
+      success: false, 
+      error: `Erro ao ler logs: ${err.message}` 
+    });
+  }
+});
+
+/**
+ * Endpoint para limpar logs
+ */
+app.post('/logs/clear', (req, res) => {
+  logger.info('Solicitação para limpar logs');
+  
+  try {
+    const logFile = '/var/log/fazai/fazai.log';
+    
+    if (fs.existsSync(logFile)) {
+      // Cria backup antes de limpar
+      const backupFile = `/var/log/fazai/fazai.log.backup.${Date.now()}`;
+      fs.copyFileSync(logFile, backupFile);
+      
+      // Limpa o arquivo de log
+      fs.writeFileSync(logFile, '');
+      
+      logger.info('Logs limpos com sucesso');
+      res.json({ 
+        success: true, 
+        message: 'Logs limpos com sucesso',
+        backup: backupFile
+      });
+    } else {
+      res.json({ 
+        success: false, 
+        error: 'Arquivo de log não encontrado' 
+      });
+    }
+  } catch (err) {
+    logger.error(`Erro ao limpar logs: ${err.message}`);
+    res.status(500).json({ 
+      success: false, 
+      error: `Erro ao limpar logs: ${err.message}` 
+    });
+  }
+});
+
+/**
+ * Endpoint para download de logs
+ */
+app.get('/logs/download', (req, res) => {
+  logger.info('Solicitação para download de logs');
+  
+  try {
+    const logFile = '/var/log/fazai/fazai.log';
+    
+    if (fs.existsSync(logFile)) {
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="fazai-logs-${new Date().toISOString().split('T')[0]}.log"`);
+      
+      const fileStream = fs.createReadStream(logFile);
+      fileStream.pipe(res);
+    } else {
+      res.status(404).json({ 
+        success: false, 
+        error: 'Arquivo de log não encontrado' 
+      });
+    }
+  } catch (err) {
+    logger.error(`Erro ao fazer download dos logs: ${err.message}`);
+    res.status(500).json({ 
+      success: false, 
+      error: `Erro ao fazer download dos logs: ${err.message}` 
+    });
+  }
+});
+
 // Inicialização do servidor
 app.listen(PORT, () => {
   logger.info(`Daemon FazAI iniciado na porta ${PORT}`);

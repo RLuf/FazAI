@@ -241,6 +241,34 @@ function showLogs(lines = 10) {
 }
 
 /**
+ * Limpa o arquivo de log
+ */
+async function clearLogs() {
+  try {
+    printInfo('Limpando logs do FazAI...');
+    
+    const response = await axios.post(`${API_URL}/logs/clear`);
+    
+    if (response.data.success) {
+      printSuccess('Logs limpos com sucesso!');
+      if (response.data.backup) {
+        printInfo(`Backup criado em: ${response.data.backup}`);
+      }
+    } else {
+      printError(`Erro ao limpar logs: ${response.data.error}`);
+    }
+  } catch (err) {
+    if (err.response) {
+      printError(`Erro do servidor: ${err.response.data.error || 'Desconhecido'}`);
+    } else if (err.request) {
+      printError('Não foi possível conectar ao daemon. Verifique se o serviço está em execução.');
+    } else {
+      printError(`Erro ao limpar logs: ${err.message}`);
+    }
+  }
+}
+
+/**
  * Função principal
  */
 async function main() {
@@ -263,6 +291,7 @@ ${colors.bright}Uso:${colors.reset}
 ${colors.bright}Comandos especiais:${colors.reset}
   ajuda, help                 Exibe esta mensagem de ajuda
   logs [n]                    Exibe as últimas n entradas de log (padrão: 10)
+  limpar-logs, clear-logs     Limpa o arquivo de log (cria backup)
   reload                      Recarrega plugins e módulos
   versao, version, -v         Exibe a versão do FazAI
   check-deps, verificar-deps  Verifica dependências e instalação do sistema
@@ -276,6 +305,8 @@ ${colors.bright}Comandos básicos do sistema:${colors.reset}
   rede                        Exibe informações de rede (ip a)
   data                        Exibe data e hora atual (date)
   uptime                      Exibe tempo de atividade do sistema (uptime)
+  web                         Abre a interface web do FazAI
+  tui                         Abre o dashboard TUI do FazAI
 
 ${colors.bright}Exemplos:${colors.reset}
   fazai mostra os processos em execucao
@@ -288,6 +319,11 @@ ${colors.bright}Exemplos:${colors.reset}
   if (args[0] === 'logs') {
     const lines = args[1] ? parseInt(args[1], 10) : 10;
     showLogs(isNaN(lines) ? 10 : lines);
+    process.exit(0);
+  }
+  
+  if (args[0] === 'limpar-logs' || args[0] === 'clear-logs') {
+    clearLogs();
     process.exit(0);
   }
   
@@ -317,7 +353,9 @@ ${colors.bright}Exemplos:${colors.reset}
     'rede': 'ip a',
     'data': 'date',
     'uptime': 'uptime',
-    'html': 'fazai_html_v1.sh'  // Adiciona comando html como invocação direta
+    'html': 'fazai_html_v1.sh',  // Adiciona comando html como invocação direta
+    'web': 'fazai_web.sh',       // Adiciona comando web para interface web
+    'tui': 'fazai_tui.sh'        // Adiciona comando tui para dashboard TUI
   };
   
   if (basicCommands[args[0]]) {
@@ -341,6 +379,42 @@ ${colors.bright}Exemplos:${colors.reset}
             console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
           }
           console.log(`\n${colors.bright}${colors.fg.yellow}Resultado:${colors.reset}\n${stdout}\n`);
+          process.exit(0);
+        });
+      } else if (args[0] === 'web') {
+        // Se o comando for 'web', executa o script da interface web
+        const script_path = '/opt/fazai/tools/fazai_web.sh';
+        
+        const { exec } = require('child_process');
+        printInfo('Iniciando interface web do FazAI...');
+        
+        exec(`chmod +x ${script_path} && ${script_path}`, (error, stdout, stderr) => {
+          if (error) {
+            printError(`Erro ao executar interface web: ${error.message}`);
+            process.exit(1);
+          }
+          if (stderr) {
+            console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
+          }
+          console.log(`\n${colors.bright}${colors.fg.yellow}${stdout}${colors.reset}\n`);
+          process.exit(0);
+        });
+      } else if (args[0] === 'tui') {
+        // Se o comando for 'tui', executa o dashboard TUI
+        const script_path = '/opt/fazai/tools/fazai-tui.sh';
+        
+        const { exec } = require('child_process');
+        printInfo('Iniciando dashboard TUI do FazAI...');
+        
+        exec(`chmod +x ${script_path} && ${script_path}`, (error, stdout, stderr) => {
+          if (error) {
+            printError(`Erro ao executar dashboard TUI: ${error.message}`);
+            process.exit(1);
+          }
+          if (stderr) {
+            console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
+          }
+          console.log(`\n${colors.bright}${colors.fg.yellow}${stdout}${colors.reset}\n`);
           process.exit(0);
         });
       } else {

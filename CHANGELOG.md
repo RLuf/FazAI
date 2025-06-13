@@ -1,5 +1,82 @@
 # Changelog
 
+## [v1.3.6] - 07/06/2025
+
+### Added
+- **Dashboard TUI completo** (`fazai-tui.sh`) - Interface ncurses completa para gerenciamento do FazAI
+- Interface TUI ncurses para configuração do FazAI (`fazai-config-tui.sh`)
+- Instalação automática da dependência `dialog` para suporte ao TUI
+- Criação automática do diretório `/var/log/fazai` durante a instalação
+- Link simbólico `/usr/local/bin/fazai-tui` para acesso ao dashboard TUI
+- Link simbólico `/usr/local/bin/fazai-config-tui` para interface de configuração TUI
+- Comando `fazai tui` para lançar o dashboard TUI
+- Scripts npm para interfaces TUI: `npm run tui`, `npm run config-tui`
+- Dashboard TUI com funcionalidades:
+  - Execução de comandos FazAI via API
+  - Gerenciamento completo de logs (visualizar, limpar, download)
+  - Informações detalhadas do sistema
+  - Controle do daemon (start/stop/restart/status/reload)
+  - Configurações avançadas (API keys, daemon settings)
+  - Sistema de backup/restore
+  - Interface com tema personalizado e navegação intuitiva
+
+### Changed
+- Script de instalação (`install.sh`) ajustado para instalar dependências, garantir diretórios e permissões do TUI
+- Script de desinstalação (`uninstall.sh`) atualizado para remover links simbólicos do TUI
+- CLI (`bin/fazai`) expandido com comando `tui` e help text atualizado
+- `package.json` atualizado para versão 1.3.6 com scripts TUI
+- Documentação e help text atualizados para incluir interfaces TUI
+
+### Fixed
+- Garantia de criação do diretório de logs mesmo em instalações limpas
+- Permissões e execução do TUI ncurses corrigidas
+- Tratamento de fallback para criação de versão básica do TUI se arquivo não encontrado
+
+---
+
+## [v1.3.5] - 06/06/2025
+
+### Added
+- Interface web completa para gerenciamento do FazAI (`fazai_web_frontend.html`)
+- Funcionalidade de limpeza de logs com backup automático
+- Novos comandos CLI: `limpar-logs`, `clear-logs`, `web`
+- Endpoints REST para gerenciamento de logs:
+  - `GET /logs` - Visualizar logs com parâmetro de linhas
+  - `POST /logs/clear` - Limpar logs com backup automático
+  - `GET /logs/download` - Download do arquivo de log
+  - `GET /status` - Verificar status do daemon
+- Script `fazai_web.sh` para lançamento da interface web
+- Dashboard interativo com painéis para:
+  - Execução de comandos FazAI
+  - Gerenciamento completo de logs
+  - Informações do sistema em tempo real
+  - Visualização de dados com gráficos Chart.js
+  - Controle do daemon (reload, status, dependências)
+  - Configuração de API e monitoramento
+- Sistema de backup automático de logs com timestamp
+- Monitoramento em tempo real do status do daemon
+- Interface responsiva com design moderno e gradientes
+- Logs formatados com cores por nível (ERROR, WARN, INFO, DEBUG)
+- Documentação completa em `LOGS_MANAGEMENT.md`
+
+### Changed
+- Daemon principal (`main.js`) expandido com novos endpoints REST
+- CLI (`bin/fazai`) aprimorado com comandos de gerenciamento de logs
+- Help text atualizado com novos comandos disponíveis
+- Estrutura de comandos básicos expandida para incluir interface web
+
+### Fixed
+- Tratamento robusto de erros na manipulação de arquivos de log
+- Validação de entrada para parâmetros de visualização de logs
+- Verificação de existência de arquivos antes de operações
+- Gestão segura de permissões para operações de log
+
+### Security
+- Criação automática de backup antes da limpeza de logs
+- Validação de parâmetros de entrada em todos os endpoints
+- Tratamento seguro de arquivos com verificação de existência
+- Logs de auditoria para todas as operações de gerenciamento
+
 ## [v1.3.4] - 05/06/2025
 
 ### Added

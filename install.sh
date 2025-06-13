@@ -28,7 +28,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Variáveis de configuração
-VERSION="1.3.3"
+VERSION="1.3.6"
 LOG_FILE="/var/log/fazai_install.log"
 RETRY_COUNT=3
 INSTALL_STATE_FILE="/var/lib/fazai/install.state"
@@ -39,6 +39,7 @@ declare -A SYSTEM_DEPENDENCIES=(
     ["npm"]="6.0.0"
     ["gcc"]="7.0.0"
     ["curl"]="7.0.0"
+    ["dialog"]="1.3"
 )
 
 # Repositórios alternativos para fallback
@@ -379,6 +380,12 @@ install_gcc() {
 # Função para criar estrutura de diretórios
 create_directories() {
   log "INFO" "Criando estrutura de diretórios..."
+
+  # Garante a criação do diretório de logs
+  if [ ! -d "/var/log/fazai" ]; then
+    mkdir -p "/var/log/fazai"
+    log "SUCCESS" "Diretório /var/log/fazai criado"
+  fi
   
   local directories=(
     "/opt/fazai/bin"
@@ -445,7 +452,7 @@ copy_files() {
 const fs = require('fs');
 const path = require('path');
 
-console.log('FazAI v1.3.3 - Iniciando...');
+console.log('FazAI v1.3.6 - Iniciando...');
 
 // Configuração básica
 const config = {
@@ -487,7 +494,7 @@ const fs = require('fs');
 const args = process.argv.slice(2);
 
 if (args.includes('--version')) {
-  console.log('FazAI v1.3.3');
+  console.log('FazAI v1.3.6');
   process.exit(0);
 }
 
@@ -517,7 +524,7 @@ if (args.includes('--status')) {
   process.exit(0);
 }
 
-console.log('FazAI CLI v1.3.3 - Use --help para mais informações');
+console.log('FazAI CLI v1.3.6 - Use --help para mais informações');
 EOF
     chmod +x "bin/fazai"
   fi
@@ -527,7 +534,7 @@ EOF
     log "INFO" "Criando arquivo de configuração exemplo..."
     cat > "etc/fazai/fazai.conf.example" << 'EOF'
 # FazAI - Arquivo de Configuração
-# Versão: 1.3.3
+# Versão: 1.3.6
 
 [geral]
 log_level = info
@@ -563,6 +570,178 @@ EOF
   chmod 755 /opt/fazai/bin/fazai
   ln -sf /opt/fazai/bin/fazai /usr/local/bin/fazai
   log "SUCCESS" "CLI instalado em /usr/local/bin/fazai"
+
+  # Instala dependência dialog para TUI ncurses
+  if ! command -v dialog &>/dev/null; then
+    log "INFO" "Instalando dependência: dialog"
+    apt-get update && apt-get install -y dialog
+  fi
+
+  # Instala fazai-config-tui.sh (TUI ncurses)
+  if [ -f "opt/fazai/tools/fazai-config-tui.sh" ]; then
+    copy_with_verification "opt/fazai/tools/fazai-config-tui.sh" "/opt/fazai/tools/" "TUI ncurses fazai-config"
+    chmod +x /opt/fazai/tools/fazai-config-tui.sh
+    ln -sf /opt/fazai/tools/fazai-config-tui.sh /usr/local/bin/fazai-config-tui
+    log "SUCCESS" "Interface TUI ncurses instalada em /usr/local/bin/fazai-config-tui"
+  fi
+
+  # Instala fazai-tui.sh (Dashboard TUI completo)
+  if [ -f "opt/fazai/tools/fazai-tui.sh" ]; then
+    copy_with_verification "opt/fazai/tools/fazai-tui.sh" "/opt/fazai/tools/" "Dashboard TUI completo"
+    chmod +x /opt/fazai/tools/fazai-tui.sh
+    ln -sf /opt/fazai/tools/fazai-tui.sh /usr/local/bin/fazai-tui
+    log "SUCCESS" "Dashboard TUI completo instalado em /usr/local/bin/fazai-tui"
+  else
+    log "WARNING" "Dashboard TUI não encontrado, criando versão básica..."
+    cat > "/opt/fazai/tools/fazai-tui.sh" << 'EOF'
+#!/bin/bash
+# FazAI Dashboard TUI - Versão Básica
+echo "FazAI Dashboard TUI v1.3.6"
+echo "
+  if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
+    copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"
+    log "SUCCESS" "Interface web instalada"
+  else
+    log "WARNING" "Interface web não encontrada, criando versão básica..."
+    # Cria uma versão básica se não existir
+    cat > "/opt/fazai/tools/fazai_web_frontend.html" << 'EOF'
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FazAI - Interface Web</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { border: 1px solid #ddd; padding: 20px; margin: 10px 0; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .log-container { background: #f5f5f5; padding: 10px; border-radius: 3px; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FazAI - Interface Web</h1>
+        <div class="card">
+            <h3>Gerenciamento de Logs</h3>
+            <button onclick="viewLogs()">Ver Logs</button>
+            <button onclick="clearLogs()">Limpar Logs</button>
+            <div id="logContainer" class="log-container" style="display: none;"></div>
+        </div>
+        <div class="card">
+            <h3>Status do Sistema</h3>
+            <button onclick="checkStatus()">Verificar Status</button>
+            <div id="statusContainer"></div>
+        </div>
+    </div>
+    <script>
+        const API_URL = 'http://localhost:3120';
+        
+        async function viewLogs() {
+            try {
+                const response = await fetch(`${API_URL}/logs?lines=20`);
+                const result = await response.json();
+                const container = document.getElementById('logContainer');
+                
+                if (result.success) {
+                    let html = '';
+                    result.logs.forEach(log => {
+                        html += `<div><strong>[${log.level}]</strong> ${log.message}</div>`;
+                    });
+                    container.innerHTML = html;
+                    container.style.display = 'block';
+                } else {
+                    container.innerHTML = `<div>Erro: ${result.error}</div>`;
+                    container.style.display = 'block';
+                }
+            } catch (error) {
+                alert('Erro ao carregar logs: ' + error.message);
+            }
+        }
+        
+        async function clearLogs() {
+            if (!confirm('Tem certeza que deseja limpar os logs?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/logs/clear`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Logs limpos com sucesso!');
+                    document.getElementById('logContainer').style.display = 'none';
+                } else {
+                    alert('Erro ao limpar logs: ' + result.error);
+                }
+            } catch (error) {
+                alert('Erro ao limpar logs: ' + error.message);
+            }
+        }
+        
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${API_URL}/status`);
+                const result = await response.json();
+                const container = document.getElementById('statusContainer');
+                
+                if (result.success) {
+                    container.innerHTML = `<div>Status: ${result.status} | Versão: ${result.version}</div>`;
+                } else {
+                    container.innerHTML = `<div>Erro: ${result.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('statusContainer').innerHTML = `<div>Erro: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
+EOF
+    log "SUCCESS" "Interface web básica criada"
+  fi
+  
+  # Copia script de lançamento da interface web
+  if [ -f "opt/fazai/tools/fazai_web.sh" ]; then
+    copy_with_verification "opt/fazai/tools/fazai_web.sh" "/opt/fazai/tools/" "Script de lançamento web"
+    chmod +x "/opt/fazai/tools/fazai_web.sh"
+    log "SUCCESS" "Script de lançamento web instalado"
+  else
+    log "WARNING" "Script de lançamento web não encontrado, criando versão básica..."
+    cat > "/opt/fazai/tools/fazai_web.sh" << 'EOF'
+#!/bin/bash
+# FazAI Web Frontend Launcher
+
+FRONTEND_FILE="/opt/fazai/tools/fazai_web_frontend.html"
+
+if [ ! -f "$FRONTEND_FILE" ]; then
+    echo "Erro: Interface web não encontrada: $FRONTEND_FILE"
+    exit 1
+fi
+
+echo "Iniciando interface web do FazAI..."
+
+# Detecta o sistema e abre o navegador
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    if command -v xdg-open > /dev/null; then
+        xdg-open "$FRONTEND_FILE"
+    elif command -v firefox > /dev/null; then
+        firefox "$FRONTEND_FILE"
+    else
+        echo "Abra manualmente: $FRONTEND_FILE"
+    fi
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    open "$FRONTEND_FILE"
+elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" ]]; then
+    start "$FRONTEND_FILE"
+else
+    echo "Abra manualmente: $FRONTEND_FILE"
+fi
+
+echo "Interface web disponível em: file://$FRONTEND_FILE"
+EOF
+    chmod +x "/opt/fazai/tools/fazai_web.sh"
+    log "SUCCESS" "Script de lançamento web básico criado"
+  fi
   
   log "SUCCESS" "Arquivos copiados com sucesso."
 }
@@ -688,7 +867,7 @@ install_node_dependencies() {
     cat > "package.json" << 'EOF'
 {
   "name": "fazai",
-  "version": "1.3.3",
+  "version": "1.3.6",
   "description": "FazAI - Orquestrador Inteligente de Automação",
   "main": "main.js",
   "dependencies": {
@@ -789,7 +968,7 @@ install_tui() {
 const fs = require('fs');
 const path = require('path');
 
-console.log('FazAI - Interface de Configuração TUI v1.3.3');
+console.log('FazAI - Interface de Configuração TUI v1.3.6');
 console.log('=========================================');
 console.log('');
 console.log('Funcionalidades disponíveis:');
@@ -1144,6 +1323,8 @@ validate_installation() {
     "/etc/fazai/fazai.conf"
     "/etc/systemd/system/fazai.service"
     "/usr/local/bin/fazai"
+    "/opt/fazai/tools/fazai_web_frontend.html"
+    "/opt/fazai/tools/fazai_web.sh"
   )
   
   for file in "${essential_files[@]}"; do
@@ -1250,7 +1431,12 @@ show_installation_summary() {
   echo "  • fazai --help          - Ajuda do sistema"
   echo "  • fazai --version       - Versão instalada"
   echo "  • fazai --status        - Status do daemon"
+  echo "  • fazai web             - Interface web com gerenciamento de logs"
+  echo "  • fazai tui             - Dashboard TUI completo (ncurses)"
+  echo "  • fazai logs [n]        - Ver últimas n entradas de log"
+  echo "  • fazai limpar-logs     - Limpar logs (com backup)"
   echo "  • fazai-config          - Interface de configuração"
+  echo "  • fazai-config-tui      - Interface TUI de configuração"
   echo "  • fazai-backup          - Criar backup"
   echo "  • fazai-uninstall       - Desinstalar"
   echo ""

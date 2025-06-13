@@ -90,13 +90,21 @@ fi
 # Remove arquivos do sistema
 print_message "Removendo arquivos do sistema..."
 
-# Remove o executável CLI e link simbólico
+# Remove o executável CLI e links simbólicos
 if [ -f /usr/local/bin/fazai ]; then
     rm -f /usr/local/bin/fazai
     print_success "Link simbólico do CLI removido."
 else
     print_warning "Link simbólico do CLI não encontrado."
 fi
+
+# Remove outros links simbólicos relacionados
+for link in fazai-config fazai-backup fazai-uninstall fazai-config-tui fazai-tui; do
+    if [ -f "/usr/local/bin/$link" ]; then
+        rm -f "/usr/local/bin/$link"
+        print_success "Link simbólico $link removido."
+    fi
+done
 
 # Remove o serviço systemd
 if [ -f /etc/systemd/system/fazai.service ]; then
@@ -119,10 +127,10 @@ if [ "$PRESERVE_CONFIG" = true ]; then
         print_success "Configuração principal salva em $BACKUP_DIR/fazai.conf"
     fi
     
-    # Remove diretório de código
-    print_message "Removendo diretório de código..."
+    # Remove diretório de código (incluindo interface web)
+    print_message "Removendo diretório de código e interface web..."
     rm -rf /opt/fazai
-    print_success "Diretório /opt/fazai removido."
+    print_success "Diretório /opt/fazai removido (incluindo interface web)."
     
     print_message "Configurações preservadas em /etc/fazai/"
 else
@@ -154,6 +162,27 @@ if [ -d "/var/lib/fazai/training" ] && [[ ! $REPLY =~ ^[Ss]$ ]]; then
         cp -r /var/lib/fazai/training/* "$TRAINING_BACKUP/"
         print_success "Dados de treinamento preservados em $TRAINING_BACKUP"
     fi
+fi
+
+# Remove configurações adicionais
+print_message "Removendo configurações adicionais..."
+
+# Remove bash completion
+if [ -f /etc/bash_completion.d/fazai ]; then
+    rm -f /etc/bash_completion.d/fazai
+    print_success "Bash completion removido."
+fi
+
+# Remove logrotate configuration
+if [ -f /etc/logrotate.d/fazai ]; then
+    rm -f /etc/logrotate.d/fazai
+    print_success "Configuração de logrotate removida."
+fi
+
+# Remove sudoers configuration
+if [ -f /etc/sudoers.d/fazai ]; then
+    rm -f /etc/sudoers.d/fazai
+    print_success "Configuração sudoers removida."
 fi
 
 # Recarrega o daemon do systemd
