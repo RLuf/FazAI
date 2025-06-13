@@ -23,7 +23,9 @@ yarn-error.log*
 *.exe
 *.out
 *.app
-
+.qodo*
+*.log
+*.bkp
 # Diretórios de build
 /build/
 /dist/
@@ -45,7 +47,6 @@ desktop.ini
 .vscode/
 *.swp
 *.swo
-*~
 .project
 .classpath
 .settings/
