@@ -169,6 +169,72 @@ check_dependency_version() {
     fi
 }
 
+# Função para converter arquivos para formato Linux (dos2unix)
+convert_files_to_unix() {
+    log "INFO" "Convertendo arquivos para formato Linux..."
+    
+    # Instala dos2unix se não estiver disponível
+    if ! command -v dos2unix &> /dev/null; then
+        log "INFO" "Instalando dos2unix..."
+        apt-get update && apt-get install -y dos2unix
+        
+        if ! command -v dos2unix &> /dev/null; then
+            log "WARNING" "dos2unix não pôde ser instalado. Tentando método alternativo..."
+            # Método alternativo usando sed
+            convert_with_sed() {
+                local file="$1"
+                if [ -f "$file" ]; then
+                    sed -i 's/\r$//' "$file" 2>/dev/null
+                    if [ $? -eq 0 ]; then
+                        log "DEBUG" "Convertido com sed: $file"
+                    else
+                        log "WARNING" "Falha ao converter: $file"
+                    fi
+                fi
+            }
+            
+            # Converte arquivos críticos usando sed
+            find . -type f \( -name "*.sh" -o -name "*.bash" -o -name "*.conf" \) -exec bash -c 'convert_with_sed "$0"' {} \;
+            log "SUCCESS" "Conversão concluída usando método alternativo"
+            return 0
+        fi
+    fi
+    
+    # Executa o script dos2unixAll.sh se existir
+    if [ -f "etc/fazai/dos2unixAll.sh" ]; then
+        log "INFO" "Executando script dos2unixAll.sh..."
+        chmod +x "etc/fazai/dos2unixAll.sh"
+        cd "$(dirname "$(readlink -f "$0")")" || cd /opt/fazai
+        bash etc/fazai/dos2unixAll.sh
+        log "SUCCESS" "Script dos2unixAll.sh executado"
+    else
+        log "INFO" "Script dos2unixAll.sh não encontrado. Executando conversão manual..."
+        
+        # Encontra e converte todos os arquivos relevantes
+        find . -type f \
+            \( -name "*.sh" \
+            -o -name "*.bash" \
+            -o -name "*.conf" \
+            -o -name "*.yml" \
+            -o -name "*.yaml" \
+            -o -name "*.json" \
+            -o -name "Dockerfile" \) \
+            -exec sh -c '
+                for file do
+                    echo "🔄 Convertendo: $file"
+                    dos2unix "$file" 2>/dev/null
+                    if [ $? -eq 0 ]; then
+                        echo "✅ Convertido com sucesso: $file"
+                    else
+                        echo "❌ Erro ao converter: $file"
+                    fi
+                done
+            ' sh {} +
+    fi
+    
+    log "SUCCESS" "Conversão de arquivos para formato Linux concluída"
+}
+
 # Função para instalar bash completion
 install_bash_completion() {
     log "INFO" "Instalando bash completion..."
@@ -570,6 +636,32 @@ EOF
   chmod 755 /opt/fazai/bin/fazai
   ln -sf /opt/fazai/bin/fazai /usr/local/bin/fazai
   log "SUCCESS" "CLI instalado em /usr/local/bin/fazai"
+
+  # Copia ferramentas do bin/tools para /opt/fazai/tools
+  if [ -d "bin/tools" ]; then
+    log "INFO" "Copiando ferramentas do bin/tools..."
+    copy_with_verification "bin/tools/github-setup.sh" "/opt/fazai/tools/" "GitHub Setup Script" || log "WARNING" "github-setup.sh não encontrado"
+    copy_with_verification "bin/tools/sync-changes.sh" "/opt/fazai/tools/" "Sync Changes Script" || log "WARNING" "sync-changes.sh não encontrado"
+    copy_with_verification "bin/tools/sync-keys.sh" "/opt/fazai/tools/" "Sync Keys Script" || log "WARNING" "sync-keys.sh não encontrado"
+    copy_with_verification "bin/tools/system-check.sh" "/opt/fazai/tools/" "System Check Script" || log "WARNING" "system-check.sh não encontrado"
+    
+    # Torna os scripts execut��veis
+    chmod +x /opt/fazai/tools/*.sh 2>/dev/null
+    log "SUCCESS" "Ferramentas copiadas e tornadas executáveis"
+  fi
+
+  # Copia módulos nativos se existirem
+  if [ -f "opt/fazai/mods/system_mod.so" ]; then
+    copy_with_verification "opt/fazai/mods/system_mod.so" "/opt/fazai/mods/" "Módulo nativo system_mod"
+    log "SUCCESS" "Módulo nativo copiado"
+  fi
+
+  # Copia fazai-config.js se existir
+  if [ -f "opt/fazai/tools/fazai-config.js" ]; then
+    copy_with_verification "opt/fazai/tools/fazai-config.js" "/opt/fazai/tools/" "FazAI Config JS"
+    chmod +x /opt/fazai/tools/fazai-config.js
+    log "SUCCESS" "FazAI Config JS copiado e tornado executável"
+  fi
 
   # Instala dependência dialog para TUI ncurses
   if ! command -v dialog &>/dev/null; then
@@ -1477,6 +1569,7 @@ main_install() {
     "setup_logging:Configurando sistema de logs"
     "check_root:Verificando permissões"
     "check_system:Verificando sistema operacional"
+    "convert_files_to_unix:Convertendo arquivos para formato Linux"
     "install_nodejs:Instalando Node.js"
     "install_npm:Verificando npm"
     "install_gcc:Instalando ferramentas de compilação"

@@ -2,13 +2,18 @@
 
 # FazAI - Script de Desinstalação
 # Este script remove o FazAI do sistema
+# Versão: 1.3.7 - Atualizado para lidar com arquivos movidos e conversão dos2unix
 
 # Cores para saída no terminal
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
+
+# Versão do script
+VERSION="1.3.7"
 
 # Função para exibir mensagens
 print_message() {
@@ -36,6 +41,7 @@ fi
 # Cabeçalho
 echo -e "${BLUE}=================================================${NC}"
 echo -e "${BLUE}       FazAI - Desinstalação Automatizada        ${NC}"
+echo -e "${BLUE}              Versão $VERSION                    ${NC}"
 echo -e "${BLUE}=================================================${NC}"
 echo
 
@@ -62,29 +68,65 @@ fi
 
 # Para o serviço
 print_message "Parando o serviço FazAI..."
-systemctl stop fazai
+systemctl stop fazai 2>/dev/null
 print_success "Serviço parado."
 
 # Desabilita o serviço
 print_message "Desabilitando o serviço..."
-systemctl disable fazai
+systemctl disable fazai 2>/dev/null
 print_success "Serviço desabilitado."
 
 # Backup de configurações se solicitado
 if [ "$PRESERVE_CONFIG" = true ]; then
-    print_message "Fazendo backup das configurações..."
+    print_message "Fazendo backup das configurações e ferramentas..."
     BACKUP_DIR="/tmp/fazai_config_backup_$(date +%Y%m%d%H%M%S)"
-    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR/config"
+    mkdir -p "$BACKUP_DIR/tools"
+    mkdir -p "$BACKUP_DIR/mods"
     
     # Copia arquivos de configuração
     if [ -f /etc/fazai/fazai.conf ]; then
-        cp /etc/fazai/fazai.conf "$BACKUP_DIR/"
+        cp /etc/fazai/fazai.conf "$BACKUP_DIR/config/"
+        print_success "Configuração principal salva no backup"
     fi
     
-    # Outros arquivos de configuração que possam existir
-    # cp /etc/fazai/outros_arquivos.conf "$BACKUP_DIR/"
+    # Backup das ferramentas específicas (arquivos movidos na v1.3.7)
+    TOOLS_TO_BACKUP=(
+        "/opt/fazai/tools/github-setup.sh"
+        "/opt/fazai/tools/sync-changes.sh"
+        "/opt/fazai/tools/sync-keys.sh"
+        "/opt/fazai/tools/system-check.sh"
+        "/opt/fazai/tools/fazai-config.js"
+    )
     
-    print_success "Backup criado em $BACKUP_DIR"
+    for tool in "${TOOLS_TO_BACKUP[@]}"; do
+        if [ -f "$tool" ]; then
+            cp "$tool" "$BACKUP_DIR/tools/"
+            print_success "Ferramenta salva no backup: $(basename "$tool")"
+        fi
+    done
+    
+    # Backup dos módulos nativos
+    MODULES_TO_BACKUP=(
+        "/opt/fazai/mods/system_mod.so"
+        "/opt/fazai/mods/system_mod.c"
+        "/opt/fazai/mods/fazai_mod.h"
+    )
+    
+    for module in "${MODULES_TO_BACKUP[@]}"; do
+        if [ -f "$module" ]; then
+            cp "$module" "$BACKUP_DIR/mods/"
+            print_success "Módulo salvo no backup: $(basename "$module")"
+        fi
+    done
+    
+    # Backup de arquivos relacionados ao dos2unix
+    if [ -f /etc/fazai/dos2unixAll.sh ]; then
+        cp /etc/fazai/dos2unixAll.sh "$BACKUP_DIR/config/"
+        print_success "Script dos2unix salvo no backup"
+    fi
+    
+    print_success "Backup completo criado em $BACKUP_DIR"
 fi
 
 # Remove arquivos do sistema
@@ -106,6 +148,52 @@ for link in fazai-config fazai-backup fazai-uninstall fazai-config-tui fazai-tui
     fi
 done
 
+# Remove ferramentas específicas movidas para /opt/fazai/tools/ (v1.3.7)
+print_message "Removendo ferramentas específicas..."
+TOOLS_TO_REMOVE=(
+    "/opt/fazai/tools/github-setup.sh"
+    "/opt/fazai/tools/sync-changes.sh"
+    "/opt/fazai/tools/sync-keys.sh"
+    "/opt/fazai/tools/system-check.sh"
+    "/opt/fazai/tools/fazai-config.js"
+)
+
+for tool in "${TOOLS_TO_REMOVE[@]}"; do
+    if [ -f "$tool" ]; then
+        rm -f "$tool"
+        print_success "Ferramenta removida: $(basename "$tool")"
+    fi
+done
+
+# Remove módulos nativos específicos
+print_message "Removendo módulos nativos..."
+NATIVE_MODULES=(
+    "/opt/fazai/mods/system_mod.so"
+    "/opt/fazai/mods/system_mod.c"
+    "/opt/fazai/mods/fazai_mod.h"
+)
+
+for module in "${NATIVE_MODULES[@]}"; do
+    if [ -f "$module" ]; then
+        rm -f "$module"
+        print_success "Módulo nativo removido: $(basename "$module")"
+    fi
+done
+
+# Remove arquivos relacionados ao dos2unix e conversão de formato (v1.3.7)
+print_message "Removendo arquivos de conversão de formato..."
+DOS2UNIX_FILES=(
+    "/etc/fazai/dos2unixAll.sh"
+    "/opt/fazai/tools/dos2unixAll.sh"
+)
+
+for dos2unix_file in "${DOS2UNIX_FILES[@]}"; do
+    if [ -f "$dos2unix_file" ]; then
+        rm -f "$dos2unix_file"
+        print_success "Arquivo dos2unix removido: $(basename "$dos2unix_file")"
+    fi
+done
+
 # Remove o serviço systemd
 if [ -f /etc/systemd/system/fazai.service ]; then
     rm -f /etc/systemd/system/fazai.service
@@ -116,17 +204,6 @@ fi
 
 # Preserva ou remove configurações
 if [ "$PRESERVE_CONFIG" = true ]; then
-    # Faz backup das configurações
-    print_message "Fazendo backup das configurações..."
-    BACKUP_DIR="/tmp/fazai_config_backup_$(date +%Y%m%d%H%M%S)"
-    mkdir -p "$BACKUP_DIR"
-    
-    # Copia arquivos de configuração
-    if [ -f /etc/fazai/fazai.conf ]; then
-        cp /etc/fazai/fazai.conf "$BACKUP_DIR/"
-        print_success "Configuração principal salva em $BACKUP_DIR/fazai.conf"
-    fi
-    
     # Remove diretório de código (incluindo interface web)
     print_message "Removendo diretório de código e interface web..."
     rm -rf /opt/fazai
@@ -159,7 +236,7 @@ if [ -d "/var/lib/fazai/training" ] && [[ ! $REPLY =~ ^[Ss]$ ]]; then
     if [[ $REPLY =~ ^[Ss]$ ]]; then
         TRAINING_BACKUP="/tmp/fazai_training_backup_$(date +%Y%m%d%H%M%S)"
         mkdir -p "$TRAINING_BACKUP"
-        cp -r /var/lib/fazai/training/* "$TRAINING_BACKUP/"
+        cp -r /var/lib/fazai/training/* "$TRAINING_BACKUP/" 2>/dev/null
         print_success "Dados de treinamento preservados em $TRAINING_BACKUP"
     fi
 fi
@@ -185,6 +262,12 @@ if [ -f /etc/sudoers.d/fazai ]; then
     print_success "Configuração sudoers removida."
 fi
 
+# Remove arquivos de estado de instalação se existirem (v1.3.7)
+if [ -f /var/lib/fazai/install.state ]; then
+    rm -f /var/lib/fazai/install.state
+    print_success "Estado de instalação removido."
+fi
+
 # Recarrega o daemon do systemd
 print_message "Recarregando o daemon do systemd..."
 systemctl daemon-reload
@@ -194,6 +277,7 @@ print_success "Daemon recarregado."
 echo
 echo -e "${GREEN}=================================================${NC}"
 echo -e "${GREEN}       FazAI desinstalado com sucesso!           ${NC}"
+echo -e "${GREEN}              Versão $VERSION                    ${NC}"
 echo -e "${GREEN}=================================================${NC}"
 echo
 
@@ -201,5 +285,11 @@ if [ "$PRESERVE_CONFIG" = true ]; then
     echo -e "${YELLOW}[IMPORTANTE]${NC} Arquivos de configuração foram preservados em /etc/fazai/"
     echo -e "Backup adicional disponível em: ${BLUE}$BACKUP_DIR${NC}"
 fi
+
+echo -e "${PURPLE}[INFO]${NC} Limpeza específica da versão 1.3.7 concluída:"
+echo -e "  • Ferramentas movidas removidas"
+echo -e "  • Módulos nativos removidos"
+echo -e "  • Arquivos dos2unix removidos"
+echo -e "  • Estado de instalação limpo"
 
 exit 0

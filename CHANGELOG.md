@@ -1,5 +1,46 @@
 # Changelog
 
+## [v1.3.7] - 13/06/2025
+
+### Added
+- **Conversão automática dos2unix** - Nova função `convert_files_to_unix()` no install.sh
+- Instalação automática do pacote `dos2unix` durante a instalação
+- Método alternativo de conversão usando `sed` quando dos2unix não está disponível
+- Execução automática do script `etc/fazai/dos2unixAll.sh` se disponível
+- Conversão automática de arquivos `.sh`, `.bash`, `.conf`, `.yml`, `.yaml`, `.json`, `Dockerfile`
+- Backup automático de ferramentas específicas durante desinstalação
+- Backup de módulos nativos durante desinstalação
+- Limpeza específica de arquivos dos2unix no uninstall.sh
+- Remoção de arquivos de estado de instalação no uninstall.sh
+- Documentação completa das movimentações em `MOVED_FILES_SUMMARY.md`
+
+### Changed
+- **Reorganização de arquivos:** Movidos para locais apropriados:
+  - `sync-changes.sh` → `bin/tools/sync-changes.sh`
+  - `system_mod.so` → `opt/fazai/mods/system_mod.so`
+  - `fazai-config.js` → `opt/fazai/tools/fazai-config.js`
+  - `github-setup.sh` já estava em `bin/tools/` (mantido)
+- Script de instalação (`install.sh`) atualizado com nova etapa de conversão dos2unix
+- Função `copy_files()` expandida para lidar com arquivos movidos
+- Script de desinstalação (`uninstall.sh`) completamente reescrito para versão 1.3.7
+- Backup estruturado em subdiretórios (config/, tools/, mods/) durante desinstalação
+- Ordem de execução da instalação atualizada com conversão dos2unix como 4ª etapa
+
+### Fixed
+- Problemas de formato de linha (CRLF → LF) em sistemas Linux
+- Dependências ajustadas para arquivos em novos locais
+- Permissões executáveis definidas automaticamente para ferramentas copiadas
+- Tratamento robusto de erros na conversão de formato de arquivos
+- Limpeza completa de arquivos específicos da versão durante desinstalação
+
+### Security
+- Backup automático de ferramentas críticas antes da remoção
+- Verificação de existência de arquivos antes de operações
+- Tratamento seguro de permissões para arquivos movidos
+- Validação de caminhos durante operações de backup
+
+---
+
 ## [v1.3.6] - 07/06/2025
 
 ### Added
@@ -115,27 +156,27 @@
 ### Changed
 - Consolidação de todos os scripts de instalação em um único arquivo
 - Estrutura modular e organizada do script de instalação
-- Aprimoramento da ****ção e ****ção de erros
+- Aprimoramento da detecção e correção de erros
 - Expansão dos diretórios criados automaticamente
 
 ### Fixed
 - Problemas de resiliência na compilação de módulos nativos
 - Falhas na importação de chaves de API de múltiplas fontes
-- Erros na instalação em **** com versões antigas de Node.js
+- Erros na instalação em sistemas com versões antigas de Node.js
 
 ## [v1.3.2] - 02/06/2025
 
 ### Added
-- Aprimoramentos no instalador para ****ção de versões e dependências
-- Sistema de **** em caso de erros durante a instalação
-- Geração de logs detalhados durante o **** de instalação
-- Script de sincronização para manter ambientes ****
-- Sistema de ****ção de permissões e diretórios
+- Aprimoramentos no instalador para detecção de versões e dependências
+- Sistema de retry em caso de erros durante a instalação
+- Geração de logs detalhados durante o processo de instalação
+- Script de sincronização para manter ambientes atualizados
+- Sistema de verificação de permissões e diretórios
 
 ### Changed
 - Melhorias na estrutura de diretórios
-- ****ção do sistema de logging
-- Otimização do **** de instalação
+- Otimização do sistema de logging
+- Otimização do processo de instalação
 
 ## [v1.3.1] - 25/05/2025
 
@@ -159,9 +200,9 @@
 
 ### Added
 - Sistema de orquestração com modos de planejamento e ação
-- Suporte a múltiplos provedores de IA (OpenRouter, ****, OpenAI)
+- Suporte a múltiplos provedores de IA (OpenRouter, Anthropic, OpenAI)
 - Melhoria na detecção de dependências do sistema
-- ****ção de disponibilidade dos recursos do sistema
+- Verificação de disponibilidade dos recursos do sistema
 
 ### Changed
 - Reestruturação da arquitetura do daemon
@@ -171,7 +212,7 @@
 ## [v1.2.2] - 10/04/2025
 
 ### Added
-- **** avançados do sistema sem necessidade de IA
+- Comandos avançados do sistema sem necessidade de IA
 - Suporte a execução em ambiente offline
 - Script de reinstalação com preservação de configurações
 
@@ -185,7 +226,7 @@
 ### Added
 - Script de desinstalação com opções de preservação de dados
 - Sistema de backup automático de configurações
-- Suporte a versão **** (standalone) para ambientes com restrições
+- Suporte a versão portable (standalone) para ambientes com restrições
 
 ### Changed
 - Melhoria na estrutura de plugins
@@ -197,8 +238,8 @@
 ### Added
 - Modo de instalação standalone para ambientes offline
 - Suporte a plugins e módulos nativos
-- Integração com **** específicos do sistema
-- Mecanismos de ****ção de falhas
+- Integração com recursos específicos do sistema
+- Mecanismos de recuperação de falhas
 
 ### Changed
 - Revisão completa do sistema de logging
@@ -211,7 +252,7 @@
 - Sistema de plugins para extensibilidade
 - Suporte a módulos nativos em C
 - Mecanismos avançados de logging
-- **** básicos do sistema sem IA
+- Comandos básicos do sistema sem IA
 
 ### Changed
 - Melhoria no CLI com mais opções e documentação
