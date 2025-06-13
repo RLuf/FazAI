@@ -273,6 +273,7 @@ static int change_ssh_port(const char* port, char* output, int output_len) {
 /**
  * Inicializa o módulo
  */
+__attribute__((visibility("default"))) 
 int fazai_mod_init() {
     if (initialized) {
         return 0;

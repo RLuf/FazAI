@@ -422,27 +422,19 @@ app.post('/command', async (req, res) => {
       result: result.stdout,
       success: true
     });
-    
   } catch (err) {
-    // Garantir que temos valores seguros para log
-    const errorMessage = err?.message || 'Erro desconhecido';
-    const stackTrace = err?.stack || 'Stack trace não disponível';
-    
-    logger.error(`Erro ao processar comando: ${errorMessage}`);
-    logger.error(`Stack trace: ${stackTrace}`);
+    logger.error(`Erro ao processar comando: ${err.message}`);
+    logger.error(`Stack trace: ${err.stack}`);
     
     // Determina o tipo de erro para uma mensagem mais amigável
-    let friendlyMessage = 'Erro interno ao processar comando';
+    let errorMessage = 'Erro interno ao processar comando';
     
-    // ✅ CORREÇÃO PRINCIPAL - Verificar se message existe antes de usar includes
-    const message = err?.message || '';
-    
-    if (message.includes('API')) {
-      friendlyMessage = 'Erro de comunicação com o provedor de IA. Verifique as chaves de API e a conexão.';
-    } else if (message.includes('ECONNREFUSED') || message.includes('ETIMEDOUT')) {
-      friendlyMessage = 'Não foi possível conectar ao serviço de IA. Verifique sua conexão de internet.';
-    } else if (message.includes('command')) {
-      friendlyMessage = 'Erro ao executar o comando no sistema.';
+    if (err.message.includes('API')) {
+      errorMessage = 'Erro de comunicação com o provedor de IA. Verifique as chaves de API e a conexão.';
+    } else if (err.message.includes('ECONNREFUSED') || err.message.includes('ETIMEDOUT')) {
+      errorMessage = 'Não foi possível conectar ao serviço de IA. Verifique sua conexão de internet.';
+    } else if (err.message.includes('command')) {
+      errorMessage = 'Erro ao executar o comando no sistema.';
     }
     
     res.status(500).json({

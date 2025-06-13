@@ -1,0 +1,24 @@
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+TypeError: Cannot read properties of undefined (reading 'includes')
+    at /opt/fazai/lib/main.js:432:21
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+TypeError: Cannot read properties of undefined (reading 'includes')
+    at /opt/fazai/lib/main.js:432:21
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+TypeError: Cannot read properties of undefined (reading 'includes')
+    at /opt/fazai/lib/main.js:432:21
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+
+==> /var/log/fazai/stdout.log <==
+
+==> /var/log/fazai/stdout.log.1 <==
+{"level":"info","message":"Consultando IA para interpretar: \"ls\"","service":"fazai-daemon","timestamp":"2025-06-13T17:06:46.017Z"}
+{"level":"info","message":"Usando provedor: openai","service":"fazai-daemon","timestamp":"2025-06-13T17:06:46.018Z"}
+{"level":"info","message":"Enviando requisição para OpenAI (modelo: gpt-3.5-turbo)","service":"fazai-daemon","timestamp":"2025-06-13T17:06:46.018Z"}
+{"level":"info","message":"Resposta recebida da OpenAI: {\"role\":\"assistant\",\"content\":\"O comando \\\"ls\\\" é utilizado para listar os arquivos e diretórios presentes no diretório atual. Para executá-lo, basta digitar \\\"ls\\\" no terminal e pressionar \\\"Enter\\\". Se desejar, você pode adicionar opções ao comando para personalizar a saída, como por exemplo \\\"ls -l\\\" para exibir mais detalhes ou \\\"ls -a\\\" para exibir arquivos e diretórios ocultos.\",\"refusal\":null,\"annotations\":[]}","service":"fazai-daemon","timestamp":"2025-06-13T17:06:47.260Z"}
+{"level":"info","message":"Resposta recebida do provedor openai","service":"fazai-daemon","timestamp":"2025-06-13T17:06:47.261Z"}
+{"level":"info","message":"Comando interpretado como: O comando \"ls\" é utilizado para listar os arquivos e diretórios presentes no diretório atual. Para executá-lo, basta digitar \"ls\" no terminal e pressionar \"Enter\". Se desejar, você pode adicionar opções ao comando para personalizar a saída, como por exemplo \"ls -l\" para exibir mais detalhes ou \"ls -a\" para exibir arquivos e diretórios ocultos.","service":"fazai-daemon","timestamp":"2025-06-13T17:06:47.261Z"}
+{"level":"info","message":"Executando comando interpretado","service":"fazai-daemon","timestamp":"2025-06-13T17:06:47.261Z"}
+{"cmd":"O comando \"ls\" é utilizado para listar os arquivos e diretórios presentes no diretório atual. Para executá-lo, basta digitar \"ls\" no terminal e pressionar \"Enter\". Se desejar, você pode adicionar opções ao comando para personalizar a saída, como por exemplo \"ls -l\" para exibir mais detalhes ou \"ls -a\" para exibir arquivos e diretórios ocultos.","code":127,"killed":false,"level":"error","message":"Erro ao executar comando: O comando \"ls\" é utilizado para listar os arquivos e diretórios presentes no diretório atual. Para executá-lo, basta digitar \"ls\" no terminal e pressionar \"Enter\". Se desejar, você pode adicionar opções ao comando para personalizar a saída, como por exemplo \"ls -l\" para exibir mais detalhes ou \"ls -a\" para exibir arquivos e diretórios ocultos. Command failed: O comando \"ls\" é utilizado para listar os arquivos e diretórios presentes no diretório atual. Para executá-lo, basta digitar \"ls\" no terminal e pressionar \"Enter\". Se desejar, você pode adicionar opções ao comando para personalizar a saída, como por exemplo \"ls -l\" para exibir mais detalhes ou \"ls -a\" para exibir arquivos e diretórios ocultos.\n/bin/sh: 1: O: not found\n","service":"fazai-daemon","signal":null,"stack":"Error: Command failed: O comando \"ls\" é utilizado para listar os arquivos e diretórios presentes no diretório atual. Para executá-lo, basta digitar \"ls\" no terminal e pressionar \"Enter\". Se desejar, você pode adicionar opções ao comando para personalizar a saída, como por exemplo \"ls -l\" para exibir mais detalhes ou \"ls -a\" para exibir arquivos e diretórios ocultos.\n/bin/sh: 1: O: not found\n\n    at ChildProcess.exithandler (node:child_process:402:12)\n    at ChildProcess.emit (node:events:513:28)\n    at maybeClose (node:internal/child_process:1100:16)\n    at Socket.<anonymous> (node:internal/child_process:458:11)\n    at Socket.emit (node:events:513:28)\n    at Pipe.<anonymous> (node:net:301:12)","timestamp":"2025-06-13T17:06:47.277Z"}
+{"level":"error","message":"Erro ao processar comando: undefined","service":"fazai-daemon","timestamp":"2025-06-13T17:06:47.278Z"}
+{"level":"error","message":"Stack trace: undefined","service":"fazai-daemon","timestamp":"2025-06-13T17:06:47.278Z"}

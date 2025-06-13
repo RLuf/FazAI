@@ -449,7 +449,7 @@ console.log('FazAI v1.3.3 - Iniciando...');
 
 // Configuração básica
 const config = {
-  port: process.env.FAZAI_PORT || 3000,
+  port: process.env.FAZAI_PORT || 3120,
   logLevel: process.env.FAZAI_LOG_LEVEL || 'info'
 };
 
@@ -547,7 +547,7 @@ EOF
   fi
   
   # Agora copia os arquivos
-  copy_with_verification "etc/fazai/main.js" "/opt/fazai/lib/" "Arquivo principal"
+  copy_with_verification "opt/fazai/lib/main.js" "/opt/fazai/lib/" "Arquivo principal"
   chmod 755 /opt/fazai/lib/main.js
   
   copy_with_verification "etc/fazai/fazai.conf.example" "/opt/fazai/conf/fazai.conf.default" "Configuração padrão"
@@ -795,7 +795,6 @@ console.log('');
 console.log('Funcionalidades disponíveis:');
 console.log('1. Verificar status do sistema');
 console.log('2. Configurar chaves de API');
-# Continuação do fazai_install_fixed.sh a partir da função install_tui()
 console.log('3. Verificar logs do sistema');
 console.log('4. Gerenciar serviços');
 console.log('5. Sair');

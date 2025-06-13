@@ -316,27 +316,50 @@ ${colors.bright}Exemplos:${colors.reset}
     'processos': 'ps aux',
     'rede': 'ip a',
     'data': 'date',
-    'uptime': 'uptime'
+    'uptime': 'uptime',
+    'html': 'fazai_html_v1.sh'  // Adiciona comando html como invocação direta
   };
   
   if (basicCommands[args[0]]) {
     try {
-      const { exec } = require('child_process');
-      printInfo(`Executando comando básico: ${basicCommands[args[0]]}`);
-      
-      exec(basicCommands[args[0]], (error, stdout, stderr) => {
-        if (error) {
-          printError(`Erro ao executar comando: ${error.message}`);
-          process.exit(1);
-        }
-        if (stderr) {
-          console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
-        }
-        console.log(`\n${colors.bright}${colors.fg.yellow}Resultado:${colors.reset}\n${stdout}\n`);
-        process.exit(0);
-      });
-      
-      return; // Importante para evitar que o código continue enquanto o comando é executado
+      // Se o comando for 'html', executa o script com parâmetros
+      if (args[0] === 'html') {
+        const script_path = '/opt/fazai/tools/fazai_html_v1.sh';
+        const data_type = args[1] || 'memoria';
+        const chart_type = args[2] || 'bar';
+        
+        // Executa o script de geração HTML
+        const { exec } = require('child_process');
+        printInfo(`Gerando visualização HTML para ${data_type} com gráfico ${chart_type}`);
+        
+        exec(`chmod +x ${script_path} && ${script_path} ${data_type} ${chart_type}`, (error, stdout, stderr) => {
+          if (error) {
+            printError(`Erro ao executar script HTML: ${error.message}`);
+            process.exit(1);
+          }
+          if (stderr) {
+            console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
+          }
+          console.log(`\n${colors.bright}${colors.fg.yellow}Resultado:${colors.reset}\n${stdout}\n`);
+          process.exit(0);
+        });
+      } else {
+        // Para outros comandos básicos
+        const { exec } = require('child_process');
+        printInfo(`Executando comando básico: ${basicCommands[args[0]]}`);
+        
+        exec(basicCommands[args[0]], (error, stdout, stderr) => {
+          if (error) {
+            printError(`Erro ao executar comando: ${error.message}`);
+            process.exit(1);
+          }
+          if (stderr) {
+            console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
+          }
+          console.log(`\n${colors.bright}${colors.fg.yellow}Resultado:${colors.reset}\n${stdout}\n`);
+          process.exit(0);
+        });
+      }
     } catch (err) {
       printError(`Erro ao executar comando básico: ${err.message}`);
       process.exit(1);
