@@ -28,7 +28,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Variáveis de configuração
-VERSION="1.3.6"
+VERSION="1.3.7"
 LOG_FILE="/var/log/fazai_install.log"
 RETRY_COUNT=3
 INSTALL_STATE_FILE="/var/lib/fazai/install.state"
@@ -518,7 +518,7 @@ copy_files() {
 const fs = require('fs');
 const path = require('path');
 
-console.log('FazAI v1.3.6 - Iniciando...');
+console.log('FazAI v1.3.7 - Iniciando...');
 
 // Configuração básica
 const config = {
@@ -560,7 +560,7 @@ const fs = require('fs');
 const args = process.argv.slice(2);
 
 if (args.includes('--version')) {
-  console.log('FazAI v1.3.6');
+  console.log('FazAI v1.3.7');
   process.exit(0);
 }
 
@@ -590,7 +590,7 @@ if (args.includes('--status')) {
   process.exit(0);
 }
 
-console.log('FazAI CLI v1.3.6 - Use --help para mais informações');
+console.log('FazAI CLI v1.3.7 - Use --help para mais informações');
 EOF
     chmod +x "bin/fazai"
   fi
@@ -600,7 +600,7 @@ EOF
     log "INFO" "Criando arquivo de configuração exemplo..."
     cat > "etc/fazai/fazai.conf.example" << 'EOF'
 # FazAI - Arquivo de Configuração
-# Versão: 1.3.6
+# Versão: 1.3.7
 
 [geral]
 log_level = info
@@ -678,6 +678,30 @@ EOF
   fi
 
   # Instala fazai-tui.sh (Dashboard TUI completo)
+
+  # Copia interface web front-end
+  if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
+    copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"
+    chmod 644 "/opt/fazai/tools/fazai_web_frontend.html"
+    log "SUCCESS" "Interface web instalada"
+  else
+    log "WARNING" "Interface web não encontrado, crio fallback básico..."
+    cat > "/opt/fazai/tools/fazai_web_frontend.html" << 'EOF'
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FazAI - Interface Web</title>
+</head>
+<body>
+    <h1>FazAI Interface Web</h1>
+    <p>Interface básica gerada automaticamente.</p>
+</body>
+</html>
+EOF
+    log "SUCCESS" "Interface web fallback criada"
+  fi
   if [ -f "opt/fazai/tools/fazai-tui.sh" ]; then
     copy_with_verification "opt/fazai/tools/fazai-tui.sh" "/opt/fazai/tools/" "Dashboard TUI completo"
     chmod +x /opt/fazai/tools/fazai-tui.sh
@@ -688,7 +712,7 @@ EOF
     cat > "/opt/fazai/tools/fazai-tui.sh" << 'EOF'
 #!/bin/bash
 # FazAI Dashboard TUI - Versão Básica
-echo "FazAI Dashboard TUI v1.3.6"
+echo "FazAI Dashboard TUI v1.3.7"
 echo "
   if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
     copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"
@@ -802,6 +826,7 @@ EOF
     cat > "/opt/fazai/tools/fazai_web.sh" << 'EOF'
 #!/bin/bash
 # FazAI Web Frontend Launcher
+# Caminho: /opt/fazai/tools/fazai_web.sh
 
 FRONTEND_FILE="/opt/fazai/tools/fazai_web_frontend.html"
 
@@ -959,7 +984,7 @@ install_node_dependencies() {
     cat > "package.json" << 'EOF'
 {
   "name": "fazai",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "description": "FazAI - Orquestrador Inteligente de Automação",
   "main": "main.js",
   "dependencies": {
@@ -1060,7 +1085,7 @@ install_tui() {
 const fs = require('fs');
 const path = require('path');
 
-console.log('FazAI - Interface de Configuração TUI v1.3.6');
+console.log('FazAI - Interface de Configuração TUI v1.3.7');
 console.log('=========================================');
 console.log('');
 console.log('Funcionalidades disponíveis:');

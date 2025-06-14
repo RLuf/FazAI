@@ -118,7 +118,7 @@ function loadConfig() {
         system: {
           max_memory: '512M',
           threads: '4',
-          port: '3000',
+          port: '3120',
           host: 'localhost',
         }
       };

@@ -97,6 +97,8 @@ if [ "$PRESERVE_CONFIG" = true ]; then
         "/opt/fazai/tools/sync-keys.sh"
         "/opt/fazai/tools/system-check.sh"
         "/opt/fazai/tools/fazai-config.js"
+    "/opt/fazai/tools/fazai_html_v1.sh"
+        "/opt/fazai/tools/fazai_html_v1.sh"
     )
     
     for tool in "${TOOLS_TO_BACKUP[@]}"; do
@@ -141,7 +143,7 @@ else
 fi
 
 # Remove outros links simbólicos relacionados
-for link in fazai-config fazai-backup fazai-uninstall fazai-config-tui fazai-tui; do
+for link in fazai-config fazai-backup fazai-uninstall fazai-config-tui fazai-tui fazai-html; do
     if [ -f "/usr/local/bin/$link" ]; then
         rm -f "/usr/local/bin/$link"
         print_success "Link simbólico $link removido."
@@ -156,6 +158,8 @@ TOOLS_TO_REMOVE=(
     "/opt/fazai/tools/sync-keys.sh"
     "/opt/fazai/tools/system-check.sh"
     "/opt/fazai/tools/fazai-config.js"
+    "/opt/fazai/tools/fazai_html_v1.sh"
+        "/opt/fazai/tools/fazai_html_v1.sh"
 )
 
 for tool in "${TOOLS_TO_REMOVE[@]}"; do

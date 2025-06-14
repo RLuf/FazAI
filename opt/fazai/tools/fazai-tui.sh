@@ -3,14 +3,14 @@ Vou criar uma versão completa do frontend em ncurses TUI com o nome `fazai-tui`
 #!/bin/bash
 # FazAI - Interface TUI Dashboard Completa
 # Caminho: /opt/fazai/tools/fazai-tui.sh
-# Versão: 1.3.6
+# Versão: 1.3.7
 
 # Configurações
 CONFIG_FILE="/etc/fazai/fazai.conf"
 LOG_FILE="/var/log/fazai/fazai.log"
 API_URL="http://localhost:3120"
 DIALOG_TITLE="FazAI - Dashboard TUI"
-VERSION="1.3.6"
+VERSION="1.3.7"
 
 # Cores para dialog
 export DIALOGRC="/tmp/fazai_dialogrc"
