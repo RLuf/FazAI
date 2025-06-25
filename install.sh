@@ -645,7 +645,7 @@ EOF
     copy_with_verification "bin/tools/sync-keys.sh" "/opt/fazai/tools/" "Sync Keys Script" || log "WARNING" "sync-keys.sh não encontrado"
     copy_with_verification "bin/tools/system-check.sh" "/opt/fazai/tools/" "System Check Script" || log "WARNING" "system-check.sh não encontrado"
     
-    # Torna os scripts execut��veis
+    # Torna os scripts executáveis
     chmod +x /opt/fazai/tools/*.sh 2>/dev/null
     log "SUCCESS" "Ferramentas copiadas e tornadas executáveis"
   fi
