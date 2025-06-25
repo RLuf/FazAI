@@ -15,6 +15,7 @@
 - Documentação completa das movimentações em `MOVED_FILES_SUMMARY.md`
 
 ### Changed
+- Requisito mínimo atualizado para Node.js 18 e Python 3.10
 - **Reorganização de arquivos:** Movidos para locais apropriados:
   - `sync-changes.sh` → `bin/tools/sync-changes.sh`
   - `system_mod.so` → `opt/fazai/mods/system_mod.so`
