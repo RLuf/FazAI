@@ -452,8 +452,8 @@ ${colors.bright}Exemplos:${colors.reset}
       const versionNum = nodeVersion.substring(1); // Remove o 'v'
       const major = parseInt(versionNum.split('.')[0], 10);
       
-      if (major < 14) {
-        printError(`Versão do Node.js (${nodeVersion}) é menor que a mínima requerida (v14.0.0)`);
+      if (major < 18) {
+        printError(`Versão do Node.js (${nodeVersion}) é menor que a mínima requerida (v18.0.0)`);
       } else {
         printSuccess("Versão do Node.js é compatível");
       }

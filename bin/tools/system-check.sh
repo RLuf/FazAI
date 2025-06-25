@@ -15,7 +15,7 @@ log() {
 
 # Verifica dependências do sistema
 check_dependencies() {
-    local deps=("curl" "jq" "git" "python3" "pip3")
+    local deps=("curl" "jq" "git" "python3" "pip3" "node" "npm")
     
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" &> /dev/null; then
@@ -23,6 +23,22 @@ check_dependencies() {
             return 1
         fi
     done
+
+    # Verifica versões mínimas de Node.js e Python
+    local node_version=$(node -v 2>/dev/null | sed 's/v//')
+    local node_major=$(echo "$node_version" | cut -d. -f1)
+    if [ -n "$node_major" ] && [ "$node_major" -lt 18 ]; then
+        log "ERRO: Node.js 18 ou superior é requerido (versão atual: $node_version)"
+        return 1
+    fi
+
+    local py_version=$(python3 --version 2>/dev/null | awk '{print $2}')
+    local py_major=$(echo "$py_version" | cut -d. -f1)
+    local py_minor=$(echo "$py_version" | cut -d. -f2)
+    if [ -n "$py_major" ] && { [ "$py_major" -lt 3 ] || { [ "$py_major" -eq 3 ] && [ "$py_minor" -lt 10 ]; }; }; then
+        log "ERRO: Python 3.10 ou superior é requerido (versão atual: $py_version)"
+        return 1
+    fi
     
     log "✓ Todas as dependências do sistema estão instaladas"
     return 0

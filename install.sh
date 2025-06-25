@@ -35,15 +35,17 @@ INSTALL_STATE_FILE="/var/lib/fazai/install.state"
 
 # Dependências do sistema e suas versões mínimas
 declare -A SYSTEM_DEPENDENCIES=(
-    ["node"]="14.0.0"
-    ["npm"]="6.0.0"
+    ["node"]="18.0.0"
+    ["npm"]="8.0.0"
+    ["python3"]="3.10.0"
+    ["pip3"]="21.0"
     ["gcc"]="7.0.0"
     ["curl"]="7.0.0"
     ["dialog"]="1.3"
 )
 
 # Repositórios alternativos para fallback
-NODE_VERSIONS=("18" "20" "16")
+NODE_VERSIONS=("22" "20" "18")
 REPOSITORIES=(
     "https://deb.nodesource.com/setup_"
     "https://nodejs.org/dist/v"
@@ -145,6 +147,12 @@ check_dependency_version() {
             ;;
         "npm")
             current_version=$(npm -v)
+            ;;
+        "python3")
+            current_version=$(python3 --version | awk '{print $2}')
+            ;;
+        "pip3")
+            current_version=$(pip3 --version | awk '{print $2}')
             ;;
         "gcc")
             current_version=$(gcc --version | head -n1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
@@ -325,12 +333,12 @@ install_nodejs() {
     NODE_VERSION=$(node -v)
     log "SUCCESS" "Node.js já instalado: $NODE_VERSION"
     
-    # Verifica versão mínima do Node.js (>=14.0.0)
+  # Verifica versão mínima do Node.js (>=18.0.0)
     NODE_VERSION_NUM=$(echo $NODE_VERSION | cut -c 2-)
     NODE_MAJOR=$(echo $NODE_VERSION_NUM | cut -d. -f1)
     
-    if [ $NODE_MAJOR -lt 14 ]; then
-      log "WARNING" "FazAI requer Node.js versão 14.0.0 ou superior. Versão atual: $NODE_VERSION"
+  if [ $NODE_MAJOR -lt 18 ]; then
+      log "WARNING" "FazAI requer Node.js versão 18.0.0 ou superior. Versão atual: $NODE_VERSION"
       log "INFO" "Tentando atualizar o Node.js..."
       install_nodejs_from_source
     fi
@@ -357,7 +365,7 @@ install_nodejs_from_source() {
     NODE_VERSION_NUM=$(echo $NODE_VERSION | cut -c 2-)
     NODE_MAJOR=$(echo $NODE_VERSION_NUM | cut -d. -f1)
     
-    if [ $NODE_MAJOR -ge 14 ]; then
+    if [ $NODE_MAJOR -ge 18 ]; then
       log "SUCCESS" "Node.js instalado com sucesso via apt: $NODE_VERSION"
       success=true
       return 0
@@ -421,6 +429,31 @@ install_npm() {
   else
     NPM_VERSION=$(npm -v)
     log "SUCCESS" "npm já instalado: $NPM_VERSION"
+  fi
+}
+
+# Função para verificar e instalar Python 3
+install_python() {
+  if command -v python3 &> /dev/null; then
+    PYTHON_VERSION=$(python3 --version | awk '{print $2}')
+    PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
+    PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
+
+    if [ "$PYTHON_MAJOR" -lt 3 ] || { [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 10 ]; }; then
+      log "WARNING" "FazAI requer Python 3.10 ou superior. Versão atual: $PYTHON_VERSION"
+      apt-get update && apt-get install -y python3 python3-pip
+    fi
+  else
+    log "WARNING" "Python3 não encontrado. Instalando..."
+    apt-get update && apt-get install -y python3 python3-pip
+  fi
+
+  if command -v python3 &> /dev/null; then
+    PYTHON_VERSION=$(python3 --version | awk '{print $2}')
+    log "SUCCESS" "python3 instalado: $PYTHON_VERSION"
+  else
+    log "ERROR" "Falha ao instalar python3."
+    exit 1
   fi
 }
 
@@ -1597,6 +1630,7 @@ main_install() {
     "convert_files_to_unix:Convertendo arquivos para formato Linux"
     "install_nodejs:Instalando Node.js"
     "install_npm:Verificando npm"
+    "install_python:Instalando Python 3"
     "install_gcc:Instalando ferramentas de compilação"
     "create_directories:Criando estrutura de diretórios"
     "copy_files:Copiando arquivos"
