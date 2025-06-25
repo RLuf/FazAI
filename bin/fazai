@@ -52,7 +52,7 @@ if (!fs.existsSync(mainJsPath)) {
 }
 
 // Configuração do cliente
-const API_URL = process.env.FAZAI_API_URL || 'http://localhost:3120';
+const API_URL = process.env.FAZAI_API_URL || 'http://localhost:3210';
 const LOG_FILE = '/var/log/fazai/fazai.log';
 
 // Cores para saída no terminal
@@ -160,7 +160,7 @@ async function sendCommand(command) {
       }
     } else if (err.request) {
       // Erro sem resposta (problema de conexão)
-      throw new Error('Não foi possível conectar ao daemon. Verifique se o serviço está em execução na porta 3000.');
+      throw new Error(`Não foi possível conectar ao daemon. Verifique se o serviço está em execução em ${API_URL}.`);
     } else {
       // Erro na configuração da requisição
       throw new Error(`Erro ao enviar comando: ${err.message}`);
