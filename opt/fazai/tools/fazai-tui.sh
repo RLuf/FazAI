@@ -8,7 +8,7 @@ Vou criar uma versão completa do frontend em ncurses TUI com o nome `fazai-tui`
 # Configurações
 CONFIG_FILE="/etc/fazai/fazai.conf"
 LOG_FILE="/var/log/fazai/fazai.log"
-API_URL="http://localhost:3120"
+API_URL="http://localhost:3210"
 DIALOG_TITLE="FazAI - Dashboard TUI"
 VERSION="1.3.7"
 
@@ -426,7 +426,7 @@ configure_api_keys() {
 
 # Função para configurar daemon
 configure_daemon() {
-    local port=$(grep '^daemon_port' "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2 | xargs || echo "3120")
+    local port=$(grep '^daemon_port' "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2 | xargs || echo "3210")
     local log_level=$(grep '^log_level' "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2 | xargs || echo "info")
     
     exec 3>&1

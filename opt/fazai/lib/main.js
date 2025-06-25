@@ -43,7 +43,7 @@ const logger = winston.createLogger({
 
 // Configuração do servidor Express
 const app = express();
-const PORT = process.env.PORT || 3120;
+const PORT = process.env.PORT || 3210;
 
 // Middleware para processar JSON
 app.use(express.json());
