@@ -50,7 +50,7 @@ Para ambientes com restrições de rede ou onde a instalação normal falha:
 wget https://github.com/RLuf/FazAI/releases/latest/download/fazai-portable.tar.gz
 tar -xzf fazai-portable.tar.gz
 cd fazai-portable-*
-sudo ./install-portable.sh
+sudo ./install.sh
 ```
 
 ### Instalação via Docker
@@ -159,6 +159,9 @@ sudo ./uninstall.sh
 ```
 
 ## Reinstalação
+
+Para reinstalar completamente o FazAI utilize o script `reinstall.sh`. Ele
+executa `uninstall.sh` e em seguida `install.sh` de forma automática:
 
 ```bash
 sudo ./reinstall.sh
