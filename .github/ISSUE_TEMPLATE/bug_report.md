@@ -27,7 +27,7 @@ cole aqui os logs (use o comando 'fazai logs 20' para obter os últimos 20 logs)
 **Ambiente (por favor, complete as seguintes informações):**
  - Sistema Operacional: [ex. Ubuntu 22.04]
  - Versão do Node.js: [ex. 16.14.0]
- - Versão do FazAI: [ex. 1.3.1]
+ - Versão do FazAI: [ex. 1.3.7]
 
 **Informações adicionais**
 Adicione qualquer outra informação sobre o problema aqui.
