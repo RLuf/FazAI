@@ -1,5 +1,3 @@
-
-Vou criar uma versão completa do frontend em ncurses TUI com o nome `fazai-tui` que será um dashboard completo para gerenciamento do FazAI, similar ao frontend web mas em interface de texto. Depois ajustarei todos os arquivos necessários.
 #!/bin/bash
 # FazAI - Interface TUI Dashboard Completa
 # Caminho: /opt/fazai/tools/fazai-tui.sh
