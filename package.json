@@ -7,7 +7,7 @@
     "install-wsl": "wsl --root bash install.sh",
     "test-wsl": "wsl --root bash tests/fazai.tests.ps1",
     "test-system-wsl": "wsl --root bash tests/system-tools.tests.ps1",
-    "test": "npm run test-wsl && npm run test-system-wsl",
+    "test": "bash tests/version.test.sh && npm run test-wsl && npm run test-system-wsl",
     "tui": "bash opt/fazai/tools/fazai-tui.sh",
     "config-tui": "bash opt/fazai/tools/fazai-config-tui.sh",
     "web": "bash opt/fazai/tools/fazai_web.sh"

@@ -142,6 +142,16 @@ Crie plugins JavaScript em `/etc/fazai/tools/` implementando:
 
 Crie módulos C em `/etc/fazai/mods/` implementando as funções definidas em `fazai_mod.h`.
 
+## Testes
+
+Execute a suíte de testes com:
+
+```bash
+npm test
+```
+
+O script `tests/version.test.sh` valida se `bin/fazai --version` corresponde à versão em `package.json`.
+
 ## Desinstalação
 
 ```bash
