@@ -108,6 +108,9 @@ fazai instale os modulos mod_security do apache
 
 # Alterar configurações
 fazai altere a porta do ssh de 22 para 31052
+
+# Modo MCPS passo a passo
+fazai mcps atualizar sistema
 ```
 
 ## Estrutura de Diretórios

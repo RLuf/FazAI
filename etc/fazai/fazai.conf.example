@@ -188,6 +188,17 @@ max_tokens = 1500
 available_tools = execute_command, read_file, write_file, search_files, list_files
 
 ###############################################################################
+# CONFIGURAÇÃO DO MCPS (Multi Command Planning System)
+###############################################################################
+
+[mcps_mode]
+# Habilita o modo MCPS para execução passo a passo
+enabled = false
+
+# Prompt de sistema utilizado para gerar os passos
+system_prompt = Gere uma lista de comandos shell, um por linha, para executar a tarefa solicitada. Não explique os passos.
+
+###############################################################################
 # CONFIGURAÇÃO DE FERRAMENTAS
 ###############################################################################
 
