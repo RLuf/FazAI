@@ -5,13 +5,14 @@ FROM debian:stable-slim
 ENV FAZAI_PORT=3120 \
     NODE_ENV=production
 
-# Instalar dependências do sistema
+# Instalar dependências do sistema e Node.js 22 a partir da NodeSource
 RUN apt-get update && apt-get install -y \
     curl \
+    gnupg \
     git \
-    nodejs \
-    npm \
     systemd \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Criar diretórios necessários
@@ -19,7 +20,9 @@ RUN mkdir -p /opt/fazai /etc/fazai /var/log/fazai
 
 # Copiar arquivos do FazAI
 COPY bin/ /opt/fazai/bin/
-COPY etc/ /etc/fazai/
+COPY etc/fazai/ /etc/fazai/
+RUN rm -f /etc/fazai/fazai.conf
+COPY etc/fazai/fazai.conf.example /etc/fazai/
 COPY package.json /opt/fazai/
 COPY install.sh /opt/fazai/
 
