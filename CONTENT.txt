@@ -122,7 +122,7 @@ O sistema será composto por dois principais componentes:
 - Use framework robusto (ex: Express para REST, ou net para sockets UNIX).
 - Modularize comandos e handlers.
 - Carregue plugins dinamicamente de `/etc/fazai/tools/`.
-- Carregue módulos nativos via `ffi-napi` ou `node-ffi` para integração com C.
+- Carregue módulos nativos via `ffi-napi-v22` ou `node-ffi` para integração com C.
 - Implemente fallback para múltiplos modelos de IA.
 - Gerencie cache e reinicialização automática dos serviços.
 
@@ -237,7 +237,7 @@ Daemon (Node.js)
 Utilize um framework robusto como o Express para REST ou net para sockets UNIX.
 Modularize comandos e handlers.
 Carregue plugins dinamicamente de /etc/fazai/tools/.
-Carregue módulos nativos via ffi-napi ou node-ffi para integração com C.
+Carregue módulos nativos via ffi-napi-v22 ou node-ffi para integração com C.
 Implemente fallback para múltiplos modelos de IA.
 Gerencie cache e reinicialização automática dos serviços.
 CLI (Node.js)
@@ -344,7 +344,7 @@ Daemon (Node.js)
 Utilize um framework robusto como o Express para REST ou net para sockets UNIX.
 Modularize comandos e handlers.
 Carregue plugins dinamicamente de /etc/fazai/tools/.
-Carregue módulos nativos via ffi-napi ou node-ffi para integração com C.
+Carregue módulos nativos via ffi-napi-v22 ou node-ffi para integração com C.
 Implemente fallback para múltiplos modelos de IA.
 Gerencie cache e reinicialização automática dos serviços.
 CLI (Node.js)
