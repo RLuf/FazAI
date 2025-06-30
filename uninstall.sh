@@ -2,7 +2,7 @@
 
 # FazAI - Script de Desinstalação
 # Este script remove o FazAI do sistema
-# Versão: 1.3.7 - Atualizado para lidar com arquivos movidos e conversão dos2unix
+# Versão: 1.40 - Atualizado para lidar com arquivos movidos e conversão dos2unix
 
 # Cores para saída no terminal
 RED='\033[0;31m'
@@ -13,7 +13,7 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Versão do script
-VERSION="1.3.7"
+VERSION="1.40"
 
 # Função para exibir mensagens
 print_message() {
@@ -90,7 +90,7 @@ if [ "$PRESERVE_CONFIG" = true ]; then
         print_success "Configuração principal salva no backup"
     fi
     
-    # Backup das ferramentas específicas (arquivos movidos na v1.3.7)
+    # Backup das ferramentas específicas (arquivos movidos na v1.40)
     TOOLS_TO_BACKUP=(
         "/opt/fazai/tools/github-setup.sh"
         "/opt/fazai/tools/sync-changes.sh"
@@ -150,7 +150,7 @@ for link in fazai-config fazai-backup fazai-uninstall fazai-config-tui fazai-tui
     fi
 done
 
-# Remove ferramentas específicas movidas para /opt/fazai/tools/ (v1.3.7)
+# Remove ferramentas específicas movidas para /opt/fazai/tools/ (v1.40)
 print_message "Removendo ferramentas específicas..."
 TOOLS_TO_REMOVE=(
     "/opt/fazai/tools/github-setup.sh"
@@ -184,7 +184,7 @@ for module in "${NATIVE_MODULES[@]}"; do
     fi
 done
 
-# Remove arquivos relacionados ao dos2unix e conversão de formato (v1.3.7)
+# Remove arquivos relacionados ao dos2unix e conversão de formato (v1.40)
 print_message "Removendo arquivos de conversão de formato..."
 DOS2UNIX_FILES=(
     "/etc/fazai/dos2unixAll.sh"
@@ -266,7 +266,7 @@ if [ -f /etc/sudoers.d/fazai ]; then
     print_success "Configuração sudoers removida."
 fi
 
-# Remove arquivos de estado de instalação se existirem (v1.3.7)
+# Remove arquivos de estado de instalação se existirem (v1.40)
 if [ -f /var/lib/fazai/install.state ]; then
     rm -f /var/lib/fazai/install.state
     print_success "Estado de instalação removido."
@@ -290,7 +290,7 @@ if [ "$PRESERVE_CONFIG" = true ]; then
     echo -e "Backup adicional disponível em: ${BLUE}$BACKUP_DIR${NC}"
 fi
 
-echo -e "${PURPLE}[INFO]${NC} Limpeza específica da versão 1.3.7 concluída:"
+echo -e "${PURPLE}[INFO]${NC} Limpeza específica da versão 1.40 concluída:"
 echo -e "  • Ferramentas movidas removidas"
 echo -e "  • Módulos nativos removidos"
 echo -e "  • Arquivos dos2unix removidos"
