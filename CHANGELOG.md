@@ -23,7 +23,9 @@
 - Backup de módulos nativos durante desinstalação
 - Limpeza específica de arquivos dos2unix no uninstall.sh
 - Remoção de arquivos de estado de instalação no uninstall.sh
-- Documentação completa das movimentações em `MOVED_FILES_SUMMARY.md`
+- Detalhamento das movimentações de arquivos incorporado ao changelog
+- `fazai_web.sh` aprimorado com detecção de múltiplos navegadores
+- `fazai_html_v1.sh` preparado para geração de gráficos HTML
 
 ### Changed
 - Requisito mínimo atualizado para Node.js 22 e Python 3.10
