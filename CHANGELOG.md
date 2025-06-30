@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.3.8] - 14/06/2025
+
+### Changed
+- Porta padrão restaurada para **3120** com range reservado **3120-3125**.
+- Documentação e scripts atualizados para refletir a porta correta.
+
 ## [v1.3.7] - 13/06/2025
 
 ### Added
@@ -129,7 +135,7 @@
 - Logging detalhado de cada etapa da instalação
 - Unificação do fazai-config como subcomando do CLI principal
 - Suporte oficial a Docker com imagem pronta para uso
-- Definição da faixa de portas oficial do FazAI (3210-3215)
+- Definição da faixa de portas oficial do FazAI (3120-3125)
 
 ### Changed
 - Refatoração do install.sh para maior robustez e modularidade

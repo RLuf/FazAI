@@ -555,7 +555,7 @@ console.log('FazAI v1.3.7 - Iniciando...');
 
 // Configuração básica
 const config = {
-  port: process.env.FAZAI_PORT || 3210,
+  port: process.env.FAZAI_PORT || 3120,
   logLevel: process.env.FAZAI_LOG_LEVEL || 'info'
 };
 
@@ -785,7 +785,7 @@ echo "
         </div>
     </div>
     <script>
-        const API_URL = 'http://localhost:3210';
+        const API_URL = 'http://localhost:3120';
         
         async function viewLogs() {
             try {

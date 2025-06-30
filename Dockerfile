@@ -2,7 +2,7 @@
 FROM debian:stable-slim
 
 # Definir variáveis de ambiente
-ENV FAZAI_PORT=3210 \
+ENV FAZAI_PORT=3120 \
     NODE_ENV=production
 
 # Instalar dependências do sistema
@@ -32,8 +32,8 @@ RUN npm install
 RUN chmod +x /opt/fazai/bin/fazai /opt/fazai/install.sh
 
 # Expor a porta oficial do FazAI
-# Range reservado: 3210-3215
-EXPOSE 3210
+# Range reservado: 3120-3125
+EXPOSE 3120
 
 # Volumes para persistência
 VOLUME ["/etc/fazai", "/var/log/fazai"]

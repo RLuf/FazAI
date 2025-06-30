@@ -22,8 +22,8 @@ fi
 
 # Verificar variáveis de ambiente
 if [ -z "$FAZAI_PORT" ]; then
-    log "FAZAI_PORT não definida. Usando porta padrão 3210"
-    export FAZAI_PORT=3210
+    log "FAZAI_PORT não definida. Usando porta padrão 3120"
+    export FAZAI_PORT=3120
 fi
 
 # Verificar permissões

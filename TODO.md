@@ -8,7 +8,7 @@
 (É cogitavel a utilizaçao de uma API que comunica com um ollama em um pequeno modelo na nuvem para rapido diagnostico ou inicialmente apenas registros por telemetria afim de iniciar uma base de bugtrack).
 
 3. Seria interessante para facilitar a configuraçao
-(/etc/fazai/fazai.conf), tanto na parte de ais, de plan, act, fallback, keys, etc.. uma interface TUI inicial, vindo evoluir futuramente para uma interface java. ALTERAR A PORTA DE COMUNICAÇAO DO DAEMON DO FAZAI CASO UTILIZE ALEM DO DOCKER PARA A NOVA PORTA OFICIAL 3210.
+(/etc/fazai/fazai.conf), tanto na parte de ais, de plan, act, fallback, keys, etc.. uma interface TUI inicial, vindo evoluir futuramente para uma interface java. MANTER A PORTA PADRÃO DO DAEMON DO FAZAI EM 3120.
 
 4. Conferir a estrutura de forma que os devidos arquivos fiquem nos devidos diretorios conforme conformidades e estrutura organizacional proposta.. ex.. /etc /opt/ /var etc... 
 
@@ -30,7 +30,7 @@ Confirmar que o script de instalação funcione corretamente em ambientes Linux 
 #12. Implementar um sistema de monitoramento e alerta para o fazai, que #notifique o usuário sobre falhas, problemas de desempenho ou qualquer #outra anomalia que possa ocorrer durante a operação do sistema. 
 
 13. Criar um Dockerfile e/ou uma imagem Docker pronta contendo todas as dependências do FazAI, permitindo a execução do sistema em qualquer ambiente via container. O container deve:
-    - Utilizar a nova porta oficial 3210 (range reservado: 3210-3215) para comunicação
+    - Utilizar a porta oficial 3120 (range reservado: 3120-3125) para comunicação
     - Conter uma versão funcional do FazAI já instalada e configurada
     - Incluir todas as dependências necessárias para execução
     - Permitir persistência de dados e configurações via volumes
