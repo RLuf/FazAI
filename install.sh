@@ -628,28 +628,10 @@ EOF
     chmod +x "bin/fazai"
   fi
   
-  # Cria arquivo de configuração se não existir
+  # Garante que o arquivo de configuração exemplo exista
   if [ ! -f "etc/fazai/fazai.conf.example" ]; then
-    log "INFO" "Criando arquivo de configuração exemplo..."
-    cat > "etc/fazai/fazai.conf.example" << 'EOF'
-# FazAI - Arquivo de Configuração
-# Versão: 1.3.7
-
-[geral]
-log_level = info
-daemon_port = 3000
-max_workers = 4
-
-[apis]
-# Adicione suas chaves de API aqui
-# openai_api_key = sua_chave_aqui
-# anthropic_api_key = sua_chave_aqui
-
-[sistema]
-cache_dir = /var/lib/fazai/cache
-data_dir = /var/lib/fazai/data
-log_dir = /var/log/fazai
-EOF
+    log "ERROR" "etc/fazai/fazai.conf.example não encontrado. Verifique o repositório."
+    exit 1
   fi
   
   # Agora copia os arquivos
