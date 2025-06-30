@@ -31,6 +31,9 @@ log "Verificando permissões..."
 chown -R root:root /opt/fazai
 chmod -R 755 /opt/fazai/bin
 
+# Informar versão do Node.js
+log "Usando Node.js $(node -v)"
+
 # Iniciar o FazAI
 log "Iniciando FazAI na porta $FAZAI_PORT"
 exec "$@"
