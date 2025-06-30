@@ -1,0 +1,245 @@
+###############################################################################
+# FazAI - Arquivo de Configuração Principal
+# 
+# Este arquivo configura o comportamento do sistema FazAI, incluindo:
+# - Provedores de IA (OpenRouter, Requesty, OpenAI)
+# - Sistema de orquestração (modos de planejamento e ação)
+# - Configurações gerais do sistema
+#
+# Localização recomendada: /etc/fazai/fazai.conf
+###############################################################################
+
+###############################################################################
+# CONFIGURAÇÃO DE PROVEDORES DE IA
+###############################################################################
+
+[ai_provider]
+# Define qual provedor de IA será utilizado como padrão
+# Valores possíveis: openrouter, requesty, openai, ollama
+# - openrouter: Utiliza a API do OpenRouter para acessar múltiplos modelos
+# - requesty: Utiliza a API do Requesty para acessar múltiplos modelos
+# - openai: Utiliza diretamente a API da OpenAI
+# - ollama: Utiliza modelos locais via Ollama
+provider = requesty
+
+# Configurações do Ollama (novo)
+[ollama]
+enabled = true
+endpoint = http://localhost:11434
+models = ["mixtral", "llama2", "codellama"]
+cache_dir = /var/cache/fazai/ollama
+
+# Habilita fallback automático para outro provedor em caso de falha
+# Se true, tentará o próximo provedor na ordem: openrouter -> requesty -> openai
+enable_fallback = false
+
+# Número máximo de tentativas antes de desistir
+max_retries = 1
+
+# Tempo de espera entre tentativas (em segundos)
+retry_delay = 1
+
+###############################################################################
+# CONFIGURAÇÃO DO OPENROUTER
+###############################################################################
+
+[openrouter]
+# Chave de API do OpenRouter
+# Obtenha em: https://openrouter.ai/keys
+api_key = sua_chave_openrouter_aqui
+
+# Endpoint da API
+# Não altere a menos que a URL da API mude oficialmente
+endpoint = https://openrouter.ai/api/v1
+
+# Modelo padrão a ser utilizado
+# Formato: provedor/modelo
+# Exemplos: openai/gpt-4-turbo, anthropic/claude-3-opus, google/gemini-pro
+default_model = openai/gpt-4-turbo
+
+# Lista de modelos alternativos que podem ser utilizados
+# Separe múltiplos modelos com vírgulas
+# Estes modelos serão utilizados se o default_model não estiver disponível
+models = anthropic/claude-3-opus, google/gemini-pro, meta/llama-3-70b
+
+# Temperatura para geração (0.0 a 1.0)
+# Valores mais baixos = mais determinístico
+# Valores mais altos = mais criativo/aleatório
+temperature = 0.7
+
+# Máximo de tokens na resposta
+max_tokens = 2000
+
+###############################################################################
+# CONFIGURAÇÃO DO REQUESTY
+###############################################################################
+
+[requesty]
+# Chave de API do Requesty
+# Obtenha em: https://requesty.ai/
+api_key = sua_chave_requesty_aqui
+
+# Endpoint da API
+endpoint = https://router.requesty.ai/v1
+
+# Modelo padrão a ser utilizado
+# Formato: provedor/modelo
+default_model = openai/gpt-4o
+
+# Lista de modelos alternativos que podem ser utilizados
+# Separe múltiplos modelos com vírgulas
+models = openai/gpt-4-turbo, anthropic/claude-3-opus, google/gemini-pro
+
+# Temperatura para geração (0.0 a 1.0)
+temperature = 0.7
+
+# Máximo de tokens na resposta
+max_tokens = 2000
+
+###############################################################################
+# CONFIGURAÇÃO DA OPENAI
+###############################################################################
+
+[openai]
+# Chave de API da OpenAI
+# Obtenha em: https://platform.openai.com/api-keys
+api_key = sua_chave_openai_aqui
+
+# Endpoint da API
+# Não altere a menos que a URL da API mude oficialmente
+endpoint = https://api.openai.com/v1
+
+# Modelo padrão a ser utilizado
+default_model = gpt-4-turbo
+
+# Lista de modelos alternativos que podem ser utilizados
+# Separe múltiplos modelos com vírgulas
+models = gpt-4o, gpt-3.5-turbo
+
+# Temperatura para geração (0.0 a 1.0)
+temperature = 0.7
+
+# Máximo de tokens na resposta
+max_tokens = 2000
+
+###############################################################################
+# CONFIGURAÇÃO DO SISTEMA DE ORQUESTRAÇÃO
+###############################################################################
+
+[orchestration]
+# Habilita o sistema de orquestração com modos de planejamento e ação
+# Se false, o sistema funcionará no modo tradicional
+enabled = true
+
+# Modo padrão ao iniciar uma nova conversa
+# Valores possíveis: plan, act
+# - plan: Inicia no modo de planejamento (análise e preparação)
+# - act: Inicia no modo de ação (execução direta)
+default_mode = plan
+
+# Habilita transição automática do modo de planejamento para o modo de ação
+# Se true, o sistema detectará quando um plano está completo e mudará para o modo de ação
+# Se false, a transição deve ser explicitamente solicitada pelo usuário
+auto_transition = false
+
+# Palavras-chave para transição manual entre modos
+# O usuário pode usar estas palavras para mudar de modo
+plan_keyword = planejar
+act_keyword = executar
+
+###############################################################################
+# CONFIGURAÇÃO DO MODO DE PLANEJAMENTO
+###############################################################################
+
+[plan_mode]
+# Prompt de sistema para o modo de planejamento
+# Este texto será enviado como instruções para o modelo de IA
+system_prompt = Você está no modo de PLANEJAMENTO do FazAI. Neste modo, você deve focar em entender o problema, fazer perguntas de esclarecimento quando necessário, e criar um plano detalhado antes de executar qualquer ação. Não execute comandos neste modo, apenas planeje a solução. Quando o plano estiver completo, informe o usuário que ele pode mudar para o modo de AÇÃO para executar o plano.
+
+# Temperatura para o modo de planejamento
+# Recomenda-se um valor mais alto para estimular criatividade na fase de planejamento
+temperature = 0.7
+
+# Máximo de tokens para respostas no modo de planejamento
+max_tokens = 2000
+
+# Ferramentas disponíveis no modo de planejamento
+# Geralmente limitadas a ferramentas de consulta, não de execução
+available_tools = read_file, search_files, list_files
+
+###############################################################################
+# CONFIGURAÇÃO DO MODO DE AÇÃO
+###############################################################################
+
+[act_mode]
+# Prompt de sistema para o modo de ação
+# Este texto será enviado como instruções para o modelo de IA
+system_prompt = Você está no modo de AÇÃO do FazAI. Neste modo, você deve executar o plano estabelecido, utilizando as ferramentas disponíveis para realizar tarefas concretas no sistema. Seja preciso e eficiente. Relate o progresso após cada ação e confirme quando a tarefa estiver concluída.
+
+# Temperatura para o modo de ação
+# Recomenda-se um valor mais baixo para respostas mais determinísticas
+temperature = 0.2
+
+# Máximo de tokens para respostas no modo de ação
+max_tokens = 1500
+
+# Ferramentas disponíveis no modo de ação
+# Inclui todas as ferramentas, incluindo as de execução
+available_tools = execute_command, read_file, write_file, search_files, list_files
+
+###############################################################################
+# CONFIGURAÇÃO DE FERRAMENTAS
+###############################################################################
+
+[tools]
+# Habilita ou desabilita ferramentas específicas
+# Defina como true para habilitar, false para desabilitar
+execute_command = true
+read_file = true
+write_file = true
+search_files = true
+list_files = true
+
+# Diretório raiz para operações de arquivo
+# As operações de arquivo serão restritas a este diretório e seus subdiretórios
+file_operations_root = /
+
+# Comandos proibidos por razões de segurança
+# Separe múltiplos comandos com vírgulas
+# Exemplo: rm -rf /, mkfs, dd
+forbidden_commands = rm -rf /
+
+###############################################################################
+# CONFIGURAÇÕES GERAIS DO SISTEMA
+###############################################################################
+
+[system]
+# Nível de log
+# Valores possíveis: debug, info, warn, error
+log_level = info
+
+# Timeout para chamadas de API (em segundos)
+api_timeout = 60
+
+# Armazenar histórico de conversas
+store_history = true
+
+# Diretório para armazenar histórico de conversas
+history_dir = /var/lib/fazai/history
+
+# Limite de tokens para o contexto da conversa
+# Este é o número máximo de tokens que serão mantidos no histórico
+context_token_limit = 16000
+
+# Formato de saída padrão
+# Valores possíveis: text, json, markdown
+default_output_format = text
+
+# Habilitar cache de respostas
+enable_response_cache = true
+
+# Tempo de vida do cache (em segundos)
+cache_ttl = 3600
+
+# Diretório para armazenar cache
+cache_dir = /var/lib/fazai/cache
