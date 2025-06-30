@@ -875,6 +875,14 @@ EOF
     chmod +x "/opt/fazai/tools/fazai_web.sh"
     log "SUCCESS" "Script de lançamento web básico criado"
   fi
+
+  # Copia gerador de visualização HTML
+  if [ -f "opt/fazai/tools/fazai_html_v1.sh" ]; then
+    copy_with_verification "opt/fazai/tools/fazai_html_v1.sh" "/opt/fazai/tools/" "Gerador HTML"
+    chmod +x "/opt/fazai/tools/fazai_html_v1.sh"
+    ln -sf /opt/fazai/tools/fazai_html_v1.sh /usr/local/bin/fazai-html
+    log "SUCCESS" "Gerador HTML instalado em /usr/local/bin/fazai-html"
+  fi
   
   log "SUCCESS" "Arquivos copiados com sucesso."
 }
@@ -1476,6 +1484,7 @@ validate_installation() {
     "/usr/local/bin/fazai"
     "/opt/fazai/tools/fazai_web_frontend.html"
     "/opt/fazai/tools/fazai_web.sh"
+    "/opt/fazai/tools/fazai_html_v1.sh"
   )
   
   for file in "${essential_files[@]}"; do
