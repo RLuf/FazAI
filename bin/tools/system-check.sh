@@ -27,8 +27,8 @@ check_dependencies() {
     # Verifica versões mínimas de Node.js e Python
     local node_version=$(node -v 2>/dev/null | sed 's/v//')
     local node_major=$(echo "$node_version" | cut -d. -f1)
-    if [ -n "$node_major" ] && [ "$node_major" -lt 18 ]; then
-        log "ERRO: Node.js 18 ou superior é requerido (versão atual: $node_version)"
+    if [ -n "$node_major" ] && [ "$node_major" -lt 22 ]; then
+        log "ERRO: Node.js 22 ou superior é requerido (versão atual: $node_version)"
         return 1
     fi
 
