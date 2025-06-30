@@ -24,6 +24,8 @@ cd FazAI
 
 # Instalar
 sudo ./install.sh
+# Opcional: incluir suporte ao llama.cpp
+# sudo ./install.sh --with-llama
 
 # Iniciar o serviço
 sudo systemctl enable fazai

@@ -32,6 +32,7 @@ VERSION="1.40"
 LOG_FILE="/var/log/fazai_install.log"
 RETRY_COUNT=3
 INSTALL_STATE_FILE="/var/lib/fazai/install.state"
+WITH_LLAMA=false
 
 # Dependências do sistema e suas versões mínimas
 declare -A SYSTEM_DEPENDENCIES=(
@@ -1085,6 +1086,24 @@ EOF
   cd - > /dev/null
 }
 
+# Função opcional para instalar o llama.cpp
+install_llamacpp() {
+  if [ "$WITH_LLAMA" != true ]; then
+    log "INFO" "Instalação do llama.cpp ignorada (--with-llama)"
+    return 0
+  fi
+
+  log "INFO" "Instalando llama.cpp..."
+  local script_dir="$(cd "$(dirname "$0")" && pwd)"
+  if bash "$script_dir/bin/tools/install-llamacpp.sh"; then
+    log "SUCCESS" "llama.cpp instalado"
+    return 0
+  else
+    log "ERROR" "Falha ao instalar llama.cpp"
+    return 1
+  fi
+}
+
 # Função para instalar interface TUI
 install_tui() {
   log "INFO" "Instalando interface TUI..."
@@ -1620,6 +1639,13 @@ main_install() {
     "configure_systemd:Configurando serviço systemd"
     "install_node_dependencies:Instalando dependências Node.js"
     "compile_native_modules:Compilando módulos nativos"
+  )
+
+  if [ "$WITH_LLAMA" = true ]; then
+    install_steps+=("install_llamacpp:Instalando llama.cpp")
+  fi
+
+  install_steps+=(
     "install_tui:Instalando interface TUI"
     "configure_security:Configurando segurança"
     "create_helper_scripts:Criando scripts auxiliares"
@@ -1693,28 +1719,35 @@ cleanup_on_exit() {
 # Captura sinais para limpeza
 trap cleanup_on_exit EXIT INT TERM
 
+
 # Verifica argumentos de linha de comando
-case "${1:-}" in
-  --debug)
-    DEBUG_MODE=true
-    log "INFO" "Modo debug ativado"
-    ;;
-  --clean)
-    rm -f "$INSTALL_STATE_FILE"
-    log "INFO" "Estado de instalação limpo"
-    ;;
-  --help)
-    echo "FazAI Installer v$VERSION"
-    echo "Uso: $0 [opções]"
-    echo ""
-    echo "Opções:"
-    echo "  --debug    Ativa modo debug com logs detalhados"
-    echo "  --clean    Remove estado de instalação anterior"
-    echo "  --help     Mostra esta ajuda"
-    echo ""
-    exit 0
-    ;;
-esac
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --debug)
+      DEBUG_MODE=true
+      log "INFO" "Modo debug ativado"
+      ;;
+    --clean)
+      rm -f "$INSTALL_STATE_FILE"
+      log "INFO" "Estado de instalação limpo"
+      ;;
+    --with-llama)
+      WITH_LLAMA=true
+      ;;
+    --help)
+      echo "FazAI Installer v$VERSION"
+      echo "Uso: $0 [opções]"
+      echo ""
+      echo "Opções:"
+      echo "  --debug       Ativa modo debug com logs detalhados"
+      echo "  --clean       Remove estado de instalação anterior"
+      echo "  --with-llama  Instala o mecanismo local llama.cpp"
+      echo "  --help        Mostra esta ajuda"
+      exit 0
+      ;;
+  esac
+  shift
+done
 
 # Inicia instalação principal
 main_install
