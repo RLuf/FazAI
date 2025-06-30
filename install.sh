@@ -723,6 +723,16 @@ EOF
     chmod +x /opt/fazai/tools/fazai-tui.sh
     ln -sf /opt/fazai/tools/fazai-tui.sh /usr/local/bin/fazai-tui
     log "SUCCESS" "Dashboard TUI completo instalado em /usr/local/bin/fazai-tui"
+    if command -v cargo >/dev/null 2>&1; then
+      log "INFO" "Compilando TUI em Rust..."
+      if cargo build --release --manifest-path=tui/Cargo.toml >/tmp/fazai_tui_build.log 2>&1; then
+        cp tui/target/release/fazai-tui /opt/fazai/tools/fazai-tui-rs
+        ln -sf /opt/fazai/tools/fazai-tui-rs /usr/local/bin/fazai-tui
+        log "SUCCESS" "TUI Rust instalado em /usr/local/bin/fazai-tui"
+      else
+        log "WARNING" "Falha ao compilar TUI Rust, utilizando script bash"
+      fi
+    fi
   else
     log "WARNING" "Dashboard TUI não encontrado, criando versão básica..."
     cat > "/opt/fazai/tools/fazai-tui.sh" << 'EOF'

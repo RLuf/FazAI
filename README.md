@@ -120,6 +120,14 @@ fazai altere a porta do ssh de 22 para 31052
 /usr/local/bin/fazai  # Link simbólico para o CLI
 ```
 
+## Interface TUI
+
+Se o `cargo` estiver disponível durante a instalação, o FazAI compila um painel
+TUI em Rust usando a biblioteca `ratatui`. O binário resultante é instalado em
+`/usr/local/bin/fazai-tui`. Caso o Rust não esteja presente ou a compilação
+falhe, o instalador mantém o painel Bash tradicional localizado em
+`/opt/fazai/tools/fazai-tui.sh`.
+
 ## Configuração
 
 O arquivo principal de configuração está em `/etc/fazai/fazai.conf`. Para criar:
