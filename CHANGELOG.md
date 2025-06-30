@@ -1,5 +1,10 @@
 # Changelog
 
+## [v1.40] - 30/06/2025
+
+### Changed
+- Atualização de versionamento para **1.40**.
+
 ## [v1.3.8] - 14/06/2025
 
 ### Changed

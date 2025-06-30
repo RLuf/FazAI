@@ -1,7 +1,7 @@
 #!/bin/bash
-# Script para completar as atualizações do FazAI v1.3.7
+# Script para completar as atualizações do FazAI v1.40
 
-echo "🔧 Completando atualizações do FazAI v1.3.7..."
+echo "🔧 Completando atualizações do FazAI v1.40..."
 
 # Backup dos arquivos originais
 cp install.sh install.sh.backup
@@ -36,7 +36,7 @@ grep "fazai-html" uninstall.sh && echo "✅ fazai-html encontrado no uninstall.s
 
 echo ""
 echo "🎯 Resumo das atualizações:"
-echo "✅ Versões corrigidas para 1.3.7"
+echo "✅ Versões corrigidas para 1.40"
 echo "✅ fazai_web.sh incorporado"
 echo "🔧 fazai_html_v1.sh preparado (necessita edição manual do install.sh)"
 echo "✅ uninstall.sh atualizado"
