@@ -527,7 +527,7 @@ ${colors.bright}Exemplos:${colors.reset}
       { name: 'axios', version: '0.27.2' },
       { name: 'express', version: '4.18.1' },
       { name: 'winston', version: '3.8.1' },
-      { name: 'ffi-napi', version: '4.0.3' }
+      { name: 'ffi-napi-v22', version: '0.0.1' }
     ];
     
     dependencies.forEach(dep => {

@@ -57,7 +57,7 @@ DEPENDENCY_MODULES=(
     "axios"
     "express"
     "winston"
-    "ffi-napi"
+    "ffi-napi-v22"
     "dotenv"
     "commander"
     "blessed"

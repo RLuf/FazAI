@@ -8,7 +8,7 @@
     "test-wsl": "wsl --root bash tests/fazai.tests.ps1",
     "test-system-wsl": "wsl --root bash tests/system-tools.tests.ps1",
     "test": "bash tests/version.test.sh && bash tests/cli.test.sh && bash tests/install_uninstall.test.sh && (npm run test-wsl || true) && (npm run test-system-wsl || true)",
-    "prebuild": "npm rebuild ffi-napi || echo \"ffi-napi build skipped\"",
+    "prebuild": "npm rebuild ffi-napi-v22 || echo \"ffi-napi build skipped\"",
     "tui": "bash opt/fazai/tools/fazai-tui.sh",
     "config-tui": "bash opt/fazai/tools/fazai-config-tui.sh",
     "web": "bash opt/fazai/tools/fazai_web.sh"
@@ -16,7 +16,7 @@
   "dependencies": {
     "axios": ">=0.27.2",
     "express": ">=4.18.1",
-    "ffi-napi": ">=4.0.3",
+    "ffi-napi-v22": "^0.0.1",
     "winston": ">=3.8.1",
     "blessed": ">=0.1.81",
     "blessed-contrib": ">=4.11.0",

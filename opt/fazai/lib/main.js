@@ -23,7 +23,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { exec, spawn } = require('child_process');
-const ffi = require('ffi-napi');
+const ffi = require('ffi-napi-v22');
 const axios = require('axios');
 const winston = require('winston');
 
