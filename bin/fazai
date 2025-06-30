@@ -169,6 +169,51 @@ async function sendCommand(command) {
 }
 
 /**
+ * Envia comando para o daemon no modo MCPS
+ * @param {string} command - Comando a ser enviado
+ * @returns {Promise<object>} - Resposta do daemon
+ */
+async function sendCommandMcps(command) {
+  try {
+    printInfo(`Conectando ao daemon em ${API_URL} (MCPS)...`);
+    const response = await axios.post(`${API_URL}/command`, { command, mcps: true }, {
+      timeout: 30000 // 30 segundos de timeout
+    });
+
+    if (!response.data.success) {
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      } else if (response.data.interpretation) {
+        printWarning(`O comando foi interpretado, mas a execução falhou: ${response.data.interpretation}`);
+        if (response.data.details) {
+          printError(`Detalhes do erro: ${response.data.details}`);
+        }
+        return response.data;
+      } else {
+        throw new Error('Resposta do servidor indica falha, mas sem detalhes específicos');
+      }
+    }
+
+    return response.data;
+  } catch (err) {
+    if (err.response) {
+      const errorData = err.response.data;
+      if (errorData && errorData.error) {
+        throw new Error(`Erro do servidor: ${errorData.error}`);
+      } else if (errorData && errorData.details) {
+        throw new Error(`Erro do servidor: ${errorData.details}`);
+      } else {
+        throw new Error(`Erro do servidor: ${err.response.status} ${err.response.statusText}`);
+      }
+    } else if (err.request) {
+      throw new Error(`Não foi possível conectar ao daemon. Verifique se o serviço está em execução em ${API_URL}.`);
+    } else {
+      throw new Error(`Erro ao enviar comando: ${err.message}`);
+    }
+  }
+}
+
+/**
  * Solicita recarga de plugins e módulos
  * @returns {Promise<object>} - Resposta do daemon
  */
@@ -307,11 +352,13 @@ ${colors.bright}Comandos básicos do sistema:${colors.reset}
   uptime                      Exibe tempo de atividade do sistema (uptime)
   web                         Abre a interface web do FazAI
   tui                         Abre o dashboard TUI do FazAI
+  mcps <comando>              Planejamento MCPS passo a passo
 
 ${colors.bright}Exemplos:${colors.reset}
   fazai mostra os processos em execucao
   fazai cria um usuario com nome teste com a senha teste321 no grupo printers
   fazai instale os modulos mod_security do apache
+  fazai mcps atualizar sistema
     `);
     process.exit(0);
   }
@@ -559,6 +606,37 @@ ${colors.bright}Exemplos:${colors.reset}
     process.exit(0);
   }
   
+  // Modo MCPS - planejamento passo a passo
+  if (args[0] === 'mcps') {
+    const mcpsCommand = args.slice(1).join(' ');
+    if (!mcpsCommand) {
+      printError('Nenhum comando fornecido para o modo MCPS.');
+      process.exit(1);
+    }
+
+    try {
+      printInfo(`Enviando comando MCPS: "${mcpsCommand}"`);
+      const result = await sendCommandMcps(mcpsCommand);
+
+      if (result.success) {
+        printSuccess('MCPS executado com sucesso.');
+
+        if (result.steps) {
+          result.steps.forEach((step, idx) => {
+            console.log(`\n${colors.bright}${colors.fg.yellow}Passo ${idx + 1}:${colors.reset} ${step.command}\n${step.output}\n`);
+          });
+        }
+      } else {
+        printError(`Falha no MCPS: ${result.error || 'Erro desconhecido'}`);
+      }
+    } catch (err) {
+      printError(err.message);
+      process.exit(1);
+    }
+
+    process.exit(0);
+  }
+
   // Comando normal para o FazAI
   const command = args.join(' ');
   

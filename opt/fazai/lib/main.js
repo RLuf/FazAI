@@ -207,6 +207,50 @@ async function queryAI(command) {
 }
 
 /**
+ * Consulta modelo de IA para obter passos do MCPS
+ * @param {string} command - Comando a ser interpretado
+ * @returns {Promise<Array<string>>} - Lista de passos
+ */
+async function queryAIForSteps(command) {
+  logger.info(`Consultando IA (MCPS) para: "${command}"`);
+  try {
+    const provider = process.env.DEFAULT_PROVIDER || config.ai_provider?.provider || 'openai';
+    const prompt = config.mcps_mode?.system_prompt ||
+      'Gere uma lista de comandos shell, um por linha, necessários para executar a tarefa.';
+
+    const messages = [
+      { role: 'system', content: prompt },
+      { role: 'user', content: command }
+    ];
+
+    let response;
+    if (provider === 'openrouter') {
+      response = await axios.post(`${config.openrouter?.endpoint || 'https://openrouter.ai/api/v1'}/chat/completions`, {
+        model: config.openrouter?.default_model || 'openai/gpt-4-turbo',
+        messages
+      }, { headers: { 'Authorization': `Bearer ${config.openrouter?.api_key}`, 'HTTP-Referer': 'https://github.com/RLuf/FazAI', 'X-Title': 'FazAI', 'Content-Type': 'application/json' } });
+    } else if (provider === 'requesty') {
+      response = await axios.post(`${config.requesty?.endpoint || 'https://router.requesty.ai/v1'}/chat/completions`, {
+        model: config.requesty?.default_model || 'openai/gpt-4o',
+        messages
+      }, { headers: { 'Authorization': `Bearer ${config.requesty?.api_key}`, 'Content-Type': 'application/json' } });
+    } else {
+      response = await axios.post(`${config.openai?.endpoint || 'https://api.openai.com/v1'}/chat/completions`, {
+        model: config.openai?.default_model || 'gpt-4-turbo',
+        messages
+      }, { headers: { 'Authorization': `Bearer ${config.openai?.api_key}`, 'Content-Type': 'application/json' } });
+    }
+
+    const text = response.data.choices[0].message.content;
+    logger.info(`Passos recebidos: ${text}`);
+    return text.split('\n').map(l => l.trim()).filter(l => l);
+  } catch (err) {
+    logger.error(`Erro no MCPS: ${err.message}`);
+    throw err;
+  }
+}
+
+/**
  * Consulta OpenAI para interpretar comando
  * @param {string} command - Comando a ser interpretado
  * @returns {Promise<object>} - Interpretação do comando
@@ -385,7 +429,7 @@ function executeCommand(command) {
  * Endpoint principal para receber comandos
  */
 app.post('/command', async (req, res) => {
-  const { command } = req.body;
+  const { command, mcps } = req.body;
   
   if (!command) {
     logger.error('Requisição recebida sem comando');
@@ -411,17 +455,33 @@ app.post('/command', async (req, res) => {
     
     logger.info(`Comando interpretado como: ${interpretation.interpretation}`);
     
-    // Executa o comando interpretado
-    logger.info('Executando comando interpretado');
-    const result = await executeCommand(interpretation.interpretation);
-    
-    logger.info('Comando executado com sucesso');
-    res.json({
-      command,
-      interpretation: interpretation.interpretation,
-      result: result.stdout,
-      success: true
-    });
+    if (mcps) {
+      logger.info('Modo MCPS habilitado');
+      const steps = await queryAIForSteps(interpretation.interpretation);
+      const results = [];
+      for (const step of steps) {
+        try {
+          const execResult = await executeCommand(step);
+          results.push({ command: step, output: execResult.stdout });
+        } catch (stepErr) {
+          results.push({ command: step, output: stepErr.error });
+        }
+      }
+
+      res.json({ command, interpretation: interpretation.interpretation, steps: results, success: true });
+    } else {
+      // Executa o comando interpretado
+      logger.info('Executando comando interpretado');
+      const result = await executeCommand(interpretation.interpretation);
+
+      logger.info('Comando executado com sucesso');
+      res.json({
+        command,
+        interpretation: interpretation.interpretation,
+        result: result.stdout,
+        success: true
+      });
+    }
     
   } catch (err) {
     // Garantir que temos valores seguros para log
