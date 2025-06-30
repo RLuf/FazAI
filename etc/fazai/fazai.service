@@ -20,7 +20,7 @@ StandardError=append:/var/log/fazai/stderr.log
 
 # Definição de ambiente
 Environment=NODE_ENV=production
-Environment=FAZAI_PORT=3210
+Environment=FAZAI_PORT=3120
 EnvironmentFile=-/etc/fazai/env
 
 # Limites de sistema

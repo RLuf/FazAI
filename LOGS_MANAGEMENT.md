@@ -49,25 +49,25 @@ O daemon FazAI agora inclui endpoints específicos para gerenciamento de logs:
 ##### GET /logs
 Retorna as últimas entradas de log
 ```bash
-curl "http://localhost:3210/logs?lines=10"
+curl "http://localhost:3120/logs?lines=10"
 ```
 
 ##### POST /logs/clear
 Limpa o arquivo de log (cria backup)
 ```bash
-curl -X POST "http://localhost:3210/logs/clear"
+curl -X POST "http://localhost:3120/logs/clear"
 ```
 
 ##### GET /logs/download
 Faz download do arquivo de log
 ```bash
-curl "http://localhost:3210/logs/download" -o fazai-logs.log
+curl "http://localhost:3120/logs/download" -o fazai-logs.log
 ```
 
 ##### GET /status
 Verifica o status do daemon
 ```bash
-curl "http://localhost:3210/status"
+curl "http://localhost:3120/status"
 ```
 
 ## Arquivos Criados/Modificados
@@ -124,7 +124,7 @@ Quando os logs são limpos, um backup é criado automaticamente com timestamp:
 fazai limpar-logs
 
 # Via API
-curl -X POST "http://localhost:3210/logs/clear"
+curl -X POST "http://localhost:3120/logs/clear"
 ```
 
 ### Cenário 2: Monitoramento via Interface Web
@@ -139,13 +139,13 @@ curl -X POST "http://localhost:3210/logs/clear"
 # Script de manutenção
 
 echo "Fazendo backup dos logs..."
-curl "http://localhost:3210/logs/download" -o "backup-$(date +%Y%m%d).log"
+curl "http://localhost:3120/logs/download" -o "backup-$(date +%Y%m%d).log"
 
 echo "Limpando logs antigos..."
-curl -X POST "http://localhost:3210/logs/clear"
+curl -X POST "http://localhost:3120/logs/clear"
 
 echo "Verificando status do daemon..."
-curl "http://localhost:3210/status"
+curl "http://localhost:3120/status"
 ```
 
 ## Troubleshooting

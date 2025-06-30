@@ -64,18 +64,18 @@ docker build -t fazai:latest .
 
 # Executar o container
 docker run -d --name fazai \
-  -p 3210:3210 \
+  -p 3120:3120 \
   -v /etc/fazai:/etc/fazai \
   -v /var/log/fazai:/var/log/fazai \
-  -e FAZAI_PORT=3210 \
+  -e FAZAI_PORT=3120 \
   fazai:latest
 ```
 
 #### Portas Oficiais do FazAI
 
 O FazAI utiliza a seguinte faixa de portas reservada:
-- **3210**: Porta padrão do FazAI
-- **3210-3215**: Range reservado para serviços do FazAI
+- **3120**: Porta padrão do FazAI
+- **3120-3125**: Range reservado para serviços do FazAI
 
 #### Volumes do Container
 
@@ -84,7 +84,7 @@ O FazAI utiliza a seguinte faixa de portas reservada:
 
 #### Variáveis de Ambiente
 
-- `FAZAI_PORT`: Porta de execução (padrão: 3210)
+- `FAZAI_PORT`: Porta de execução (padrão: 3120)
 - `NODE_ENV`: Ambiente de execução (padrão: production)
 
 ## Uso Básico
