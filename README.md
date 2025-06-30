@@ -4,6 +4,8 @@
 
 FazAI é um sistema de automação inteligente para servidores Linux, que permite executar comandos complexos usando linguagem natural e inteligência artificial.
 
+Consulte o [CHANGELOG](CHANGELOG.md) para historico completo de alteracoes.
+
 ## Requisitos
 
 - Node.js 22.x ou superior
