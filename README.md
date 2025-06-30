@@ -6,8 +6,8 @@ FazAI é um sistema de automação inteligente para servidores Linux, que permit
 
 ## Requisitos
 
-- Node.js 18.x ou superior
-- npm 8.x ou superior
+- Node.js 22.x ou superior
+- npm 10.x ou superior
 - Python 3.10 ou superior
 - Sistema operacional: Debian/Ubuntu ou WSL com Debian/Ubuntu
 

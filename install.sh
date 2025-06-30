@@ -35,8 +35,8 @@ INSTALL_STATE_FILE="/var/lib/fazai/install.state"
 
 # Dependências do sistema e suas versões mínimas
 declare -A SYSTEM_DEPENDENCIES=(
-    ["node"]="18.0.0"
-    ["npm"]="8.0.0"
+    ["node"]="22.0.0"
+    ["npm"]="10.0.0"
     ["python3"]="3.10.0"
     ["pip3"]="21.0"
     ["gcc"]="7.0.0"
@@ -45,7 +45,7 @@ declare -A SYSTEM_DEPENDENCIES=(
 )
 
 # Repositórios alternativos para fallback
-NODE_VERSIONS=("22" "20" "18")
+NODE_VERSIONS=("22")
 REPOSITORIES=(
     "https://deb.nodesource.com/setup_"
     "https://nodejs.org/dist/v"
@@ -333,12 +333,12 @@ install_nodejs() {
     NODE_VERSION=$(node -v)
     log "SUCCESS" "Node.js já instalado: $NODE_VERSION"
     
-  # Verifica versão mínima do Node.js (>=18.0.0)
+  # Verifica versão mínima do Node.js (>=22.0.0)
     NODE_VERSION_NUM=$(echo $NODE_VERSION | cut -c 2-)
     NODE_MAJOR=$(echo $NODE_VERSION_NUM | cut -d. -f1)
     
-  if [ $NODE_MAJOR -lt 18 ]; then
-      log "WARNING" "FazAI requer Node.js versão 18.0.0 ou superior. Versão atual: $NODE_VERSION"
+  if [ $NODE_MAJOR -lt 22 ]; then
+      log "WARNING" "FazAI requer Node.js versão 22.0.0 ou superior. Versão atual: $NODE_VERSION"
       log "INFO" "Tentando atualizar o Node.js..."
       install_nodejs_from_source
     fi
@@ -365,7 +365,7 @@ install_nodejs_from_source() {
     NODE_VERSION_NUM=$(echo $NODE_VERSION | cut -c 2-)
     NODE_MAJOR=$(echo $NODE_VERSION_NUM | cut -d. -f1)
     
-    if [ $NODE_MAJOR -ge 18 ]; then
+    if [ $NODE_MAJOR -ge 22 ]; then
       log "SUCCESS" "Node.js instalado com sucesso via apt: $NODE_VERSION"
       success=true
       return 0
