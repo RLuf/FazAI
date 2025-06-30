@@ -155,7 +155,14 @@ Execute a suíte de testes com:
 npm test
 ```
 
-O script `tests/version.test.sh` valida se `bin/fazai --version` corresponde à versão em `package.json`.
+Os testes incluem validações da versão, comandos da CLI e scripts de instalação.
+Execute `npm test` para rodar:
+
+- `tests/version.test.sh` – verifica se `bin/fazai --version` corresponde ao `package.json`.
+- `tests/cli.test.sh` – exercita `fazai help` e `fazai logs`.
+- `tests/install_uninstall.test.sh` – testa `install.sh` e `uninstall.sh` em um diretório temporário.
+
+O pipeline do GitHub Actions executa automaticamente `npm test` a cada pull request.
 
 ## Desinstalação
 
