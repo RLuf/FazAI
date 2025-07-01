@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.40.10] - 02/07/2025
+
+### Added
+- Script `dev/genaiscript.js` utilizando o módulo DeepSeek.
+- `dev/README.md` atualizado com instruções sobre o script.
+
 ## [v1.40.9] - 02/07/2025
 
 ### Added
