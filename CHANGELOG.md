@@ -1,23 +1,5 @@
 # Changelog
 
-## [v1.40.10] - 02/07/2025
-
-### Added
-- Script `dev/genaiscript.js` utilizando o módulo DeepSeek.
-- `dev/README.md` atualizado com instruções sobre o script.
-
-## [v1.40.9] - 02/07/2025
-
-### Added
-- Comandos `start`, `stop`, `restart` e `status` no CLI utilizando `systemctl`.
-- `install.sh` copia `fazai.conf.default` para `/etc/fazai` ao invés de `/opt`.
-
-## [v1.40.8] - 02/07/2025
-
-### Fixed
-- `fazai.conf.example` usa OpenRouter com modelo DeepSeek e chave padrão.
-- Instalador cria backup `fazai.conf.bak` antes de renomear o arquivo existente.
-
 ## [v1.40.7] - 02/07/2025
 
 ### Changed
