@@ -32,7 +32,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Variáveis de configuração
-VERSION="1.40"
+VERSION="1.40.6"
 LOG_FILE="/var/log/fazai_install.log"
 RETRY_COUNT=3
 INSTALL_STATE_FILE="/var/lib/fazai/install.state"
@@ -107,6 +107,16 @@ log() {
       ;;
   esac
 }
+# Consulta o modelo DeepSeek em caso de erro
+deepseek_help() {
+  local prompt="$1"
+  if [ -f "$DEEPSEEK_HELPER" ]; then
+    node "$DEEPSEEK_HELPER" "$prompt" 2>/dev/null | tee -a "$LOG_FILE"
+  else
+    log "WARNING" "deepseek_helper não encontrado"
+  fi
+}
+
 
 # Função para salvar estado da instalação
 save_install_state() {
@@ -258,34 +268,28 @@ install_bash_completion() {
         apt-get update && apt-get install -y bash-completion
     fi
     
-    # Cria script de completion básico se não existir
     local completion_dir="/etc/bash_completion.d"
     mkdir -p "$completion_dir"
-    
-    # Cria um script de completion básico
-    cat > "$completion_dir/fazai" << 'EOF'
+
+    if [ -f "etc/fazai/fazai-completion.sh" ]; then
+        cp "etc/fazai/fazai-completion.sh" "$completion_dir/fazai"
+    else
+        log "WARNING" "etc/fazai/fazai-completion.sh não encontrado, gerando sc"\
+"ript simples"
+        cat > "$completion_dir/fazai" <<'EOF'
 #!/bin/bash
-_fazai_completion() {
-    local cur prev opts
-    COMPREPLY=()
-    cur="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="--help --version --config --daemon --stop --restart --status --debug"
-    
-    if [[ ${cur} == -* ]]; then
-        COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
-        return 0
-    fi
-}
-complete -F _fazai_completion fazai
+complete -W "install uninstall status config help version" fazai
 EOF
-    
+    fi
     chmod 644 "$completion_dir/fazai"
     log "SUCCESS" "Script de completion instalado em $completion_dir/fazai"
-    
+
     # Adiciona ao .bashrc se não existir
     if ! grep -q "source $completion_dir/fazai" /root/.bashrc 2>/dev/null; then
         echo "# FazAI bash completion" >> /root/.bashrc
+        echo "if [ -f /etc/bash_completion ]; then" >> /root/.bashrc
+        echo "  source /etc/bash_completion" >> /root/.bashrc
+        echo "fi" >> /root/.bashrc
         echo "source $completion_dir/fazai" >> /root/.bashrc
         log "SUCCESS" "Bash completion configurado no .bashrc"
     fi
@@ -571,7 +575,7 @@ const fs = require('fs');
 const args = process.argv.slice(2);
 
 if (args.includes('--version')) {
-  console.log('FazAI v1.40');
+  console.log('FazAI v1.40.6');
   process.exit(0);
 }
 
@@ -601,7 +605,7 @@ if (args.includes('--status')) {
   process.exit(0);
 }
 
-console.log('FazAI CLI v1.40 - Use --help para mais informações');
+console.log('FazAI CLI v1.40.6 - Use --help para mais informações');
 EOF
     chmod +x "bin/fazai"
   fi
@@ -617,18 +621,37 @@ EOF
     copy_errors=$((copy_errors+1))
   fi
   chmod 755 /opt/fazai/lib/main.js
+
+  # Copia módulo de fallback DeepSeek
+  if ! copy_with_verification "opt/fazai/lib/deepseek_helper.js" "/opt/fazai/lib/" "DeepSeek helper"; then
+    copy_errors=$((copy_errors+1))
+  fi
   
   if ! copy_with_verification "etc/fazai/fazai.conf.example" "/opt/fazai/conf/fazai.conf.default" "Configuração padrão"; then
     copy_errors=$((copy_errors+1))
   fi
   
-  if [ ! -f "/etc/fazai/fazai.conf" ]; then
-    if ! copy_with_verification "etc/fazai/fazai.conf.example" "/etc/fazai/fazai.conf" "Configuração de sistema"; then
-      copy_errors=$((copy_errors+1))
-    fi
-    log "SUCCESS" "Arquivo de configuração padrão criado em /etc/fazai/fazai.conf"
+  if [ -f "/etc/fazai/fazai.conf" ]; then
+    mv /etc/fazai/fazai.conf /etc/fazai/fazai.conf.old
+    log "INFO" "Configuração existente renomeada para fazai.conf.old"
+  fi
+
+  if ! copy_with_verification "etc/fazai/fazai.conf.example" "/etc/fazai/fazai.conf" "Configuração de sistema"; then
+    copy_errors=$((copy_errors+1))
   else
-    log "INFO" "Arquivo de configuração existente mantido em /etc/fazai/fazai.conf"
+    log "SUCCESS" "Novo arquivo de configuração criado em /etc/fazai/fazai.conf"
+
+    if [ -f "/etc/fazai/fazai.conf.old" ]; then
+      for prov in openrouter requesty openai; do
+        key_val=$(awk -v sec="[$prov]" '$0==sec{f=1;next} /^\[/{f=0} f && /api_key/{print $3}' /etc/fazai/fazai.conf.old)
+        if [ -n "$key_val" ]; then
+          sed -i "/^\[$prov\]/,/^$/s|api_key =.*|api_key = $key_val|" /etc/fazai/fazai.conf
+        fi
+      done
+    fi
+    if [ -f "/root/.env" ]; then
+      /bin/bash /opt/fazai/tools/sync-keys.sh >/dev/null 2>&1 && log "INFO" "Chaves sincronizadas do .env"
+    fi
   fi
   
   if ! copy_with_verification "bin/fazai" "/opt/fazai/bin/" "CLI"; then
@@ -746,7 +769,7 @@ EOF
     cat > "/opt/fazai/tools/fazai-tui.sh" << 'EOF'
 #!/bin/bash
 # FazAI Dashboard TUI - Versão Básica
-echo "FazAI Dashboard TUI v1.40"
+echo "FazAI Dashboard TUI v1.40.6"
 echo "
   if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
     copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"
@@ -1037,7 +1060,7 @@ install_node_dependencies() {
     cat > "package.json" << 'EOF'
 {
   "name": "fazai",
-  "version": "1.40",
+  "version": "1.40.6",
   "description": "FazAI - Orquestrador Inteligente de Automação",
   "main": "main.js",
   "dependencies": {
@@ -1164,7 +1187,7 @@ install_tui() {
 const fs = require('fs');
 const path = require('path');
 
-console.log('FazAI - Interface de Configuração TUI v1.40');
+console.log('FazAI - Interface de Configuração TUI v1.40.6');
 console.log('=========================================');
 console.log('');
 console.log('Funcionalidades disponíveis:');
@@ -1726,10 +1749,12 @@ main_install() {
 
       if [ "$step_function" = "copy_files" ]; then
         log "ERROR" "Falha ao copiar arquivos. Instalação interrompida. Verifique $LOG_FILE para detalhes."
+        deepseek_help "Falha ao copiar arquivos durante a instalação do FazAI"
         exit 1
       fi
 
-      # Pergunta se deve continuar
+      # Consulta ajuda da IA e pergunta se deve continuar
+      deepseek_help "Erro na etapa '$step_description'"
       read -p "Erro na etapa '$step_description'. Continuar mesmo assim? (s/N): " -n 1 -r
       echo
       if [[ ! $REPLY =~ ^[Ss]$ ]]; then

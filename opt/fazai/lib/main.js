@@ -25,6 +25,7 @@ const path = require('path');
 const { exec, spawn } = require('child_process');
 const ffi = require('ffi-napi-v22');
 const axios = require('axios');
+const { deepseekFallback } = require("./deepseek_helper");
 const winston = require('winston');
 
 // Configuração do logger
@@ -310,9 +311,11 @@ async function queryOpenRouter(command) {
   const apiKey = config.openrouter?.api_key || process.env.OPENROUTER_API_KEY;
   const model = config.openrouter?.default_model || process.env.OPENROUTER_MODEL || 'openai/gpt-4-turbo';
   const endpoint = config.openrouter?.endpoint || process.env.OPENROUTER_ENDPOINT || 'https://openrouter.ai/api/v1';
-  
+
+  // Se a chave não estiver configurada, utiliza o fallback DeepSeek
   if (!apiKey) {
-    throw new Error('Chave de API do OpenRouter não configurada');
+    logger.warn('Chave do OpenRouter ausente, utilizando fallback DeepSeek');
+    return deepseekFallback(command);
   }
   
   logger.info(`Enviando requisição para OpenRouter (modelo: ${model})`);
@@ -550,7 +553,7 @@ app.get('/status', (req, res) => {
     success: true, 
     status: 'online',
     timestamp: new Date().toISOString(),
-    version: '1.40'
+    version: '1.40.6'
   });
 });
 
