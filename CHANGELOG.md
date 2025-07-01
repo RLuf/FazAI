@@ -18,6 +18,12 @@
 - Ajustadas referências incorretas a `/etc/fazai/tools/` e `/etc/fazai/mods/`.
 - `build-portable.sh` e documentação agora apontam para `/opt/fazai` para plugins e módulos.
 
+## [v1.40.4] - 01/07/2025
+
+### Added
+- Validação com `npm list express winston` no instalador. Alerta orienta executar `npm install` manualmente em caso de falha.
+- README atualizado com nota sobre `/var/log/fazai_install.log`.
+
 ## [v1.40] - 30/06/2025
 
 ### Changed
