@@ -512,9 +512,6 @@ ${colors.bright}Exemplos:${colors.reset}
     try {
       if (fs.existsSync('/opt/fazai/lib/main.js')) {
         printSuccess('Arquivo principal: Encontrado em /opt/fazai/lib/main.js');
-      } else if (fs.existsSync('/etc/fazai/main.js')) {
-        printWarning('Arquivo principal: Encontrado em /etc/fazai/main.js (localização antiga)');
-        printInfo('Sugestão: O arquivo principal foi movido para /opt/fazai/lib/main.js');
       } else {
         printError('Arquivo principal: Não encontrado');
       }
