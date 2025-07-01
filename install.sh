@@ -1084,10 +1084,10 @@ EOF
   cd - > /dev/null
 
   # Verifica se os módulos essenciais foram instalados
-  if npm list express winston >/dev/null 2>&1; then
+  if npm list express winston >> "$LOG_FILE" 2>&1; then
     log "SUCCESS" "Módulos express e winston instalados corretamente."
   else
-    log "WARNING" "Falha ao verificar express e winston. Verifique a conexão de rede e execute 'npm install' manualmente."
+    log "WARNING" "Módulos express ou winston ausentes. Possível problema de conexão. Execute 'npm install' manualmente."
   fi
 
   log "SUCCESS" "Dependências do Node.js instaladas."

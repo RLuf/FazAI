@@ -207,6 +207,8 @@ Recomendações básicas:
 
 Se encontrar erros durante a instalação, consulte o arquivo de log
 `/var/log/fazai_install.log` para obter detalhes e mensagens do script.
+Esse arquivo registra toda a saída do instalador e ajuda a identificar
+problemas de rede ou dependências ausentes.
 
 ## Autor
 
