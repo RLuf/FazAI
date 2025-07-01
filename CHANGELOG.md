@@ -1,24 +1,28 @@
 # Changelog
 
-## [v1.40.1] - 01/07/2025
+## [v1.40.10] - 02/07/2025
+
+### Added
+- Script `dev/genaiscript.js` utilizando o módulo DeepSeek.
+- `dev/README.md` atualizado com instruções sobre o script.
+
+## [v1.40.9] - 02/07/2025
+
+### Added
+- Comandos `start`, `stop`, `restart` e `status` no CLI utilizando `systemctl`.
+- `install.sh` copia `fazai.conf.default` para `/etc/fazai` ao invés de `/opt`.
+
+## [v1.40.8] - 02/07/2025
 
 ### Fixed
-- Instalador interrompe ao detectar erro em `copy_files`, informando para verificar o log.
-- Mensagens de erro detalham qual arquivo falhou na cópia e o motivo.
+- `fazai.conf.example` usa OpenRouter com modelo DeepSeek e chave padrão.
+- Instalador cria backup `fazai.conf.bak` antes de renomear o arquivo existente.
 
-## [v1.40.2] - 01/07/2025
+## [v1.40.7] - 02/07/2025
 
-### Fixed
-- Removido caminho incorreto `/etc/fazai/main.js` em scripts e instalador.
-- `build-portable.sh` e `bin/fazai` agora usam `/opt/fazai/lib/main.js` como padrão.
-
-## [v1.40.3] - 01/07/2025
-
-### Fixed
-- Ajustadas referências incorretas a `/etc/fazai/tools/` e `/etc/fazai/mods/`.
-- `build-portable.sh` e documentação agora apontam para `/opt/fazai` para plugins e módulos.
-
-
+### Changed
+- Reorganizado o CHANGELOG em ordem decrescente.
+- Adicionada quebra de linha final.
 ## [v1.40.6] - 01/07/2025
 
 ### Changed
@@ -27,6 +31,7 @@
 - Chaves do `.env` são copiadas automaticamente durante a instalação.
 - Bash completion instalado a partir do script dedicado.
 - Adicionado diretório `dev` com utilitário `codex-cli` e `aider-chat`.
+
 
 ## [v1.40.5] - 01/07/2025
 
@@ -37,11 +42,35 @@
 ### Changed
 - `main.js` utiliza o fallback DeepSeek se a chave do OpenRouter estiver ausente.
 
+
 ## [v1.40.4] - 01/07/2025
 
 ### Added
 - Validação com `npm list express winston` no instalador. Alerta orienta executar `npm install` manualmente em caso de falha.
 - README atualizado com nota sobre `/var/log/fazai_install.log`.
+
+
+## [v1.40.3] - 01/07/2025
+
+### Fixed
+- Ajustadas referências incorretas a `/etc/fazai/tools/` e `/etc/fazai/mods/`.
+- `build-portable.sh` e documentação agora apontam para `/opt/fazai` para plugins e módulos.
+
+
+
+## [v1.40.2] - 01/07/2025
+
+### Fixed
+- Removido caminho incorreto `/etc/fazai/main.js` em scripts e instalador.
+- `build-portable.sh` e `bin/fazai` agora usam `/opt/fazai/lib/main.js` como padrão.
+
+
+## [v1.40.1] - 01/07/2025
+
+### Fixed
+- Instalador interrompe ao detectar erro em `copy_files`, informando para verificar o log.
+- Mensagens de erro detalham qual arquivo falhou na cópia e o motivo.
+
 
 ## [v1.40] - 30/06/2025
 
@@ -50,11 +79,13 @@
 - `install.sh` detecta seu diretório e ajusta o `cd`,
   garantindo funcionamento quando chamado de qualquer local.
 
+
 ## [v1.3.8] - 14/06/2025
 
 ### Changed
 - Porta padrão restaurada para **3120** com range reservado **3120-3125**.
 - Documentação e scripts atualizados para refletir a porta correta.
+
 
 ## [v1.3.7] - 13/06/2025
 
@@ -100,6 +131,7 @@
 
 ---
 
+
 ## [v1.3.6] - 07/06/2025
 
 ### Added
@@ -133,6 +165,7 @@
 - Tratamento de fallback para criação de versão básica do TUI se arquivo não encontrado
 
 ---
+
 
 ## [v1.3.5] - 06/06/2025
 
@@ -177,6 +210,7 @@
 - Tratamento seguro de arquivos com verificação de existência
 - Logs de auditoria para todas as operações de gerenciamento
 
+
 ## [v1.3.4] - 05/06/2025
 
 ### Added
@@ -199,6 +233,7 @@
 - Problemas de resiliência na instalação de dependências
 - Inconsistências no gerenciamento de comandos CLI
 - Melhor tratamento de erros durante a instalação
+
 
 ## [v1.3.3] - 05/06/2025
 
@@ -223,6 +258,7 @@
 - Falhas na importação de chaves de API de múltiplas fontes
 - Erros na instalação em sistemas com versões antigas de Node.js
 
+
 ## [v1.3.2] - 02/06/2025
 
 ### Added
@@ -236,6 +272,7 @@
 - Melhorias na estrutura de diretórios
 - Otimização do sistema de logging
 - Otimização do processo de instalação
+
 
 ## [v1.3.1] - 25/05/2025
 
@@ -255,6 +292,7 @@
 - Erros na coleta de logs do sistema
 - Problemas com a compilação de módulos nativos em alguns sistemas
 
+
 ## [v1.3.0] - 15/05/2025
 
 ### Added
@@ -268,6 +306,7 @@
 - Aprimoramento do sistema de logging
 - Otimização da comunicação com APIs externas
 
+
 ## [v1.2.2] - 10/04/2025
 
 ### Added
@@ -280,6 +319,7 @@
 - Erros de comunicação com APIs externas
 - Falhas na compilação de módulos nativos
 
+
 ## [v1.2.1] - 25/03/2025
 
 ### Added
@@ -291,6 +331,7 @@
 - Melhoria na estrutura de plugins
 - Otimização do uso de memória
 - Aprimoramento da interface de linha de comando
+
 
 ## [v1.2.0] - 15/02/2025
 
@@ -305,6 +346,7 @@
 - Aprimoramento da estrutura de diretórios
 - Otimização do processo de instalação
 
+
 ## [v1.1.0] - 10/01/2025
 
 ### Added
@@ -317,6 +359,7 @@
 - Melhoria no CLI com mais opções e documentação
 - Estrutura de arquivos organizada seguindo padrões Linux
 - Otimização de performance na comunicação com IA
+
 
 ## [v1.0.0] - 01/12/2024
 

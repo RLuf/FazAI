@@ -233,6 +233,19 @@ async function reloadModules() {
 }
 
 /**
+ * Executa comando systemctl para o serviço FazAI
+ * @param {string} action - start | stop | restart | status
+ */
+function systemctlCommand(action) {
+  const { spawnSync } = require('child_process');
+  printInfo(`Executando systemctl ${action} fazai...`);
+  const result = spawnSync('systemctl', [action, 'fazai'], { encoding: 'utf8' });
+  if (result.stdout) console.log(result.stdout.trim());
+  if (result.stderr) console.error(result.stderr.trim());
+  return result.status === 0;
+}
+
+/**
  * Exibe as últimas linhas do arquivo de log
  * @param {number} lines - Número de linhas a exibir
  */
@@ -340,6 +353,10 @@ ${colors.bright}Comandos especiais:${colors.reset}
   reload                      Recarrega plugins e módulos
   versao, version, -v         Exibe a versão do FazAI
   check-deps, verificar-deps  Verifica dependências e instalação do sistema
+  start                       Inicia o serviço FazAI
+  stop                        Para o serviço FazAI
+  restart                     Reinicia o serviço FazAI
+  status                      Mostra o status do serviço FazAI
 
 ${colors.bright}Comandos básicos do sistema:${colors.reset}
   kernel                      Exibe a versão do kernel (uname -r)
@@ -388,6 +405,11 @@ ${colors.bright}Exemplos:${colors.reset}
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
     console.log(`FazAI v1.40.6`);
     process.exit(0);
+  }
+
+  if (['start', 'stop', 'restart', 'status'].includes(args[0])) {
+    const ok = systemctlCommand(args[0]);
+    process.exit(ok ? 0 : 1);
   }
   
   // Comandos básicos do sistema que podem ser executados diretamente
