@@ -18,6 +18,10 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Garante que o script opere em seu diretório independente de onde for chamado
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # Cores para saída no terminal
 RED='\033[0;31m'
 GREEN='\033[0;32m'
