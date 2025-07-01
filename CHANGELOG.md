@@ -1,5 +1,17 @@
 # Changelog
 
+## [v1.40.1] - 01/07/2025
+
+### Fixed
+- Instalador interrompe ao detectar erro em `copy_files`, informando para verificar o log.
+- Mensagens de erro detalham qual arquivo falhou na cópia e o motivo.
+
+## [v1.40.2] - 01/07/2025
+
+### Fixed
+- Removido caminho incorreto `/etc/fazai/main.js` em scripts e instalador.
+- `build-portable.sh` e `bin/fazai` agora usam `/opt/fazai/lib/main.js` como padrão.
+
 ## [v1.40] - 30/06/2025
 
 ### Changed

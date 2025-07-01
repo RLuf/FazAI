@@ -96,11 +96,11 @@ cp -r bin/* $DIST_DIR/bin/
 chmod +x $DIST_DIR/bin/fazai
 
 # Copia bibliotecas principais
-if [ -f "etc/fazai/main.js" ]; then
+if [ -f "opt/fazai/lib/main.js" ]; then
     mkdir -p $DIST_DIR/lib
-    cp etc/fazai/main.js $DIST_DIR/lib/
+    cp opt/fazai/lib/main.js $DIST_DIR/lib/
 else
-    print_error "Arquivo main.js não encontrado em etc/fazai/"
+    print_error "Arquivo main.js não encontrado em opt/fazai/lib/"
     exit 1
 fi
 

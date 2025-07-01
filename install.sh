@@ -528,60 +528,31 @@ copy_files() {
     local destination=$2
     local description=$3
 
-    if [ -f "$source" ] || [ -d "$source" ]; then
-      local output
-      if output=$(cp -r "$source" "$destination" 2>&1); then
+    if [ ! -e "$source" ]; then
+      log "ERROR" "Arquivo de origem ausente para $description: $source"
+      return 1
+    fi
+
+    local output
+    if output=$(cp -r "$source" "$destination" 2>&1); then
+      local dest_path="$destination"
+      if [ -d "$destination" ]; then
+        dest_path="$destination/$(basename "$source")"
+      fi
+      if [ -e "$dest_path" ]; then
         log "DEBUG" "$description copiado de $source para $destination"
         return 0
       else
-        log "ERROR" "Falha ao copiar $source para $destination: $output"
+        log "ERROR" "Arquivo não encontrado após copiar $source para $destination"
         return 1
       fi
     else
-      log "ERROR" "Origem ausente: $source"
+      log "ERROR" "Falha ao copiar $description ($source -> $destination): $output"
       return 1
     fi
   }
   
-  # Cria arquivos básicos se não existirem
-  if [ ! -f "etc/fazai/main.js" ]; then
-    log "INFO" "Criando arquivo principal básico..."
-    mkdir -p "etc/fazai"
-    cat > "etc/fazai/main.js" << 'EOF'
-#!/usr/bin/env node
 
-/**
- * FazAI - Orquestrador Inteligente de Automação
- * Arquivo principal do daemon
- */
-
-const fs = require('fs');
-const path = require('path');
-
-console.log('FazAI v1.40 - Iniciando...');
-
-// Configuração básica
-const config = {
-  port: process.env.FAZAI_PORT || 3120,
-  logLevel: process.env.FAZAI_LOG_LEVEL || 'info'
-};
-
-console.log(`FazAI daemon rodando na porta ${config.port}`);
-
-// Mantém o processo vivo
-process.on('SIGINT', () => {
-  console.log('FazAI daemon finalizando...');
-  process.exit(0);
-});
-
-// Loop principal
-setInterval(() => {
-  // Heartbeat básico
-  const timestamp = new Date().toISOString();
-  fs.writeFileSync('/var/log/fazai/heartbeat.log', timestamp + '\n', { flag: 'a' });
-}, 30000);
-EOF
-  fi
   
   # Cria CLI básico se não existir
   if [ ! -f "bin/fazai" ]; then
@@ -1754,7 +1725,7 @@ main_install() {
       save_install_state "$step_function" "failed"
 
       if [ "$step_function" = "copy_files" ]; then
-        log "ERROR" "Falha ao copiar arquivos. Consulte $LOG_FILE para detalhes."
+        log "ERROR" "Falha ao copiar arquivos. Instalação interrompida. Verifique $LOG_FILE para detalhes."
         exit 1
       fi
 
