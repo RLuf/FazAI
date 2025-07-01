@@ -4,6 +4,8 @@
 
 ### Changed
 - Atualização de versionamento para **1.40**.
+- `install.sh` detecta seu diretório e ajusta o `cd`,
+  garantindo funcionamento quando chamado de qualquer local.
 
 ## [v1.3.8] - 14/06/2025
 

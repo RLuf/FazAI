@@ -24,9 +24,9 @@ cd FazAI
 
 # Instalar
 sudo ./install.sh
-# O script identifica automaticamente seu diretório,
-# permitindo executá-lo de qualquer caminho (por exemplo
-# `sudo /caminho/para/install.sh`).
+# O instalador detecta seu próprio caminho, permitindo
+# executá-lo de qualquer diretório. Exemplo:
+# sudo /caminho/para/install.sh
 # Opcional: incluir suporte ao llama.cpp
 # sudo ./install.sh --with-llama
 
