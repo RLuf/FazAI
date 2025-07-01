@@ -631,7 +631,10 @@ EOF
     copy_errors=$((copy_errors+1))
   fi
   
+  # Preserva configuracao atual antes de substituir
   if [ -f "/etc/fazai/fazai.conf" ]; then
+    cp /etc/fazai/fazai.conf /etc/fazai/fazai.conf.bak && \
+      log "INFO" "Backup criado em fazai.conf.bak"
     mv /etc/fazai/fazai.conf /etc/fazai/fazai.conf.old
     log "INFO" "Configuração existente renomeada para fazai.conf.old"
   fi
