@@ -105,19 +105,19 @@ else
 fi
 
 # Copia ferramentas e plugins
-if [ -d "etc/fazai/tools" ]; then
-    cp -r etc/fazai/tools/* $DIST_DIR/tools/
+if [ -d "opt/fazai/tools" ]; then
+    cp -r opt/fazai/tools/* $DIST_DIR/tools/
 else
     print_warning "Diretório de ferramentas não encontrado."
     mkdir -p $DIST_DIR/tools
 fi
 
 # Copia módulos nativos
-if [ -d "etc/fazai/mods" ]; then
+if [ -d "opt/fazai/mods" ]; then
     # Compila módulos nativos se necessário
-    if [ -f "etc/fazai/mods/system_mod.c" ]; then
+    if [ -f "opt/fazai/mods/system_mod.c" ]; then
         print_message "Compilando módulos nativos para a arquitetura atual..."
-        cd etc/fazai/mods
+        cd opt/fazai/mods
         gcc -shared -fPIC -o system_mod.so system_mod.c
         if [ $? -ne 0 ]; then
             cd - > /dev/null
@@ -129,9 +129,9 @@ if [ -d "etc/fazai/mods" ]; then
     fi
     
     # Copia módulos nativos para o diretório específico da arquitetura
-    cp etc/fazai/mods/*.so $DIST_DIR/mods/$ARCH_DIR/
-    cp etc/fazai/mods/*.h $DIST_DIR/mods/
-    cp etc/fazai/mods/*.c $DIST_DIR/mods/
+    cp opt/fazai/mods/*.so $DIST_DIR/mods/$ARCH_DIR/
+    cp opt/fazai/mods/*.h $DIST_DIR/mods/
+    cp opt/fazai/mods/*.c $DIST_DIR/mods/
 else
     print_warning "Diretório de módulos nativos não encontrado."
     mkdir -p $DIST_DIR/mods/$ARCH_DIR

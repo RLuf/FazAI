@@ -155,13 +155,13 @@ sudo nano /etc/fazai/fazai.conf
 
 ### Plugins
 
-Crie plugins JavaScript em `/etc/fazai/tools/` implementando:
+Crie plugins JavaScript em `/opt/fazai/tools/` implementando:
 - Função `processCommand(command)`
 - Informações do plugin (nome, descrição, versão, autor)
 
 ### Módulos Nativos
 
-Crie módulos C em `/etc/fazai/mods/` implementando as funções definidas em `fazai_mod.h`.
+Crie módulos C em `/opt/fazai/mods/` implementando as funções definidas em `fazai_mod.h`.
 
 ## Testes
 
