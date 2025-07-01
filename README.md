@@ -24,6 +24,9 @@ cd FazAI
 
 # Instalar
 sudo ./install.sh
+# O script identifica automaticamente seu diretório,
+# permitindo executá-lo de qualquer caminho (por exemplo
+# `sudo /caminho/para/install.sh`).
 # Opcional: incluir suporte ao llama.cpp
 # sudo ./install.sh --with-llama
 
@@ -56,6 +59,8 @@ wget https://github.com/RLuf/FazAI/releases/latest/download/fazai-portable.tar.g
 tar -xzf fazai-portable.tar.gz
 cd fazai-portable-*
 sudo ./install.sh
+# Assim como na instalação principal, o script pode ser
+# chamado de qualquer pasta, pois detecta seu próprio caminho.
 ```
 
 ### Instalação via Docker
