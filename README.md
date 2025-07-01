@@ -203,6 +203,11 @@ Recomendações básicas:
 - Configurar firewall
 - Auditar logs regularmente
 
+## Solução de Problemas
+
+Se encontrar erros durante a instalação, consulte o arquivo de log
+`/var/log/fazai_install.log` para obter detalhes e mensagens do script.
+
 ## Autor
 
 Roger Luft, Fundador do FazAI
