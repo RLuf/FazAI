@@ -519,24 +519,26 @@ create_directories() {
 # Função para copiar arquivos
 copy_files() {
   log "INFO" "Copiando arquivos para diretórios de instalação..."
+
+  local copy_errors=0
   
   # Cria função auxiliar para cópia com verificação de erros
   copy_with_verification() {
     local source=$1
     local destination=$2
     local description=$3
-    
+
     if [ -f "$source" ] || [ -d "$source" ]; then
-      cp -r "$source" "$destination"
-      if [ $? -eq 0 ]; then
-        log "DEBUG" "$description copiado para $destination"
+      local output
+      if output=$(cp -r "$source" "$destination" 2>&1); then
+        log "DEBUG" "$description copiado de $source para $destination"
         return 0
       else
-        log "ERROR" "Falha ao copiar $description para $destination"
+        log "ERROR" "Falha ao copiar $source para $destination: $output"
         return 1
       fi
     else
-      log "ERROR" "Arquivo ou diretório de origem não encontrado: $source"
+      log "ERROR" "Origem ausente: $source"
       return 1
     fi
   }
@@ -640,19 +642,27 @@ EOF
   fi
   
   # Agora copia os arquivos
-  copy_with_verification "opt/fazai/lib/main.js" "/opt/fazai/lib/" "Arquivo principal"
+  if ! copy_with_verification "opt/fazai/lib/main.js" "/opt/fazai/lib/" "Arquivo principal"; then
+    copy_errors=$((copy_errors+1))
+  fi
   chmod 755 /opt/fazai/lib/main.js
   
-  copy_with_verification "etc/fazai/fazai.conf.example" "/opt/fazai/conf/fazai.conf.default" "Configuração padrão"
+  if ! copy_with_verification "etc/fazai/fazai.conf.example" "/opt/fazai/conf/fazai.conf.default" "Configuração padrão"; then
+    copy_errors=$((copy_errors+1))
+  fi
   
   if [ ! -f "/etc/fazai/fazai.conf" ]; then
-    copy_with_verification "etc/fazai/fazai.conf.example" "/etc/fazai/fazai.conf" "Configuração de sistema"
+    if ! copy_with_verification "etc/fazai/fazai.conf.example" "/etc/fazai/fazai.conf" "Configuração de sistema"; then
+      copy_errors=$((copy_errors+1))
+    fi
     log "SUCCESS" "Arquivo de configuração padrão criado em /etc/fazai/fazai.conf"
   else
     log "INFO" "Arquivo de configuração existente mantido em /etc/fazai/fazai.conf"
   fi
   
-  copy_with_verification "bin/fazai" "/opt/fazai/bin/" "CLI"
+  if ! copy_with_verification "bin/fazai" "/opt/fazai/bin/" "CLI"; then
+    copy_errors=$((copy_errors+1))
+  fi
   chmod 755 /opt/fazai/bin/fazai
   ln -sf /opt/fazai/bin/fazai /usr/local/bin/fazai
   log "SUCCESS" "CLI instalado em /usr/local/bin/fazai"
@@ -660,10 +670,18 @@ EOF
   # Copia ferramentas do bin/tools para /opt/fazai/tools
   if [ -d "bin/tools" ]; then
     log "INFO" "Copiando ferramentas do bin/tools..."
-    copy_with_verification "bin/tools/github-setup.sh" "/opt/fazai/tools/" "GitHub Setup Script" || log "WARNING" "github-setup.sh não encontrado"
-    copy_with_verification "bin/tools/sync-changes.sh" "/opt/fazai/tools/" "Sync Changes Script" || log "WARNING" "sync-changes.sh não encontrado"
-    copy_with_verification "bin/tools/sync-keys.sh" "/opt/fazai/tools/" "Sync Keys Script" || log "WARNING" "sync-keys.sh não encontrado"
-    copy_with_verification "bin/tools/system-check.sh" "/opt/fazai/tools/" "System Check Script" || log "WARNING" "system-check.sh não encontrado"
+    if ! copy_with_verification "bin/tools/github-setup.sh" "/opt/fazai/tools/" "GitHub Setup Script"; then
+      copy_errors=$((copy_errors+1))
+    fi
+    if ! copy_with_verification "bin/tools/sync-changes.sh" "/opt/fazai/tools/" "Sync Changes Script"; then
+      copy_errors=$((copy_errors+1))
+    fi
+    if ! copy_with_verification "bin/tools/sync-keys.sh" "/opt/fazai/tools/" "Sync Keys Script"; then
+      copy_errors=$((copy_errors+1))
+    fi
+    if ! copy_with_verification "bin/tools/system-check.sh" "/opt/fazai/tools/" "System Check Script"; then
+      copy_errors=$((copy_errors+1))
+    fi
     
     # Torna os scripts executáveis
     chmod +x /opt/fazai/tools/*.sh 2>/dev/null
@@ -672,15 +690,21 @@ EOF
 
   # Copia módulos nativos se existirem
   if [ -f "opt/fazai/mods/system_mod.so" ]; then
-    copy_with_verification "opt/fazai/mods/system_mod.so" "/opt/fazai/mods/" "Módulo nativo system_mod"
-    log "SUCCESS" "Módulo nativo copiado"
+    if ! copy_with_verification "opt/fazai/mods/system_mod.so" "/opt/fazai/mods/" "Módulo nativo system_mod"; then
+      copy_errors=$((copy_errors+1))
+    else
+      log "SUCCESS" "Módulo nativo copiado"
+    fi
   fi
 
   # Copia fazai-config.js se existir
   if [ -f "opt/fazai/tools/fazai-config.js" ]; then
-    copy_with_verification "opt/fazai/tools/fazai-config.js" "/opt/fazai/tools/" "FazAI Config JS"
-    chmod +x /opt/fazai/tools/fazai-config.js
-    log "SUCCESS" "FazAI Config JS copiado e tornado executável"
+    if ! copy_with_verification "opt/fazai/tools/fazai-config.js" "/opt/fazai/tools/" "FazAI Config JS"; then
+      copy_errors=$((copy_errors+1))
+    else
+      chmod +x /opt/fazai/tools/fazai-config.js
+      log "SUCCESS" "FazAI Config JS copiado e tornado executável"
+    fi
   fi
 
   # Instala dependência dialog para TUI ncurses
@@ -691,19 +715,25 @@ EOF
 
   # Instala fazai-config-tui.sh (TUI ncurses)
   if [ -f "opt/fazai/tools/fazai-config-tui.sh" ]; then
-    copy_with_verification "opt/fazai/tools/fazai-config-tui.sh" "/opt/fazai/tools/" "TUI ncurses fazai-config"
-    chmod +x /opt/fazai/tools/fazai-config-tui.sh
-    ln -sf /opt/fazai/tools/fazai-config-tui.sh /usr/local/bin/fazai-config-tui
-    log "SUCCESS" "Interface TUI ncurses instalada em /usr/local/bin/fazai-config-tui"
+    if ! copy_with_verification "opt/fazai/tools/fazai-config-tui.sh" "/opt/fazai/tools/" "TUI ncurses fazai-config"; then
+      copy_errors=$((copy_errors+1))
+    else
+      chmod +x /opt/fazai/tools/fazai-config-tui.sh
+      ln -sf /opt/fazai/tools/fazai-config-tui.sh /usr/local/bin/fazai-config-tui
+      log "SUCCESS" "Interface TUI ncurses instalada em /usr/local/bin/fazai-config-tui"
+    fi
   fi
 
   # Instala fazai-tui.sh (Dashboard TUI completo)
 
   # Copia interface web front-end
   if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
-    copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"
-    chmod 644 "/opt/fazai/tools/fazai_web_frontend.html"
-    log "SUCCESS" "Interface web instalada"
+    if ! copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"; then
+      copy_errors=$((copy_errors+1))
+    else
+      chmod 644 "/opt/fazai/tools/fazai_web_frontend.html"
+      log "SUCCESS" "Interface web instalada"
+    fi
   else
     log "WARNING" "Interface web não encontrado, crio fallback básico..."
     cat > "/opt/fazai/tools/fazai_web_frontend.html" << 'EOF'
@@ -723,10 +753,13 @@ EOF
     log "SUCCESS" "Interface web fallback criada"
   fi
   if [ -f "opt/fazai/tools/fazai-tui.sh" ]; then
-    copy_with_verification "opt/fazai/tools/fazai-tui.sh" "/opt/fazai/tools/" "Dashboard TUI completo"
-    chmod +x /opt/fazai/tools/fazai-tui.sh
-    ln -sf /opt/fazai/tools/fazai-tui.sh /usr/local/bin/fazai-tui
-    log "SUCCESS" "Dashboard TUI completo instalado em /usr/local/bin/fazai-tui"
+    if ! copy_with_verification "opt/fazai/tools/fazai-tui.sh" "/opt/fazai/tools/" "Dashboard TUI completo"; then
+      copy_errors=$((copy_errors+1))
+    else
+      chmod +x /opt/fazai/tools/fazai-tui.sh
+      ln -sf /opt/fazai/tools/fazai-tui.sh /usr/local/bin/fazai-tui
+      log "SUCCESS" "Dashboard TUI completo instalado em /usr/local/bin/fazai-tui"
+    fi
     if command -v cargo >/dev/null 2>&1; then
       log "INFO" "Compilando TUI em Rust..."
       if cargo build --release --manifest-path=tui/Cargo.toml >/tmp/fazai_tui_build.log 2>&1; then
@@ -848,9 +881,12 @@ EOF
   
   # Copia script de lançamento da interface web
   if [ -f "opt/fazai/tools/fazai_web.sh" ]; then
-    copy_with_verification "opt/fazai/tools/fazai_web.sh" "/opt/fazai/tools/" "Script de lançamento web"
-    chmod +x "/opt/fazai/tools/fazai_web.sh"
-    log "SUCCESS" "Script de lançamento web instalado"
+    if ! copy_with_verification "opt/fazai/tools/fazai_web.sh" "/opt/fazai/tools/" "Script de lançamento web"; then
+      copy_errors=$((copy_errors+1))
+    else
+      chmod +x "/opt/fazai/tools/fazai_web.sh"
+      log "SUCCESS" "Script de lançamento web instalado"
+    fi
   else
     log "WARNING" "Script de lançamento web não encontrado, criando versão básica..."
     cat > "/opt/fazai/tools/fazai_web.sh" << 'EOF'
@@ -892,14 +928,22 @@ EOF
 
   # Copia gerador de visualização HTML
   if [ -f "opt/fazai/tools/fazai_html_v1.sh" ]; then
-    copy_with_verification "opt/fazai/tools/fazai_html_v1.sh" "/opt/fazai/tools/" "Gerador HTML"
-    chmod +x "/opt/fazai/tools/fazai_html_v1.sh"
-    ln -sf /opt/fazai/tools/fazai_html_v1.sh /usr/local/bin/fazai-html
-    log "SUCCESS" "Gerador HTML instalado em /usr/local/bin/fazai-html"
+    if ! copy_with_verification "opt/fazai/tools/fazai_html_v1.sh" "/opt/fazai/tools/" "Gerador HTML"; then
+      copy_errors=$((copy_errors+1))
+    else
+      chmod +x "/opt/fazai/tools/fazai_html_v1.sh"
+      ln -sf /opt/fazai/tools/fazai_html_v1.sh /usr/local/bin/fazai-html
+      log "SUCCESS" "Gerador HTML instalado em /usr/local/bin/fazai-html"
+    fi
   fi
   
+  if [ "$copy_errors" -ne 0 ]; then
+    log "ERROR" "$copy_errors falha(s) ao copiar arquivos. Veja $LOG_FILE para detalhes."
+    return 1
+  fi
+
   log "SUCCESS" "Arquivos copiados com sucesso."
-}
+  }
 
 # Função para importar configurações de .env
 import_env_config() {
@@ -1692,7 +1736,7 @@ main_install() {
     fi
     
     log "INFO" "[$current_step/$total_steps] $step_description"
-    
+
     # Executa a função
     if $step_function; then
       save_install_state "$step_function" "completed"
@@ -1700,7 +1744,12 @@ main_install() {
     else
       log "ERROR" "$step_description - Falhou"
       save_install_state "$step_function" "failed"
-      
+
+      if [ "$step_function" = "copy_files" ]; then
+        log "ERROR" "Falha ao copiar arquivos. Consulte $LOG_FILE para detalhes."
+        exit 1
+      fi
+
       # Pergunta se deve continuar
       read -p "Erro na etapa '$step_description'. Continuar mesmo assim? (s/N): " -n 1 -r
       echo
