@@ -1,6 +1,6 @@
 {
   "name": "fazai",
-  "version": "1.40",
+  "version": "1.40.6",
   "description": "FazAI - Orquestrador Inteligente de Automação",
   "main": "opt/fazai/lib/main.js",
   "scripts": {

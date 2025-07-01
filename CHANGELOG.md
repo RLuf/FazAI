@@ -18,6 +18,16 @@
 - Ajustadas referências incorretas a `/etc/fazai/tools/` e `/etc/fazai/mods/`.
 - `build-portable.sh` e documentação agora apontam para `/opt/fazai` para plugins e módulos.
 
+
+## [v1.40.6] - 01/07/2025
+
+### Changed
+- Ajuste de versionamento para **1.40.6** em todos os códigos.
+- Instalador renomeia `fazai.conf` existente para `fazai.conf.old` e preserva chaves.
+- Chaves do `.env` são copiadas automaticamente durante a instalação.
+- Bash completion instalado a partir do script dedicado.
+- Adicionado diretório `dev` com utilitário `codex-cli` e `aider-chat`.
+
 ## [v1.40.5] - 01/07/2025
 
 ### Added

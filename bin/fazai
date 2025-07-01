@@ -386,7 +386,7 @@ ${colors.bright}Exemplos:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log(`FazAI v1.40`);
+    console.log(`FazAI v1.40.6`);
     process.exit(0);
   }
   
