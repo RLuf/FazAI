@@ -1,5 +1,6 @@
 # Changelog
 
+
 ## [v1.40.9] - 02/07/2025
 
 ### Added
@@ -11,6 +12,7 @@
 ### Fixed
 - `fazai.conf.example` usa OpenRouter com modelo DeepSeek e chave padrão.
 - Instalador cria backup `fazai.conf.bak` antes de renomear o arquivo existente.
+
 
 ## [v1.40.7] - 02/07/2025
 
