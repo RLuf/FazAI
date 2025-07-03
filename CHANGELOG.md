@@ -1,5 +1,12 @@
 # Changelog
 
+## [v1.40.9] - 02/07/2025
+
+### Added
+- Comandos `start`, `stop`, `restart` e `status` no CLI utilizando `systemctl`.
+- `install.sh` copia `fazai.conf.default` para `/etc/fazai` ao invés de `/opt`.
+
+
 ## [v1.40.8] - 02/07/2025
 
 ### Fixed

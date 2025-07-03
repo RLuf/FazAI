@@ -500,7 +500,6 @@ create_directories() {
     "/opt/fazai/lib"
     "/opt/fazai/tools"
     "/opt/fazai/mods"
-    "/opt/fazai/conf"
     "/etc/fazai"
     "/var/log/fazai"
     "/var/lib/fazai/history"
@@ -627,7 +626,7 @@ EOF
     copy_errors=$((copy_errors+1))
   fi
   
-  if ! copy_with_verification "etc/fazai/fazai.conf.example" "/opt/fazai/conf/fazai.conf.default" "Configuração padrão"; then
+  if ! copy_with_verification "etc/fazai/fazai.conf.example" "/etc/fazai/fazai.conf.default" "Configuração padrão"; then
     copy_errors=$((copy_errors+1))
   fi
   
