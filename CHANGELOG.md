@@ -367,3 +367,8 @@
 - Serviço systemd para gerenciamento
 - Configuração básica via arquivo fazai.conf
 - Logs básicos do sistema
+
+## [v1.40.10] - 03/07/2025
+
+### Changed
+- Atualizado `actions/upload-artifact` para versão 4 no workflow CI
