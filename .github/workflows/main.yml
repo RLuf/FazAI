@@ -75,7 +75,8 @@ jobs:
         sha256sum fazai-portable-v${VERSION}.tar.gz > fazai-portable-v${VERSION}.tar.gz.sha256
     
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      # v3 foi descontinuado em abril/2024; atualizando para v4
+      uses: actions/upload-artifact@v4
       with:
         name: fazai-portable
         path: |
