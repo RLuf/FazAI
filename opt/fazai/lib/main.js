@@ -553,7 +553,7 @@ app.get('/status', (req, res) => {
     success: true, 
     status: 'online',
     timestamp: new Date().toISOString(),
-    version: '1.40.6'
+    version: '1.40.12'
   });
 });
 

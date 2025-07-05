@@ -36,6 +36,7 @@ yarn-error.log*
 .cache/
 tmp/
 temp/
+todo.txt
 
 # Arquivos do sistema
 .DS_Store

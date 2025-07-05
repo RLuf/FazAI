@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Habilita modo debug para verbose em tempo real
+let debugEnabled = false;
 
 /*
  * FazAI - Orquestrador Inteligente de Automação
@@ -87,6 +89,13 @@ const colors = {
     white: '\x1b[47m'
   }
 };
+/**
+ * Exibe mensagem de debug se modo debug estiver ativo
+ * @param {string} message - Mensagem de debug
+ */
+function printDebug(message) {
+  if (debugEnabled) console.log(`${colors.fg.magenta}[DEBUG] ${message}${colors.reset}`);
+}
 
 /**
  * Exibe mensagem de erro formatada
@@ -126,11 +135,16 @@ function printWarning(message) {
  * @returns {Promise<object>} - Resposta do daemon
  */
 async function sendCommand(command) {
+  // Debug: mostra detalhes da requisição
+  printDebug(`[sendCommand] POST ${API_URL}/command payload: ${JSON.stringify({command})}`);
   try {
     printInfo(`Conectando ao daemon em ${API_URL}...`);
     const response = await axios.post(`${API_URL}/command`, { command }, {
       timeout: 30000 // 30 segundos de timeout
     });
+    // Debug: mostra detalhes da resposta HTTP
+    printDebug(`[sendCommand] HTTP ${response.status} ${response.statusText}`);
+    printDebug(`[sendCommand] response.data: ${JSON.stringify(response.data)}`);
     
     if (!response.data.success) {
       if (response.data.error) {
@@ -174,11 +188,16 @@ async function sendCommand(command) {
  * @returns {Promise<object>} - Resposta do daemon
  */
 async function sendCommandMcps(command) {
+  // Debug: mostra detalhes da requisição MCPS
+  printDebug(`[sendCommandMcps] POST ${API_URL}/command payload: ${JSON.stringify({command, mcps: true})}`);
   try {
     printInfo(`Conectando ao daemon em ${API_URL} (MCPS)...`);
     const response = await axios.post(`${API_URL}/command`, { command, mcps: true }, {
       timeout: 30000 // 30 segundos de timeout
     });
+    // Debug: mostra detalhes da resposta MCPS
+    printDebug(`[sendCommandMcps] HTTP ${response.status} ${response.statusText}`);
+    printDebug(`[sendCommandMcps] response.data: ${JSON.stringify(response.data)}`);
 
     if (!response.data.success) {
       if (response.data.error) {
@@ -332,6 +351,12 @@ async function clearLogs() {
 async function main() {
   // Obtém argumentos da linha de comando
   const args = process.argv.slice(2);
+  // Verifica flag de debug (-d ou --debug)
+  if (args[0] === '-d' || args[0] === '--debug') {
+    debugEnabled = true;
+    printInfo('Modo debug ativado');
+    args.shift();
+  }
   
   // Comandos especiais
   if (args.length === 0) {
@@ -344,10 +369,11 @@ async function main() {
 ${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação${colors.reset}
 
 ${colors.bright}Uso:${colors.reset}
-  fazai <comando>
+  fazai [-d|--debug] <comando>
 
 ${colors.bright}Comandos especiais:${colors.reset}
   ajuda, help                 Exibe esta mensagem de ajuda
+  -d, --debug                 Ativa modo debug com verbose em tempo real
   logs [n]                    Exibe as últimas n entradas de log (padrão: 10)
   limpar-logs, clear-logs     Limpa o arquivo de log (cria backup)
   reload                      Recarrega plugins e módulos
@@ -403,7 +429,7 @@ ${colors.bright}Exemplos:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log(`FazAI v1.40.6`);
+    console.log(`FazAI v1.40.12`);
     process.exit(0);
   }
 

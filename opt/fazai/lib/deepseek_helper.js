@@ -1,7 +1,8 @@
 const axios = require('axios');
 
-// Chave de API padrão para fallback conforme AGENTS.md
-const DEFAULT_KEY = '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';
+// Chave de API padrão para fallback DeepSeek
+// Atualizada para a chave OpenRouter fornecida pelo usuário para atender ao requisito
+const DEFAULT_KEY = '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';
 const DEFAULT_MODEL = 'deepseek/deepseek-r1-0528:free';
 const ENDPOINT = 'https://openrouter.ai/api/v1';
 

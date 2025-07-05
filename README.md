@@ -4,7 +4,9 @@
 
 FazAI é um sistema de automação inteligente para servidores Linux, que permite executar comandos complexos usando linguagem natural e inteligência artificial.
 
-Consulte o [CHANGELOG](CHANGELOG.md) para historico completo de alteracoes.
+Consulte o [CHANGELOG](CHANGELOG.md) para histórico completo de alterações.
+
+**Para instruções detalhadas de uso, consulte [Instruções de Uso](USAGE.md).**
 
 ## Requisitos
 
@@ -118,6 +120,14 @@ fazai altere a porta do ssh de 22 para 31052
 fazai mcps atualizar sistema
 ```
 
+### Modo Debug
+
+Para exibir detalhes de conexão e resposta HTTP em tempo real (verbose), use a flag `-d` ou `--debug`:
+
+```bash
+fazai -d sistema
+```
+
 ## Estrutura de Diretórios
 
 ```
@@ -171,15 +181,6 @@ Execute a suíte de testes com:
 npm test
 ```
 
-Os testes incluem validações da versão, comandos da CLI e scripts de instalação.
-Execute `npm test` para rodar:
-
-- `tests/version.test.sh` – verifica se `bin/fazai --version` corresponde ao `package.json`.
-- `tests/cli.test.sh` – exercita `fazai help` e `fazai logs`.
-- `tests/install_uninstall.test.sh` – testa `install.sh` e `uninstall.sh` em um diretório temporário.
-
-O pipeline do GitHub Actions executa automaticamente `npm test` a cada pull request.
-
 ## Desinstalação
 
 ```bash
@@ -187,9 +188,6 @@ sudo ./uninstall.sh
 ```
 
 ## Reinstalação
-
-Para reinstalar completamente o FazAI utilize o script `reinstall.sh`. Ele
-executa `uninstall.sh` e em seguida `install.sh` de forma automática:
 
 ```bash
 sudo ./reinstall.sh
@@ -205,10 +203,7 @@ Recomendações básicas:
 
 ## Solução de Problemas
 
-Se encontrar erros durante a instalação, consulte o arquivo de log
-`/var/log/fazai_install.log` para obter detalhes e mensagens do script.
-Esse arquivo registra toda a saída do instalador e ajuda a identificar
-problemas de rede ou dependências ausentes.
+Consulte o arquivo de log `/var/log/fazai_install.log` para detalhes.
 
 ## Autor
 
