@@ -12,11 +12,11 @@ else
 fi
 
 # Verifica se está rodando como root
-if [ "$EUID" -ne 0 ]; then
-    echo "ERRO: Este script precisa ser executado como root."
-    echo "Use: sudo bash install.sh"
-    exit 1
-fi
+#if [ "$EUID" -ne 0 ]; then
+#    echo "ERRO: Este script precisa ser executado como root."
+#    echo "Use: sudo bash install.sh"
+#    exit 1
+#fi
 
 # Garante que o script opere em seu diretório independente de onde for chamado
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -678,6 +678,15 @@ EOF
     if ! copy_with_verification "bin/tools/system-check.sh" "/opt/fazai/tools/" "System Check Script"; then
       copy_errors=$((copy_errors+1))
     fi
+    if ! copy_with_verification "bin/tools/fazai-packager.sh" "/opt/fazai/tools/" "FazAI Packager Script"; then
+      copy_errors=$((copy_errors+1))
+    fi
+    if ! copy_with_verification "bin/tools/fazai-unpacker.sh" "/opt/fazai/tools/" "FazAI Unpacker Script"; then
+      copy_errors=$((copy_errors+1))
+    fi
+    if ! copy_with_verification "bin/tools/fazai-installer-portable.sh" "/opt/fazai/tools/" "FazAI Portable Installer"; then
+      copy_errors=$((copy_errors+1))
+    fi
     
     # Torna os scripts executáveis
     chmod +x /opt/fazai/tools/*.sh 2>/dev/null
@@ -755,6 +764,17 @@ EOF
       chmod +x /opt/fazai/tools/fazai-tui.sh
       ln -sf /opt/fazai/tools/fazai-tui.sh /usr/local/bin/fazai-tui
       log "SUCCESS" "Dashboard TUI completo instalado em /usr/local/bin/fazai-tui"
+      
+  # Cria links simbólicos para ferramentas de empacotamento
+  if [ -f "/opt/fazai/tools/fazai-packager.sh" ]; then
+    ln -sf /opt/fazai/tools/fazai-packager.sh /usr/local/bin/fazai-packager
+    log "SUCCESS" "Empacotador instalado em /usr/local/bin/fazai-packager"
+  fi
+  
+  if [ -f "/opt/fazai/tools/fazai-unpacker.sh" ]; then
+    ln -sf /opt/fazai/tools/fazai-unpacker.sh /usr/local/bin/fazai-unpacker
+    log "SUCCESS" "Desempacotador instalado em /usr/local/bin/fazai-unpacker"
+  fi
     fi
     if command -v cargo >/dev/null 2>&1; then
       log "INFO" "Compilando TUI em Rust..."
@@ -1657,8 +1677,12 @@ show_installation_summary() {
   echo "  • fazai tui             - Dashboard TUI completo (ncurses)"
   echo "  • fazai logs [n]        - Ver últimas n entradas de log"
   echo "  • fazai limpar-logs     - Limpar logs (com backup)"
+  echo "  • fazai pack            - Criar pacote universal"
+  echo "  • fazai unpack          - Extrair pacote universal"
   echo "  • fazai-config          - Interface de configuração"
   echo "  • fazai-config-tui      - Interface TUI de configuração"
+  echo "  • fazai-packager        - Empacotador standalone"
+  echo "  • fazai-unpacker        - Desempacotador standalone"
   echo "  • fazai-backup          - Criar backup"
   echo "  • fazai-uninstall       - Desinstalar"
   echo ""

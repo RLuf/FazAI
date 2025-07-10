@@ -383,6 +383,8 @@ ${colors.bright}Comandos especiais:${colors.reset}
   stop                        Para o serviço FazAI
   restart                     Reinicia o serviço FazAI
   status                      Mostra o status do serviço FazAI
+  pack, empacotar            Cria pacote universal do FazAI
+  unpack, desempacotar       Extrai pacote universal do FazAI
 
 ${colors.bright}Comandos básicos do sistema:${colors.reset}
   kernel                      Exibe a versão do kernel (uname -r)
@@ -436,6 +438,55 @@ ${colors.bright}Exemplos:${colors.reset}
   if (['start', 'stop', 'restart', 'status'].includes(args[0])) {
     const ok = systemctlCommand(args[0]);
     process.exit(ok ? 0 : 1);
+  }
+  
+  if (args[0] === 'pack' || args[0] === 'empacotar') {
+    try {
+      const { exec } = require('child_process');
+      const packagerScript = '/opt/fazai/tools/fazai-packager.sh';
+      
+      printInfo('Iniciando empacotador universal...');
+      
+      exec(`chmod +x ${packagerScript} && ${packagerScript}`, (error, stdout, stderr) => {
+        if (error) {
+          printError(`Erro ao executar empacotador: ${error.message}`);
+          process.exit(1);
+        }
+        if (stderr) {
+          console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
+        }
+        console.log(`\n${stdout}\n`);
+        process.exit(0);
+      });
+    } catch (err) {
+      printError(`Erro ao executar empacotador: ${err.message}`);
+      process.exit(1);
+    }
+  }
+  
+  if (args[0] === 'unpack' || args[0] === 'desempacotar') {
+    try {
+      const { exec } = require('child_process');
+      const unpackerScript = '/opt/fazai/tools/fazai-unpacker.sh';
+      const unpackArgs = args.slice(1).join(' ');
+      
+      printInfo('Iniciando desempacotador universal...');
+      
+      exec(`chmod +x ${unpackerScript} && ${unpackerScript} ${unpackArgs}`, (error, stdout, stderr) => {
+        if (error) {
+          printError(`Erro ao executar desempacotador: ${error.message}`);
+          process.exit(1);
+        }
+        if (stderr) {
+          console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
+        }
+        console.log(`\n${stdout}\n`);
+        process.exit(0);
+      });
+    } catch (err) {
+      printError(`Erro ao executar desempacotador: ${err.message}`);
+      process.exit(1);
+    }
   }
   
   // Comandos básicos do sistema que podem ser executados diretamente

@@ -1,5 +1,30 @@
 # Changelog
 
+## [v1.40.13] - 08/01/2025
+
+### Added
+- **Sistema de Arquitetamento Inteligente** - Análise automática de comandos complexos (>4 palavras)
+- **Suporte a Perguntas Simples** - Comandos iniciados com `_` e terminados com `?` são processados como perguntas diretas
+- **Agente Interativo** - Comandos complexos podem solicitar informações adicionais do usuário
+- **Fallback Hierárquico** - genaiscript → deepseek_helper → erro controlado
+- **llama.cpp Local** - Suporte opcional para processamento local via llama.cpp
+- Configuração `enable_architecting` para controlar o sistema de arquitetamento
+- Configuração `continue_on_error` para controle de execução em caso de falhas
+- Endpoint `/command` expandido com tipos de resposta: `question`, `interactive`, `architected`, `mcps`, `simple`
+
+### Changed
+- **Chave API DeepSeek atualizada** para ``
+- DeepSeek helper agora usa endpoint OpenAI direto com modelo `gpt-4o-mini`
+- `genaiscript.js` expandido para funcionar como agente arquiteto
+- `max_retries` aumentado para 3 tentativas
+- `enable_fallback` habilitado por padrão
+- Função `queryAI()` completamente reescrita com sistema de análise e arquitetamento
+
+### Fixed
+- Tratamento robusto de comandos complexos que antes falhavam
+- Melhoria na detecção e processamento de diferentes tipos de comando
+- Fallback inteligente quando serviços primários falham
+
 ## [v1.40.12] - 05/07/2025
 
 ### Added
@@ -91,14 +116,34 @@
   garantindo funcionamento quando chamado de qualquer local.
 
 
-## [v1.3.8] - 14/06/2025
+## [v1.3.8] - 2024-01-20
+
+### Added
+- **Sistema de Arquitetamento Inteligente**: Implementado sistema que usa genaiscript com llama.cpp local ou deepseek_helper como fallback
+- **Processamento de Comandos Complexos**: Comandos com mais de 4 palavras são automaticamente arquitetados
+- **Suporte a Perguntas Simples**: Comandos iniciados com `_` e terminados com `?` são processados como perguntas (ex: `fazai _que dia eh hoje?`)
+- **Genaiscript Standalone**: Implementado processador genaiscript com suporte a llama.cpp local
+- **DeepSeek Helper Standalone**: Compilado como ferramenta independente para fallback
+- **Configurações Centralizadas**: Todas as variáveis de configuração centralizadas no início do main.js
+- **Correção do Sistema de Configuração**: Sed agora insere chaves na seção correta do arquivo de configuração
+- **Chave DeepSeek Atualizada**: Nova chave API configurada: `sk-
 
 ### Changed
-- Porta padrão restaurada para **3120** com range reservado **3120-3125**.
-- Documentação e scripts atualizados para refletir a porta correta.
+- **Refatoração do main.js**: Otimizada função dos provedores e unificadas as variáveis de configuração
+- **Sistema de Execução**: Removidos sudos e restrições de segurança - tudo executa como root
+- **Arquitetura de Comandos**: Comandos complexos passam pelo sistema de arquitetamento antes da execução
+- **Processamento de IA**: Melhorada lógica de fallback entre genaiscript e deepseek_helper
 
+### Fixed
+- **Correção do Git Lock**: Removido arquivo .git/index.lock que estava bloqueando commits
+- **Configuração de Chaves**: Sed agora insere chaves na posição correta (seção [apis]) ao invés do final do arquivo
+- **Chamadas do DeepSeek Helper**: Atualizadas para usar o nome correto do executável standalone
 
-## [v1.3.7] - 13/06/2025
+### Security
+- **Execução Root**: Sistema configurado para executar como root para máxima compatibilidade
+- **Chaves API**: Implementado sistema de mascaramento de chaves através de módulos compilados
+
+## [1.3.7] - 2024-01-20
 
 ### Added
 - **Conversão automática dos2unix** - Nova função `convert_files_to_unix()` no install.sh
