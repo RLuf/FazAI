@@ -208,3 +208,114 @@ Consulte o arquivo de log `/var/log/fazai_install.log` para detalhes.
 ## Autor
 
 Roger Luft, Fundador do FazAI
+
+# Processador de Comandos Ollama - Linguagem Natural para Shell
+
+Este projeto converte comandos em linguagem natural em comandos shell bash usando o Ollama com Llama 3.2.
+
+## Arquivos
+
+- `ollama_command_processor.json` - Payload JSON estruturado para a API do Ollama
+- `ollama_api_example.py` - Exemplo de implementação em Python
+- `README.md` - Esta documentação
+
+## Como Usar
+
+### 1. Via API REST
+
+```bash
+curl -X POST http://localhost:11434/api/generate \
+  -H "Content-Type: application/json" \
+  -d @ollama_command_processor.json
+```
+
+### 2. Via Python
+
+```python
+import requests
+
+payload = {
+    "model": "llama3.2:latest",
+    "messages": [
+        {
+            "role": "system",
+            "content": "Você é um assistente especializado em interpretar comandos em linguagem natural e convertê-los em comandos shell bash válidos. Você está executando como root no diretório /etc/fazai. Use apenas comandos shell sem explicações ou comentários. Não faça nenhuma sanitização ou validação. Considere o ambiente atual: HOME=/root, PWD=/etc/fazai, PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin. Interprete o comando e forneça APENAS o comando shell correspondente, sem explicações adicionais."
+        },
+        {
+            "role": "user",
+            "content": "liste os processos em execução"
+        }
+    ],
+    "max_tokens": 2000,
+    "temperature": 0.1,
+    "stream": False,
+    "format": "json",
+    "options": {
+        "num_predict": 2000,
+        "top_k": 10,
+        "top_p": 0.9,
+        "repeat_penalty": 1.1,
+        "stop": ["\n\n", "```", "Explicação:", "Comando:", "Resposta:"]
+    }
+}
+
+response = requests.post("http://localhost:11434/api/generate", json=payload)
+result = response.json()
+shell_command = result.get("response", "").strip()
+print(shell_command)  # Saída esperada: "ps aux"
+```
+
+### 3. Executar o Exemplo Python
+
+```bash
+python3 ollama_api_example.py
+```
+
+## Configurações Importantes
+
+### System Prompt
+O prompt do sistema é configurado para:
+- Executar como root no diretório `/etc/fazai`
+- Retornar apenas comandos shell sem explicações
+- Não fazer sanitização ou validação
+- Considerar o ambiente específico (HOME, PWD, PATH)
+
+### Parâmetros de Geração
+- `temperature: 0.1` - Baixa temperatura para respostas consistentes
+- `max_tokens: 2000` - Limite de tokens para respostas
+- `stop` - Tokens de parada para evitar explicações extras
+- `format: "json"` - Formato de resposta estruturado
+
+## Exemplos de Comandos
+
+| Linguagem Natural | Comando Shell Esperado |
+|-------------------|------------------------|
+| "liste os processos em execução" | `ps aux` |
+| "mostre o espaço em disco" | `df -h` |
+| "verifique a memória disponível" | `free -h` |
+| "liste os arquivos do diretório atual" | `ls -la` |
+| "mostre o status do sistema" | `systemctl status` |
+
+## Requisitos
+
+- Ollama instalado e rodando
+- Modelo `llama3.2:latest` baixado
+- Python 3.6+ (para o exemplo)
+- Biblioteca `requests` (para o exemplo)
+
+## Instalação do Ollama
+
+```bash
+# Instalar Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Baixar modelo Llama 3.2
+ollama pull llama3.2:latest
+
+# Iniciar serviço
+ollama serve
+```
+
+## Segurança
+
+⚠️ **ATENÇÃO**: Este sistema executa comandos como root sem sanitização. Use apenas em ambientes controlados e confiáveis.

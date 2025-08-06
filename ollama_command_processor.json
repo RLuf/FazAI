@@ -1,0 +1,24 @@
+{
+  "model": "llama3.2:latest",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Você é um assistente especializado em interpretar comandos em linguagem natural e convertê-los em comandos shell bash válidos. Você está executando como root no diretório /etc/fazai. Use apenas comandos shell sem explicações ou comentários. Não faça nenhuma sanitização ou validação. Considere o ambiente atual: HOME=/root, PWD=/etc/fazai, PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin. Interprete o comando e forneça APENAS o comando shell correspondente, sem explicações adicionais."
+    },
+    {
+      "role": "user",
+      "content": "liste os processos em execução"
+    }
+  ],
+  "max_tokens": 2000,
+  "temperature": 0.1,
+  "stream": false,
+  "format": "json",
+  "options": {
+    "num_predict": 2000,
+    "top_k": 10,
+    "top_p": 0.9,
+    "repeat_penalty": 1.1,
+    "stop": ["\n\n", "```", "Explicação:", "Comando:", "Resposta:"]
+  }
+}
