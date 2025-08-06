@@ -1,4 +1,4 @@
-# Instruções de Uso - FazAI
+# FazAI - Guia de Uso v1.41.0
 
 Este documento apresenta de forma organizada os principais comandos e exemplos para utilização do FazAI.
 
@@ -82,3 +82,14 @@ O FazAI retornará cada etapa sequencial para execução manual.
 ---
 
 Estas instruções devem cobrir os casos mais comuns de uso do FazAI. Para cenários avançados e integração com scripts, adapte conforme necessário.
+
+Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL
+
+## Instalação Fedora
+
+```bash
+sudo dnf install -y nodejs npm python3 python3-pip gcc dialog
+git clone https://github.com/RLuf/FazAI.git
+cd FazAI
+sudo ./install.sh
+```

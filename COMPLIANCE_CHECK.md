@@ -1,4 +1,4 @@
-# FazAI - Verificação de Conformidade dos Scripts de Instalação
+# FazAI - Compliance Check v1.41.0
 
 ## ✅ **Status da Verificação: CONFORME**
 
@@ -192,3 +192,5 @@ fi
 **Data da Verificação:** 06/06/2025  
 **Versão Verificada:** 1.3.5  
 **Status:** APROVADO PARA PRODUÇÃO
+
+Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL

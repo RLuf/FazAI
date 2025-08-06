@@ -1,3 +1,6 @@
+# FazAI TUI - Cargo.toml v1.41.0
+# Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL
+
 [package]
 name = "fazai-tui"
 version = "0.1.0"

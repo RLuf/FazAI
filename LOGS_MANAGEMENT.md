@@ -1,4 +1,4 @@
-# FazAI - Gerenciamento de Logs
+# FazAI - Gerenciamento de Logs v1.41.0
 
 Este documento descreve as funcionalidades de gerenciamento de logs implementadas no FazAI.
 

@@ -13,7 +13,7 @@ Consulte o [CHANGELOG](CHANGELOG.md) para histórico completo de alterações.
 - Node.js 22.x ou superior
 - npm 10.x ou superior
 - Python 3.10 ou superior
-- Sistema operacional: Debian/Ubuntu ou WSL com Debian/Ubuntu
+- Sistema operacional: Debian/Ubuntu, Fedora/RedHat/CentOS ou WSL com Debian/Ubuntu
 
 ## Instalação Rápida
 
@@ -29,6 +29,24 @@ sudo ./install.sh
 # O instalador detecta seu próprio caminho, permitindo
 # executá-lo de qualquer diretório. Exemplo:
 # sudo /caminho/para/install.sh
+# Opcional: incluir suporte ao llama.cpp
+# sudo ./install.sh --with-llama
+
+# Iniciar o serviço
+sudo systemctl enable fazai
+sudo systemctl start fazai
+```
+
+### Linux (Fedora/RedHat/CentOS)
+
+```bash
+# Clonar o repositório
+git clone https://github.com/RLuf/FazAI.git
+cd FazAI
+
+# Instalar (usa dnf automaticamente)
+sudo ./install.sh
+# O instalador detecta Fedora/RedHat/CentOS e usa dnf para dependências.
 # Opcional: incluir suporte ao llama.cpp
 # sudo ./install.sh --with-llama
 
@@ -157,9 +175,37 @@ sudo nano /etc/fazai/fazai.conf
 
 ### Provedores de IA Suportados
 
-- OpenRouter (https://openrouter.ai/api/v1)
-- Requesty (https://router.requesty.ai/v1)
-- OpenAI (acesso direto)
+- **OpenRouter** (https://openrouter.ai/api/v1) - Padrão, múltiplos modelos
+- **OpenAI** (https://api.openai.com/v1) - GPT-4, GPT-3.5-turbo
+- **Anthropic** (https://api.anthropic.com/v1) - Claude 3 Opus, Sonnet, Haiku
+- **Google Gemini** (https://generativelanguage.googleapis.com/v1beta) - Gemini Pro, Pro Vision
+- **Requesty** (https://router.requesty.ai/v1) - Gateway para múltiplos provedores
+- **Ollama** (http://127.0.0.1:11434/v1) - Modelos locais (llama3.2, mixtral, etc.)
+
+### Sistema de Fallback
+
+O FazAI implementa um sistema de fallback robusto que garante alta disponibilidade:
+
+1. **Fallback entre Provedores**: Ordem automática: OpenRouter → DeepSeek → Requesty → OpenAI → Anthropic → Gemini → Ollama
+2. **Fallback Local**: `fazai_helper.js` e `deepseek_helper.js` para operação offline
+3. **GenaiScript**: Arquitetamento de comandos complexos usando modelos locais
+4. **Cache Inteligente**: Reduz latência e custos para comandos repetidos
+
+### Comandos de Configuração
+
+```bash
+# Configurar provedores de IA
+fazai config
+
+# Verificar status do cache
+fazai cache
+
+# Limpar cache
+fazai cache-clear
+
+# Verificar status do sistema
+fazai status
+```
 
 ## Desenvolvimento
 

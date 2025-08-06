@@ -1,5 +1,49 @@
 # Changelog
 
+## [v1.41.0] - 06/07/2025
+
+### Added
+- Suporte oficial ao Fedora, RedHat e CentOS no instalador (`install.sh`).
+- Detecção automática do sistema via `/etc/os-release`.
+- Instalação de dependências usando `dnf` (ou `yum` fallback) para Fedora e derivados.
+- Função dedicada para instalar o pacote `dialog` em todos os sistemas suportados.
+- Mensagens e logs claros para usuários Fedora.
+- **Sistema de cache inteligente** com TTL configurável e limpeza automática.
+- **Suporte a múltiplos provedores de IA**: OpenRouter, OpenAI, Requesty, Anthropic (Claude), Google Gemini, Ollama.
+- **Sistema de fallback robusto** que tenta automaticamente o próximo provedor em caso de falha.
+- **Sistema de fallback local** com `fazai_helper.js` e `deepseek_helper.js` para operação offline.
+- **GenaiScript** para arquitetamento de comandos complexos usando modelos locais.
+- **Logs aprimorados** com rotação automática, níveis separados e formatação colorida.
+- **Ferramenta de configuração melhorada** (`fazai-config.js`) com interface interativa.
+- **Endpoints de API adicionais** para gerenciamento de cache e status detalhado.
+- **Configuração unificada** com suporte a todos os provedores de IA em um único arquivo.
+- **Bash completion aprimorado** com suporte a todos os novos comandos e argumentos.
+- **Comandos de cache** (`fazai cache`, `fazai cache-clear`) para gerenciamento de cache.
+- **Comando de configuração** (`fazai config`) para configuração interativa.
+- **Sistema de help expandido** com documentação completa de todos os recursos.
+
+### Changed
+- Atualizado versionamento para **1.41.0** em `package.json`, CLI (`bin/fazai`), daemon (`opt/fazai/lib/main.js`) e instalador (`install.sh`).
+- Documentação do README atualizada com instruções e exemplos para Fedora.
+- Help do CLI e exemplos citam Fedora explicitamente.
+- Ajustes de consistência em todos os pontos de exibição de versão.
+- **Arquivo de configuração expandido** com suporte a todos os provedores de IA.
+- **Sistema de logs reformulado** com rotação automática e arquivos separados para erros.
+- **Performance melhorada** através do sistema de cache em memória.
+- **Fallback inteligente** que verifica disponibilidade de chaves de API antes de tentar.
+
+### Changed
+- Atualizado versionamento para **1.41.0** em `package.json`, CLI (`bin/fazai`), daemon (`opt/fazai/lib/main.js`) e instalador (`install.sh`).
+- Documentação do README atualizada com instruções e exemplos para Fedora.
+- Help do CLI e exemplos citam Fedora explicitamente.
+- Ajustes de consistência em todos os pontos de exibição de versão.
+
+### Fixed
+- Garantida compatibilidade de instalação e execução em Fedora 38+, RedHat 9+ e CentOS Stream 9+.
+- Corrigido fallback de instalação de dependências para sistemas não-Debian.
+
+---
+
 ## [v1.40.12] - 05/07/2025
 
 ### Added

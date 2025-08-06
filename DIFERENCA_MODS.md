@@ -1,4 +1,4 @@
-# Diferença entre os diretórios `mods` em `/opt` e em `/etc`
+# FazAI - Diferença de Módulos v1.41.0
 
 No projeto FazAI existem dois lugares distintos onde aparece o diretório `mods`, cada um com um propósito diferente:
 
@@ -21,3 +21,5 @@ Resumindo:
 - O **`mods` em `/etc`** contém os **arquivos de configuração, exemplos e fontes** que servem como base para criar ou manter módulos, antes de instalá-los ou compilá-los em `/opt`.
 
 Essa separação segue a boa prática de manter arquivos de execução em `/opt` e arquivos de configuração ou templates em `/etc`, permitindo upgrades e customizações sem misturar código-fonte e binários de runtime.
+
+Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL

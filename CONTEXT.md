@@ -1,4 +1,4 @@
-# Contexto da Sessão: Atualização FazAI v1.40.12
+# Contexto da Sessão: Atualização FazAI v1.41.0
 Data: 05/07/2025
 
 ## Visão Geral

@@ -1,10 +1,14 @@
 ###############################################################################
 # FazAI - Arquivo de Configuração Principal
-# 
+# Versão: 1.41.0
+#
+# Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL
+#
 # Este arquivo configura o comportamento do sistema FazAI, incluindo:
-# - Provedores de IA (OpenRouter, Requesty, OpenAI)
+# - Provedores de IA (OpenRouter, Requesty, OpenAI, Anthropic, Gemini, Ollama)
 # - Sistema de orquestração (modos de planejamento e ação)
 # - Configurações gerais do sistema
+# - Sistema de cache e performance
 #
 # Localização recomendada: /etc/fazai/fazai.conf
 ###############################################################################
@@ -15,29 +19,24 @@
 
 [ai_provider]
 # Define qual provedor de IA será utilizado como padrão
-# Valores possíveis: openrouter, requesty, openai, ollama
+# Valores possíveis: openrouter, requesty, openai, anthropic, gemini, ollama
 # - openrouter: Utiliza a API do OpenRouter para acessar múltiplos modelos
 # - requesty: Utiliza a API do Requesty para acessar múltiplos modelos
 # - openai: Utiliza diretamente a API da OpenAI
+# - anthropic: Utiliza a API da Anthropic (Claude)
+# - gemini: Utiliza a API do Google Gemini
 # - ollama: Utiliza modelos locais via Ollama
 provider = openrouter
 
-# Configurações do Ollama (novo)
-[ollama]
-enabled = true
-endpoint = http://localhost:11434
-models = ["mixtral", "llama2", "codellama"]
-cache_dir = /var/cache/fazai/ollama
-
 # Habilita fallback automático para outro provedor em caso de falha
-# Se true, tentará o próximo provedor na ordem: openrouter -> requesty -> openai
-enable_fallback = false
+# Se true, tentará o próximo provedor na ordem: openrouter -> deepseek -> requesty -> openai -> anthropic -> gemini -> ollama
+enable_fallback = true
 
 # Número máximo de tentativas antes de desistir
-max_retries = 1
+max_retries = 3
 
 # Tempo de espera entre tentativas (em segundos)
-retry_delay = 1
+retry_delay = 2
 
 ###############################################################################
 # CONFIGURAÇÃO DO OPENROUTER
@@ -46,20 +45,310 @@ retry_delay = 1
 [openrouter]
 # Chave de API do OpenRouter
 # Obtenha em: https://openrouter.ai/keys
-# Atualizado para a chave fornecida pelo usuário em substituição à anterior
-api_key = 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
+api_key = sua_chave_openrouter_aqui
 
 # Endpoint da API
 # Não altere a menos que a URL da API mude oficialmente
 endpoint = https://openrouter.ai/api/v1
 
 # Modelo padrão a ser utilizado
+# Formato: provedor/modelo
+# Exemplos: deepseek/deepseek-r1-0528:free, openai/gpt-4-turbo, anthropic/claude-3-opus
 default_model = deepseek/deepseek-r1-0528:free
 
-# Lista de modelos alternativos
+# Lista de modelos alternativos que podem ser utilizados
+# Separe múltiplos modelos com vírgulas
+# Estes modelos serão utilizados se o default_model não estiver disponível
 models = anthropic/claude-3-opus, google/gemini-pro, meta/llama-3-70b
 
-temperature = 0.7
+# Temperatura para geração (0.0 a 1.0)
+# Valores mais baixos = mais determinístico
+# Valores mais altos = mais criativo/aleatório
+temperature = 0.3
+
+# Máximo de tokens na resposta
 max_tokens = 2000
 
-... (restante do arquivo permanece inalterado)
+###############################################################################
+# CONFIGURAÇÃO DO REQUESTY
+###############################################################################
+
+[requesty]
+# Chave de API do Requesty
+# Obtenha em: https://requesty.ai/
+api_key = sua_chave_requesty_aqui
+
+# Endpoint da API
+endpoint = https://router.requesty.ai/v1
+
+# Modelo padrão a ser utilizado
+# Formato: provedor/modelo
+default_model = openai/gpt-4o
+
+# Lista de modelos alternativos que podem ser utilizados
+# Separe múltiplos modelos com vírgulas
+models = openai/gpt-4-turbo, anthropic/claude-3-opus, google/gemini-pro
+
+# Temperatura para geração (0.0 a 1.0)
+temperature = 0.2
+
+# Máximo de tokens na resposta
+max_tokens = 2000
+
+###############################################################################
+# CONFIGURAÇÃO DA OPENAI
+###############################################################################
+
+[openai]
+# Chave de API da OpenAI
+# Obtenha em: https://platform.openai.com/api-keys
+api_key = sua_chave_openai_aqui
+
+# Endpoint da API
+# Não altere a menos que a URL da API mude oficialmente
+endpoint = https://api.openai.com/v1
+
+# Modelo padrão a ser utilizado
+default_model = gpt-4-turbo
+
+# Lista de modelos alternativos que podem ser utilizados
+# Separe múltiplos modelos com vírgulas
+models = gpt-4o, gpt-3.5-turbo
+
+# Temperatura para geração (0.0 a 1.0)
+temperature = 0.4
+
+# Máximo de tokens na resposta
+max_tokens = 2000
+
+###############################################################################
+# CONFIGURAÇÃO DA ANTHROPIC (CLAUDE)
+###############################################################################
+
+[anthropic]
+# Chave de API da Anthropic
+# Obtenha em: https://console.anthropic.com/
+api_key = sua_chave_anthropic_aqui
+
+# Endpoint da API
+endpoint = https://api.anthropic.com/v1
+
+# Modelo padrão a ser utilizado
+default_model = claude-3-opus-20240229
+
+# Lista de modelos alternativos que podem ser utilizados
+# Separe múltiplos modelos com vírgulas
+models = claude-3-sonnet-20240229, claude-3-haiku-20240307
+
+# Temperatura para geração (0.0 a 1.0)
+temperature = 0.3
+
+# Máximo de tokens na resposta
+max_tokens = 2000
+
+###############################################################################
+# CONFIGURAÇÃO DO GOOGLE GEMINI
+###############################################################################
+
+[gemini]
+# Chave de API do Google Gemini
+# Obtenha em: https://makersuite.google.com/app/apikey
+api_key = sua_chave_gemini_aqui
+
+# Endpoint da API
+endpoint = https://generativelanguage.googleapis.com/v1beta
+
+# Modelo padrão a ser utilizado
+default_model = gemini-pro
+
+# Lista de modelos alternativos que podem ser utilizados
+# Separe múltiplos modelos com vírgulas
+models = gemini-pro-vision, gemini-1.5-pro
+
+# Temperatura para geração (0.0 a 1.0)
+temperature = 0.3
+
+# Máximo de tokens na resposta
+max_tokens = 2000
+
+###############################################################################
+# CONFIGURAÇÃO DO OLLAMA
+###############################################################################
+
+[ollama]
+# Habilita o uso do Ollama para modelos locais
+enabled = true
+
+# Endpoint do Ollama (padrão: localhost:11434)
+endpoint = http://127.0.0.1:11434/v1
+
+# Modelo padrão a ser utilizado
+default_model = llama3.2:latest
+
+# Lista de modelos disponíveis localmente
+# Separe múltiplos modelos com vírgulas
+models = ["mixtral", "llama2", "codellama", "llama3.2"]
+
+# Diretório de cache do Ollama
+cache_dir = /var/cache/fazai/ollama
+
+# Temperatura para geração (0.0 a 1.0)
+temperature = 0.3
+
+# Máximo de tokens na resposta
+max_tokens = 2000
+
+###############################################################################
+# CONFIGURAÇÃO DO SISTEMA DE CACHE
+###############################################################################
+
+[cache]
+# Habilita o sistema de cache para melhorar performance
+enabled = true
+
+# Tamanho máximo do cache em memória (número de entradas)
+max_size = 1000
+
+# Tempo de vida do cache em segundos (1 hora = 3600)
+ttl = 3600
+
+# Habilita limpeza automática do cache
+auto_cleanup = true
+
+# Intervalo de limpeza automática em segundos (30 minutos = 1800)
+cleanup_interval = 1800
+
+###############################################################################
+# CONFIGURAÇÃO DO SISTEMA DE ORQUESTRAÇÃO
+###############################################################################
+
+[orchestration]
+# Habilita o sistema de orquestração com modos de planejamento e ação
+# Se false, o sistema funcionará no modo tradicional
+enabled = false
+
+# Modo padrão ao iniciar uma nova conversa
+# Valores possíveis: plan, act
+# - plan: Inicia no modo de planejamento (análise e preparação)
+# - act: Inicia no modo de ação (execução direta)
+default_mode = plan
+
+# Habilita transição automática do modo de planejamento para o modo de ação
+# Se true, o sistema detectará quando um plano está completo e mudará para o modo de ação
+auto_transition = false
+
+# Palavras-chave para transição manual entre modos
+# O usuário pode usar estas palavras para mudar de modo
+plan_keyword = planejar
+act_keyword = executar
+
+###############################################################################
+# CONFIGURAÇÃO DO MODO DE PLANEJAMENTO
+###############################################################################
+
+[plan_mode]
+# Prompt de sistema para o modo de planejamento
+# Este texto será enviado como instruções para o modelo de IA
+system_prompt = Você está no modo de PLANEJAMENTO do FazAI. Neste modo, você deve focar em entender o problema, fazer perguntas de esclarecimento quando necessário, e criar um plano detalhado antes de executar qualquer ação. Não execute comandos neste modo, apenas planeje a solução. Quando o plano estiver completo, informe o usuário que ele pode mudar para o modo de AÇÃO para executar o plano.
+
+# Temperatura para o modo de planejamento
+# Recomenda-se um valor mais alto para estimular criatividade na fase de planejamento
+temperature = 0.7
+
+# Máximo de tokens para respostas no modo de planejamento
+max_tokens = 2000
+
+# Ferramentas disponíveis no modo de planejamento
+# Geralmente limitadas a ferramentas de consulta, não de execução
+available_tools = read_file, search_files, list_files
+
+###############################################################################
+# CONFIGURAÇÃO DO MODO DE AÇÃO
+###############################################################################
+
+[act_mode]
+# Prompt de sistema para o modo de ação
+# Este texto será enviado como instruções para o modelo de IA
+system_prompt = Você está no modo de AÇÃO do FazAI. Neste modo, você deve executar o plano estabelecido, utilizando as ferramentas disponíveis para realizar tarefas concretas no sistema. Seja preciso e eficiente. Relate o progresso após cada ação e confirme quando a tarefa estiver concluída.
+
+# Temperatura para o modo de ação
+# Recomenda-se um valor mais baixo para respostas mais determinísticas
+temperature = 0.2
+
+# Máximo de tokens para respostas no modo de ação
+max_tokens = 1500
+
+# Ferramentas disponíveis no modo de ação
+# Inclui todas as ferramentas, incluindo as de execução
+available_tools = execute_command, read_file, write_file, search_files, list_files
+
+###############################################################################
+# CONFIGURAÇÃO DE FERRAMENTAS
+###############################################################################
+
+[tools]
+# Habilita ou desabilita ferramentas específicas
+# Defina como true para habilitar, false para desabilitar
+execute_command = true
+read_file = true
+write_file = true
+search_files = true
+list_files = true
+
+# Diretório raiz para operações de arquivo
+# As operações de arquivo serão restritas a este diretório e seus subdiretórios
+file_operations_root = /
+
+# Comandos proibidos por razões de segurança
+# Separe múltiplos comandos com vírgulas
+# Exemplo: rm -rf /, mkfs, dd
+forbidden_commands = rm -rf /
+
+###############################################################################
+# CONFIGURAÇÕES GERAIS DO SISTEMA
+###############################################################################
+
+[system]
+# Nível de log
+# Valores possíveis: debug, info, warn, error
+log_level = debug
+
+# Timeout para chamadas de API (em segundos)
+api_timeout = 60
+
+# Armazenar histórico de conversas
+store_history = true
+
+# Diretório para armazenar histórico de conversas
+history_dir = /var/lib/fazai/history
+
+# Limite de tokens para o contexto da conversa
+# Este é o número máximo de tokens que serão mantidos no histórico
+context_token_limit = 16000
+
+# Formato de saída padrão
+# Valores possíveis: text, json, markdown
+default_output_format = text
+
+# Habilitar cache de respostas
+enable_response_cache = true
+
+# Tempo de vida do cache (em segundos)
+cache_ttl = 3600
+
+# Diretório para armazenar cache
+cache_dir = /var/lib/fazai/cache
+
+# Configurações de rotação de logs
+[logs]
+# Tamanho máximo do arquivo de log principal (em bytes)
+max_size = 10485760  # 10MB
+
+# Número máximo de arquivos de backup
+max_files = 5
+
+# Tamanho máximo do arquivo de erro (em bytes)
+error_max_size = 5242880  # 5MB
+
+# Número máximo de arquivos de erro de backup
+error_max_files = 3

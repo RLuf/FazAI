@@ -364,44 +364,88 @@ async function main() {
     process.exit(1);
   }
   
-  if (args[0] === 'ajuda' || args[0] === 'help') {
+  if (args[0] === 'ajuda' || args[0] === 'help' || args[0] === '--help') {
     console.log(`
-${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação${colors.reset}
+${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.41.0${colors.reset}
+
+${colors.bright}Compatível com:${colors.reset}
+  • Debian/Ubuntu
+  • Fedora/RedHat/CentOS
+  • WSL (Debian/Ubuntu)
 
 ${colors.bright}Uso:${colors.reset}
   fazai [-d|--debug] <comando>
 
-${colors.bright}Comandos especiais:${colors.reset}
-  ajuda, help                 Exibe esta mensagem de ajuda
+${colors.bright}Comandos de Sistema:${colors.reset}
+  ajuda, help, --help         Exibe esta mensagem de ajuda
   -d, --debug                 Ativa modo debug com verbose em tempo real
-  logs [n]                    Exibe as últimas n entradas de log (padrão: 10)
-  limpar-logs, clear-logs     Limpa o arquivo de log (cria backup)
-  reload                      Recarrega plugins e módulos
   versao, version, -v         Exibe a versão do FazAI
   check-deps, verificar-deps  Verifica dependências e instalação do sistema
+
+${colors.bright}Comandos de Serviço:${colors.reset}
   start                       Inicia o serviço FazAI
   stop                        Para o serviço FazAI
   restart                     Reinicia o serviço FazAI
   status                      Mostra o status do serviço FazAI
+  reload                      Recarrega plugins e módulos
 
-${colors.bright}Comandos básicos do sistema:${colors.reset}
-  kernel                      Exibe a versão do kernel (uname -r)
+${colors.bright}Comandos de Logs:${colors.reset}
+  logs [n]                    Exibe as últimas n entradas de log (padrão: 10)
+  limpar-logs, clear-logs     Limpa o arquivo de log (cria backup)
+  web                         Abre a interface web de gerenciamento
+
+${colors.bright}Comandos de Sistema Rápido:${colors.reset}
+  kernel                      Exibe versão do kernel (uname -r)
   sistema                     Exibe informações do sistema (uname -a)
-  memoria                     Exibe informações de memória (free -h)
-  disco                       Exibe informações de disco (df -h)
-  processos                   Lista processos em execução (ps aux)
-  rede                        Exibe informações de rede (ip a)
-  data                        Exibe data e hora atual (date)
-  uptime                      Exibe tempo de atividade do sistema (uptime)
-  web                         Abre a interface web do FazAI
-  tui                         Abre o dashboard TUI do FazAI
-  mcps <comando>              Planejamento MCPS passo a passo
+  memoria                     Exibe uso de memória (free -h)
+  disco                       Exibe uso de disco (df -h)
+  processos                   Lista processos (ps aux)
+  rede                        Exibe interfaces de rede (ip a)
+  data                        Mostra data e hora (date)
+  uptime                      Tempo de atividade (uptime)
 
-${colors.bright}Exemplos:${colors.reset}
+${colors.bright}Comandos de Visualização:${colors.reset}
+  html <tipo> [graf]          Gera gráfico HTML (tipo: memoria, disco, processos)
+  tui                         Abre o dashboard TUI (ncurses)
+
+${colors.bright}Comandos de Configuração:${colors.reset}
+  config                      Abre ferramenta de configuração interativa
+  cache                       Mostra status do cache de IA
+  cache-clear                 Limpa o cache de IA
+
+${colors.bright}Modo MCPS (Planejamento Passo a Passo):${colors.reset}
+  mcps <tarefa>               Exemplo: fazai mcps atualizar o sistema
+
+${colors.bright}Provedores de IA Suportados:${colors.reset}
+  • OpenRouter (padrão)       - Múltiplos modelos via OpenRouter
+  • OpenAI                    - GPT-4, GPT-3.5-turbo
+  • Anthropic (Claude)        - Claude 3 Opus, Sonnet, Haiku
+  • Google Gemini             - Gemini Pro, Pro Vision
+  • Requesty                  - Gateway para múltiplos provedores
+  • Ollama                    - Modelos locais (llama3.2, mixtral, etc.)
+
+${colors.bright}Sistema de Fallback:${colors.reset}
+  O FazAI automaticamente tenta o próximo provedor em caso de falha:
+  OpenRouter → DeepSeek → Requesty → OpenAI → Anthropic → Gemini → Ollama
+
+${colors.bright}Exemplo de instalação Fedora:${colors.reset}
+  sudo dnf install -y nodejs npm python3 python3-pip gcc dialog
+  sudo ./install.sh
+
+${colors.bright}Exemplos de Uso:${colors.reset}
   fazai mostra os processos em execucao
   fazai cria um usuario com nome teste com a senha teste321 no grupo printers
   fazai instale os modulos mod_security do apache
+  fazai altere a porta do ssh de 22 para 31052
   fazai mcps atualizar sistema
+  fazai config                 # Configurar provedores de IA
+  fazai cache                  # Verificar status do cache
+
+${colors.bright}Para mais informações:${colors.reset}
+  • Documentação: README.md, USAGE.md
+  • Logs: /var/log/fazai/fazai.log
+  • Configuração: /etc/fazai/fazai.conf
+  • GitHub: https://github.com/RLuf/FazAI
     `);
     process.exit(0);
   }
@@ -429,13 +473,65 @@ ${colors.bright}Exemplos:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log(`FazAI v1.40.12`);
+    console.log(`FazAI v1.41.0`);
     process.exit(0);
   }
 
   if (['start', 'stop', 'restart', 'status'].includes(args[0])) {
     const ok = systemctlCommand(args[0]);
     process.exit(ok ? 0 : 1);
+  }
+
+  // Comandos de cache
+  if (args[0] === 'cache') {
+    try {
+      const response = await axios.get(`${API_URL}/cache`);
+      console.log(`\n${colors.bright}${colors.fg.cyan}=== Status do Cache ===${colors.reset}`);
+      console.log(`Tamanho atual: ${response.data.size}/${response.data.maxSize} entradas`);
+      console.log(`TTL: ${response.data.ttl} segundos`);
+      console.log(`Hit rate estimado: ${response.data.size > 0 ? 'Ativo' : 'Vazio'}`);
+      console.log(`${colors.bright}${colors.fg.cyan}=====================${colors.reset}\n`);
+      process.exit(0);
+    } catch (err) {
+      printError(`Erro ao verificar cache: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  if (args[0] === 'cache-clear') {
+    try {
+      const response = await axios.delete(`${API_URL}/cache`);
+      printSuccess('Cache limpo com sucesso!');
+      process.exit(0);
+    } catch (err) {
+      printError(`Erro ao limpar cache: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  // Comando de configuração
+  if (args[0] === 'config') {
+    const config_tool = '/opt/fazai/tools/fazai-config.js';
+    
+    if (!fs.existsSync(config_tool)) {
+      printError('Ferramenta de configuração não encontrada');
+      process.exit(1);
+    }
+
+    const { exec } = require('child_process');
+    printInfo('Iniciando ferramenta de configuração...');
+    
+    exec(`node ${config_tool}`, (error, stdout, stderr) => {
+      if (error) {
+        printError(`Erro ao executar ferramenta de configuração: ${error.message}`);
+        process.exit(1);
+      }
+      if (stderr) {
+        console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
+      }
+      console.log(`${stdout}`);
+      process.exit(0);
+    });
   }
   
   // Comandos básicos do sistema que podem ser executados diretamente

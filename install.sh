@@ -32,7 +32,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Variáveis de configuração
-VERSION="1.40.12"
+VERSION="1.41.0"
 LOG_FILE="/var/log/fazai_install.log"
 RETRY_COUNT=3
 INSTALL_STATE_FILE="/var/lib/fazai/install.state"
@@ -318,21 +318,28 @@ check_root() {
 # Função para verificar o sistema operacional
 check_system() {
   log "DEBUG" "Verificando sistema operacional..."
-  if [ ! -f /etc/debian_version ] && [ ! -f /etc/ubuntu_version ]; then
-    log "WARNING" "Este script foi projetado para sistemas Debian/Ubuntu."
-    read -p "Deseja continuar mesmo assim? (s/n): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
-      log "INFO" "Instalação cancelada pelo usuário."
-      exit 1
-    fi
-    log "WARNING" "Prosseguindo instalação em sistema não-Debian."
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "$ID" in
+      debian|ubuntu)
+        log "SUCCESS" "Sistema Debian/Ubuntu detectado: $NAME $VERSION_ID"
+        ;;
+      fedora|rhel|centos)
+        log "SUCCESS" "Sistema Fedora/RedHat/CentOS detectado: $NAME $VERSION_ID"
+        ;;
+      *)
+        log "WARNING" "Este script foi projetado para Debian, Ubuntu ou Fedora. Detectado: $NAME $VERSION_ID."
+        read -p "Deseja continuar mesmo assim? (s/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+          log "INFO" "Instalação cancelada pelo usuário."
+          exit 1
+        fi
+        log "WARNING" "Prosseguindo instalação em sistema não suportado oficialmente."
+        ;;
+    esac
   else
-    if [ -f /etc/debian_version ]; then
-        log "SUCCESS" "Sistema Debian detectado: $(cat /etc/debian_version)"
-    elif [ -f /etc/ubuntu_version ]; then
-        log "SUCCESS" "Sistema Ubuntu detectado"
-    fi
+    log "WARNING" "Não foi possível detectar o sistema operacional. Prosseguindo com cautela."
   fi
 }
 
@@ -360,45 +367,47 @@ install_nodejs() {
 # Função para instalar Node.js a partir de diferentes fontes
 install_nodejs_from_source() {
   local success=false
-  
-  # Atualiza lista de pacotes primeiro
+  # Detecta gerenciador de pacotes
+  local PKG_MGR="apt-get"
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "$ID" in
+      fedora|rhel|centos)
+        PKG_MGR="dnf"
+        ;;
+      *)
+        PKG_MGR="apt-get"
+        ;;
+    esac
+  fi
   log "INFO" "Atualizando lista de pacotes..."
-  apt-get update
-  
-  # Tenta instalar com apt primeiro
-  log "INFO" "Tentando instalar Node.js via apt..."
-  apt-get install -y nodejs npm
-  
+  $PKG_MGR update -y
+  log "INFO" "Tentando instalar Node.js via $PKG_MGR..."
+  $PKG_MGR install -y nodejs npm
   if command -v node &> /dev/null; then
     NODE_VERSION=$(node -v)
     NODE_VERSION_NUM=$(echo $NODE_VERSION | cut -c 2-)
     NODE_MAJOR=$(echo $NODE_VERSION_NUM | cut -d. -f1)
-    
     if [ $NODE_MAJOR -ge 22 ]; then
-      log "SUCCESS" "Node.js instalado com sucesso via apt: $NODE_VERSION"
+      log "SUCCESS" "Node.js instalado com sucesso via $PKG_MGR: $NODE_VERSION"
       success=true
       return 0
     else
-      log "WARNING" "Versão do Node.js instalada via apt é muito antiga: $NODE_VERSION"
+      log "WARNING" "Versão do Node.js instalada via $PKG_MGR é muito antiga: $NODE_VERSION"
     fi
   else
-    log "WARNING" "Falha ao instalar Node.js via apt."
+    log "WARNING" "Falha ao instalar Node.js via $PKG_MGR."
   fi
-  
-  # Tenta instalar via NodeSource para diferentes versões
-  if [ "$success" = false ]; then
-    # Instala curl se não estiver disponível
+  # Tenta instalar via NodeSource para diferentes versões (apenas para Debian/Ubuntu)
+  if [ "$success" = false ] && [ "$PKG_MGR" = "apt-get" ]; then
     if ! command -v curl &> /dev/null; then
-      apt-get install -y curl
+      $PKG_MGR install -y curl
     fi
-    
     for version in "${NODE_VERSIONS[@]}"; do
       log "INFO" "Tentando instalar Node.js v$version via NodeSource..."
-      
       for attempt in $(seq 1 $RETRY_COUNT); do
         log "DEBUG" "Tentativa $attempt de $RETRY_COUNT para Node.js v$version"
-        
-        if curl -fsSL "https://deb.nodesource.com/setup_${version}.x" | bash - && apt-get install -y nodejs; then
+        if curl -fsSL "https://deb.nodesource.com/setup_${version}.x" | bash - && $PKG_MGR install -y nodejs; then
           if command -v node &> /dev/null; then
             NODE_VERSION=$(node -v)
             log "SUCCESS" "Node.js instalado com sucesso: $NODE_VERSION"
@@ -406,14 +415,11 @@ install_nodejs_from_source() {
             break 2
           fi
         fi
-        
         log "WARNING" "Tentativa $attempt falhou para Node.js v$version"
         sleep 2
       done
     done
   fi
-  
-  # Se ainda não conseguiu, mostra erro
   if [ "$success" = false ]; then
     log "ERROR" "Todas as tentativas de instalação do Node.js falharam."
     log "ERROR" "Por favor, instale o Node.js manualmente e execute este script novamente."
@@ -424,12 +430,23 @@ install_nodejs_from_source() {
 
 # Função para verificar e instalar npm
 install_npm() {
+  local PKG_MGR="apt-get"
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "$ID" in
+      fedora|rhel|centos)
+        PKG_MGR="dnf"
+        ;;
+      *)
+        PKG_MGR="apt-get"
+        ;;
+    esac
+  fi
   if ! command -v npm &> /dev/null; then
     log "WARNING" "npm não encontrado. Instalando..."
-    apt-get install -y npm
-    
+    $PKG_MGR install -y npm
     if ! command -v npm &> /dev/null; then
-      log "ERROR" "Falha ao instalar npm via apt."
+      log "ERROR" "Falha ao instalar npm via $PKG_MGR."
       exit 1
     else
       NPM_VERSION=$(npm -v)
@@ -443,20 +460,30 @@ install_npm() {
 
 # Função para verificar e instalar Python 3
 install_python() {
+  local PKG_MGR="apt-get"
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "$ID" in
+      fedora|rhel|centos)
+        PKG_MGR="dnf"
+        ;;
+      *)
+        PKG_MGR="apt-get"
+        ;;
+    esac
+  fi
   if command -v python3 &> /dev/null; then
     PYTHON_VERSION=$(python3 --version | awk '{print $2}')
     PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
     PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
-
     if [ "$PYTHON_MAJOR" -lt 3 ] || { [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 10 ]; }; then
       log "WARNING" "FazAI requer Python 3.10 ou superior. Versão atual: $PYTHON_VERSION"
-      apt-get update && apt-get install -y python3 python3-pip
+      $PKG_MGR install -y python3 python3-pip
     fi
   else
     log "WARNING" "Python3 não encontrado. Instalando..."
-    apt-get update && apt-get install -y python3 python3-pip
+    $PKG_MGR install -y python3 python3-pip
   fi
-
   if command -v python3 &> /dev/null; then
     PYTHON_VERSION=$(python3 --version | awk '{print $2}')
     log "SUCCESS" "python3 instalado: $PYTHON_VERSION"
@@ -468,15 +495,25 @@ install_python() {
 
 # Função para verificar e instalar gcc
 install_gcc() {
+  local PKG_MGR="apt-get"
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "$ID" in
+      fedora|rhel|centos)
+        PKG_MGR="dnf"
+        ;;
+      *)
+        PKG_MGR="apt-get"
+        ;;
+    esac
+  fi
   if ! command -v gcc &> /dev/null; then
     log "WARNING" "gcc não encontrado. Instalando build-essential..."
-    apt-get update && apt-get install -y build-essential
-    
+    $PKG_MGR install -y gcc make
     if ! command -v gcc &> /dev/null; then
       log "ERROR" "Falha ao instalar gcc. Por favor, instale manualmente."
       exit 1
     fi
-    
     GCC_VERSION=$(gcc --version | head -n1)
     log "SUCCESS" "gcc instalado com sucesso: $GCC_VERSION"
   else
@@ -704,10 +741,7 @@ EOF
   fi
 
   # Instala dependência dialog para TUI ncurses
-  if ! command -v dialog &>/dev/null; then
-    log "INFO" "Instalando dependência: dialog"
-    apt-get update && apt-get install -y dialog
-  fi
+  install_dialog
 
   # Instala fazai-config-tui.sh (TUI ncurses)
   if [ -f "opt/fazai/tools/fazai-config-tui.sh" ]; then
