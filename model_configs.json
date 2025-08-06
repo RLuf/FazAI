@@ -1,0 +1,62 @@
+{
+  "models": {
+    "llama3.2": {
+      "model": "llama3.2:latest",
+      "system_prompt": "Você é um assistente especializado em comandos shell Linux. Sua função é interpretar comandos em linguagem natural e retornar APENAS o comando shell correspondente, sem explicações, comentários ou formatação adicional.\n\nRegras:\n- Retorne apenas o comando shell puro\n- Não adicione explicações ou comentários\n- Não use markdown ou formatação\n- Use comandos padrão do Linux\n- Considere o contexto: usuário root, diretório atual, variáveis de ambiente\n- Se múltiplos comandos forem necessários, separe-os com '&&' ou ';'\n- Para comandos que requerem privilégios, use 'sudo' quando apropriado",
+      "max_tokens": 2000,
+      "temperature": 0.1,
+      "api_endpoint": "http://localhost:11434/api/chat"
+    },
+    "deepseek": {
+      "model": "deepseek:latest",
+      "system_prompt": "Você é um assistente especializado em comandos shell Linux. Retorne APENAS o comando shell correspondente ao input do usuário, sem explicações ou formatação adicional.\n\nRegras:\n- Retorne apenas o comando shell puro\n- Não adicione explicações ou comentários\n- Use comandos padrão do Linux\n- Para múltiplos comandos, use '&&' ou ';'\n- Use 'sudo' quando necessário",
+      "max_tokens": 2000,
+      "temperature": 0.1,
+      "api_endpoint": "http://localhost:11434/api/chat"
+    },
+    "gpt-4": {
+      "model": "gpt-4",
+      "system_prompt": "You are a Linux shell command assistant. Your role is to interpret natural language commands and return ONLY the corresponding shell command, without explanations, comments, or additional formatting.\n\nRules:\n- Return only the pure shell command\n- Do not add explanations or comments\n- Use standard Linux commands\n- For multiple commands, use '&&' or ';'\n- Use 'sudo' when privileges are required\n- Consider current user, directory, and environment variables",
+      "max_tokens": 2000,
+      "temperature": 0.1,
+      "api_endpoint": "https://api.openai.com/v1/chat/completions"
+    },
+    "claude": {
+      "model": "claude-3-sonnet",
+      "system_prompt": "You are a Linux shell command assistant. Your role is to interpret natural language commands and return ONLY the corresponding shell command, without explanations, comments, or additional formatting.\n\nRules:\n- Return only the pure shell command\n- Do not add explanations or comments\n- Use standard Linux commands\n- For multiple commands, use '&&' or ';'\n- Use 'sudo' when privileges are required\n- Consider current user, directory, and environment variables",
+      "max_tokens": 2000,
+      "temperature": 0.1,
+      "api_endpoint": "https://api.anthropic.com/v1/messages"
+    }
+  },
+  "examples": {
+    "list_processes": {
+      "input": "liste os processos em execução",
+      "expected_output": "ps aux"
+    },
+    "disk_space": {
+      "input": "mostre o espaço em disco",
+      "expected_output": "df -h"
+    },
+    "memory_usage": {
+      "input": "mostre o uso de memória",
+      "expected_output": "free -h"
+    },
+    "create_file": {
+      "input": "crie um arquivo teste.txt",
+      "expected_output": "touch teste.txt"
+    },
+    "multiple_commands": {
+      "input": "liste arquivos e depois mostre o uso de memória",
+      "expected_output": "ls -la && free -h"
+    },
+    "network_connections": {
+      "input": "mostre as conexões de rede ativas",
+      "expected_output": "netstat -tuln"
+    },
+    "system_info": {
+      "input": "mostre informações do sistema",
+      "expected_output": "uname -a"
+    }
+  }
+}

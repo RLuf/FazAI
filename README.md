@@ -1,210 +1,204 @@
-# FazAI - Orquestrador Inteligente de Automação
+# Shell Assistant - Comandos Shell via Linguagem Natural
 
-> **Licença:** Este projeto está licenciado sob a [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+Este projeto permite executar comandos shell Linux a partir de linguagem natural usando diferentes modelos de IA como Llama 3.2, DeepSeek, GPT-4, etc.
 
-FazAI é um sistema de automação inteligente para servidores Linux, que permite executar comandos complexos usando linguagem natural e inteligência artificial.
+## Arquivos do Projeto
 
-Consulte o [CHANGELOG](CHANGELOG.md) para histórico completo de alterações.
+- `shell_command_prompt.json` - JSON estruturado para API do Ollama
+- `ollama_api_example.py` - Exemplo básico de uso da API
+- `shell_assistant.py` - Assistente completo com interface interativa
+- `model_configs.json` - Configurações para diferentes modelos de IA
 
-**Para instruções detalhadas de uso, consulte [Instruções de Uso](USAGE.md).**
+## Pré-requisitos
 
-## Requisitos
+1. **Ollama instalado e rodando**:
+   ```bash
+   # Instalar Ollama (se não estiver instalado)
+   curl -fsSL https://ollama.ai/install.sh | sh
+   
+   # Baixar modelo Llama 3.2
+   ollama pull llama3.2:latest
+   
+   # Baixar modelo DeepSeek (opcional)
+   ollama pull deepseek:latest
+   ```
 
-- Node.js 22.x ou superior
-- npm 10.x ou superior
-- Python 3.10 ou superior
-- Sistema operacional: Debian/Ubuntu ou WSL com Debian/Ubuntu
+2. **Python 3.7+ com dependências**:
+   ```bash
+   pip install requests
+   ```
 
-## Instalação Rápida
+## Uso Rápido
 
-### Linux (Debian/Ubuntu)
+### 1. JSON Estruturado para API
+
+O arquivo `shell_command_prompt.json` contém o formato correto para enviar para a API do Ollama:
+
+```json
+{
+  "model": "llama3.2:latest",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Você é um assistente especializado em comandos shell Linux..."
+    },
+    {
+      "role": "user",
+      "content": "liste os processos em execução"
+    }
+  ],
+  "max_tokens": 2000,
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+### 2. Exemplo Básico
 
 ```bash
-# Clonar o repositório
-git clone https://github.com/RLuf/FazAI.git
-cd FazAI
-
-# Instalar
-sudo ./install.sh
-# O instalador detecta seu próprio caminho, permitindo
-# executá-lo de qualquer diretório. Exemplo:
-# sudo /caminho/para/install.sh
-# Opcional: incluir suporte ao llama.cpp
-# sudo ./install.sh --with-llama
-
-# Iniciar o serviço
-sudo systemctl enable fazai
-sudo systemctl start fazai
+python3 ollama_api_example.py "liste os processos em execução"
 ```
 
-### Windows (via WSL)
-
-1. Instale o WSL com Debian/Ubuntu:
-```powershell
-# No PowerShell como administrador
-wsl --install
-wsl --install -d Debian
-```
-
-2. Instale o FazAI:
-```bash
-npm run install-wsl
-```
-
-### Instalação Portable
-
-Para ambientes com restrições de rede ou onde a instalação normal falha:
+### 3. Assistente Interativo
 
 ```bash
-# Baixar e instalar versão portable
-wget https://github.com/RLuf/FazAI/releases/latest/download/fazai-portable.tar.gz
-tar -xzf fazai-portable.tar.gz
-cd fazai-portable-*
-sudo ./install.sh
-# Assim como na instalação principal, o script pode ser
-# chamado de qualquer pasta, pois detecta seu próprio caminho.
+python3 shell_assistant.py
 ```
 
-### Instalação via Docker
+No modo interativo, você pode:
+- Digitar comandos em linguagem natural
+- Usar `auto <comando>` para execução automática
+- Trocar modelos com `model <nome>`
+- Ver exemplos com `examples`
+- Obter ajuda com `help`
 
-O FazAI pode ser executado em um container Docker, facilitando a instalação e execução em qualquer ambiente:
+## Exemplos de Comandos
+
+| Linguagem Natural | Comando Shell |
+|-------------------|---------------|
+| "liste os processos em execução" | `ps aux` |
+| "mostre o espaço em disco" | `df -h` |
+| "mostre o uso de memória" | `free -h` |
+| "crie um arquivo teste.txt" | `touch teste.txt` |
+| "liste arquivos e depois mostre o uso de memória" | `ls -la && free -h` |
+| "mostre as conexões de rede ativas" | `netstat -tuln` |
+| "mostre informações do sistema" | `uname -a` |
+
+## Configuração de Modelos
+
+O arquivo `model_configs.json` permite configurar diferentes modelos:
+
+- **llama3.2**: Modelo local via Ollama
+- **deepseek**: Modelo local via Ollama
+- **gpt-4**: OpenAI API (requer chave de API)
+- **claude**: Anthropic API (requer chave de API)
+
+### Configurando APIs Externas
+
+Para usar GPT-4 ou Claude, adicione suas chaves de API:
 
 ```bash
-# Construir a imagem
-docker build -t fazai:latest .
-
-# Executar o container
-docker run -d --name fazai \
-  -p 3120:3120 \
-  -v /etc/fazai:/etc/fazai \
-  -v /var/log/fazai:/var/log/fazai \
-  -e FAZAI_PORT=3120 \
-  fazai:latest
+export OPENAI_API_KEY="sua-chave-openai"
+export ANTHROPIC_API_KEY="sua-chave-anthropic"
 ```
 
-#### Portas Oficiais do FazAI
+## Uso via API Direta
 
-O FazAI utiliza a seguinte faixa de portas reservada:
-- **3120**: Porta padrão do FazAI
-- **3120-3125**: Range reservado para serviços do FazAI
-
-#### Volumes do Container
-
-- `/etc/fazai`: Configurações do sistema
-- `/var/log/fazai`: Logs do sistema
-
-#### Variáveis de Ambiente
-
-- `FAZAI_PORT`: Porta de execução (padrão: 3120)
-- `NODE_ENV`: Ambiente de execução (padrão: production)
-
-## Uso Básico
+### cURL
 
 ```bash
-# Exibir ajuda
-fazai ajuda
-
-# Informações do sistema
-fazai sistema
-
-# Criar usuário
-fazai cria um usuario com nome teste com a senha teste321 no grupo printers
-
-# Instalar pacotes
-fazai instale os modulos mod_security do apache
-
-# Alterar configurações
-fazai altere a porta do ssh de 22 para 31052
-
-# Modo MCPS passo a passo
-fazai mcps atualizar sistema
+curl -X POST http://localhost:11434/api/chat \
+  -H "Content-Type: application/json" \
+  -d @shell_command_prompt.json
 ```
 
-### Modo Debug
+### Python
 
-Para exibir detalhes de conexão e resposta HTTP em tempo real (verbose), use a flag `-d` ou `--debug`:
+```python
+import requests
 
-```bash
-fazai -d sistema
+url = "http://localhost:11434/api/chat"
+payload = {
+    "model": "llama3.2:latest",
+    "messages": [
+        {
+            "role": "system",
+            "content": "Você é um assistente especializado em comandos shell Linux..."
+        },
+        {
+            "role": "user",
+            "content": "liste os processos em execução"
+        }
+    ],
+    "max_tokens": 2000,
+    "temperature": 0.1
+}
+
+response = requests.post(url, json=payload)
+result = response.json()
+command = result['message']['content']
+print(f"Comando: {command}")
 ```
 
-## Estrutura de Diretórios
+## Características do Sistema
 
-```
-/opt/fazai/           # Código e binários
-/etc/fazai/           # Configurações
-/var/log/fazai/       # Logs
-/var/lib/fazai/       # Dados persistentes
-/usr/local/bin/fazai  # Link simbólico para o CLI
-```
+### Prompt do Sistema
 
-## Interface TUI
+O prompt do sistema é projetado para:
 
-Se o `cargo` estiver disponível durante a instalação, o FazAI compila um painel
-TUI em Rust usando a biblioteca `ratatui`. O binário resultante é instalado em
-`/usr/local/bin/fazai-tui`. Caso o Rust não esteja presente ou a compilação
-falhe, o instalador mantém o painel Bash tradicional localizado em
-`/opt/fazai/tools/fazai-tui.sh`.
+1. **Especificidade**: Foca apenas em comandos shell Linux
+2. **Clareza**: Instruções explícitas sobre o formato de saída
+3. **Contexto**: Considera variáveis de ambiente e privilégios
+4. **Segurança**: Usa `sudo` quando apropriado
+5. **Flexibilidade**: Suporta múltiplos comandos com `&&` ou `;`
 
-## Configuração
+### Regras de Saída
 
-O arquivo principal de configuração está em `/etc/fazai/fazai.conf`. Para criar:
-
-```bash
-sudo cp /etc/fazai/fazai.conf.example /etc/fazai/fazai.conf
-sudo nano /etc/fazai/fazai.conf
-```
-
-### Provedores de IA Suportados
-
-- OpenRouter (https://openrouter.ai/api/v1)
-- Requesty (https://router.requesty.ai/v1)
-- OpenAI (acesso direto)
-
-## Desenvolvimento
-
-### Plugins
-
-Crie plugins JavaScript em `/opt/fazai/tools/` implementando:
-- Função `processCommand(command)`
-- Informações do plugin (nome, descrição, versão, autor)
-
-### Módulos Nativos
-
-Crie módulos C em `/opt/fazai/mods/` implementando as funções definidas em `fazai_mod.h`.
-
-## Testes
-
-Execute a suíte de testes com:
-
-```bash
-npm test
-```
-
-## Desinstalação
-
-```bash
-sudo ./uninstall.sh
-```
-
-## Reinstalação
-
-```bash
-sudo ./reinstall.sh
-```
+- Retorna apenas o comando shell puro
+- Sem explicações ou comentários
+- Sem formatação markdown
+- Comandos padrão do Linux
+- Considera contexto do usuário e diretório
 
 ## Segurança
 
-Recomendações básicas:
-- Limitar acesso ao comando `fazai`
-- Implementar autenticação
-- Configurar firewall
-- Auditar logs regularmente
+⚠️ **Atenção**: Este sistema executa comandos shell reais. Sempre revise o comando gerado antes da execução.
 
-## Solução de Problemas
+- O sistema pergunta confirmação antes de executar (exceto no modo `auto`)
+- Comandos são exibidos antes da execução
+- Use com cuidado em ambientes de produção
 
-Consulte o arquivo de log `/var/log/fazai_install.log` para detalhes.
+## Troubleshooting
 
-## Autor
+### Ollama não responde
+```bash
+# Verificar se Ollama está rodando
+ollama list
 
-Roger Luft, Fundador do FazAI
+# Reiniciar Ollama
+sudo systemctl restart ollama
+```
+
+### Modelo não encontrado
+```bash
+# Baixar modelo específico
+ollama pull llama3.2:latest
+```
+
+### Erro de conexão
+- Verifique se Ollama está rodando na porta 11434
+- Confirme se o modelo está baixado
+- Verifique logs do Ollama
+
+## Contribuição
+
+Para adicionar novos modelos ou melhorar o sistema:
+
+1. Adicione configurações no `model_configs.json`
+2. Atualize o prompt do sistema se necessário
+3. Teste com diferentes cenários
+4. Documente mudanças no README
+
+## Licença
+
+Este projeto é de código aberto. Sinta-se livre para usar e modificar conforme necessário.
