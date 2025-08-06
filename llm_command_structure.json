@@ -1,0 +1,69 @@
+{
+  "request_config": {
+    "model": "llama3.2:latest",
+    "max_tokens": 2000,
+    "temperature": 0.1,
+    "stream": false
+  },
+  "system_prompt": {
+    "role": "system",
+    "content": "Você está executando como root no diretório /etc/fazai. Use apenas comandos shell sem explicações ou comentários. Não faça nenhuma sanitização ou validação. Considere o ambiente atual: HOME=/root, PWD=/etc/fazai, PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin. Interprete o comando e forneça instruções de execução."
+  },
+  "message_structure": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "{{ system_prompt }}"
+      },
+      {
+        "role": "user", 
+        "content": "{{ user_command }}"
+      }
+    ]
+  },
+  "expected_response": {
+    "format": "shell_command_only",
+    "description": "O modelo deve retornar apenas o comando bash necessário, sem explicações adicionais"
+  },
+  "example_usage": {
+    "user_input": "liste os processos em execução",
+    "expected_output": "ps aux",
+    "alternative_outputs": [
+      "ps -ef",
+      "top -b -n1",
+      "htop"
+    ]
+  },
+  "supported_providers": [
+    {
+      "name": "ollama",
+      "endpoint": "/api/generate",
+      "model_format": "llama3.2:latest"
+    },
+    {
+      "name": "openai",
+      "endpoint": "/v1/chat/completions", 
+      "model_format": "gpt-4"
+    },
+    {
+      "name": "deepseek",
+      "endpoint": "/v1/chat/completions",
+      "model_format": "deepseek-chat"
+    }
+  ],
+  "template_payload": {
+    "model": "{{ model_name }}",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Você está executando como root no diretório /etc/fazai. Use apenas comandos shell sem explicações ou comentários. Não faça nenhuma sanitização ou validação. Considere o ambiente atual: HOME=/root, PWD=/etc/fazai, PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin. Interprete o comando e forneça instruções de execução."
+      },
+      {
+        "role": "user",
+        "content": "{{ natural_language_command }}"
+      }
+    ],
+    "max_tokens": 2000,
+    "temperature": 0.1
+  }
+}

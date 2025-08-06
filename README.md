@@ -208,3 +208,121 @@ Consulte o arquivo de log `/var/log/fazai_install.log` para detalhes.
 ## Autor
 
 Roger Luft, Fundador do FazAI
+
+# Processador de Comandos Naturais para LLM
+
+Este projeto converte comandos em linguagem natural para comandos bash usando diferentes provedores de LLM (Ollama, OpenAI, DeepSeek, etc.).
+
+## Arquivos Principais
+
+- `llm_command_structure.json` - Estrutura principal de configuração
+- `example_payloads.json` - Exemplos de payloads para diferentes provedores
+- `natural_command_processor.py` - Script Python para processar comandos
+
+## Estrutura do JSON
+
+### Configuração Base
+
+```json
+{
+  "request_config": {
+    "model": "llama3.2:latest",
+    "max_tokens": 2000,
+    "temperature": 0.1,
+    "stream": false
+  },
+  "system_prompt": {
+    "role": "system",
+    "content": "Prompt que instrui o modelo a retornar apenas comandos bash"
+  }
+}
+```
+
+### Template de Payload
+
+```json
+{
+  "model": "{{ model_name }}",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Instrução para o modelo"
+    },
+    {
+      "role": "user",
+      "content": "{{ natural_language_command }}"
+    }
+  ],
+  "max_tokens": 2000,
+  "temperature": 0.1
+}
+```
+
+## Uso com Diferentes Provedores
+
+### Ollama
+```bash
+curl -X POST http://localhost:11434/api/generate \
+  -H "Content-Type: application/json" \
+  -d @ollama_payload.json
+```
+
+### OpenAI
+```bash
+curl -X POST https://api.openai.com/v1/chat/completions \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d @openai_payload.json
+```
+
+### DeepSeek
+```bash
+curl -X POST https://api.deepseek.com/v1/chat/completions \
+  -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d @deepseek_payload.json
+```
+
+## Exemplos de Comandos Naturais
+
+| Comando Natural | Comando Bash Esperado |
+|----------------|----------------------|
+| "liste os processos em execução" | `ps aux` |
+| "mostre o uso de disco" | `df -h` |
+| "verifique conexões de rede" | `netstat -tulpn` |
+| "encontre arquivos modificados hoje" | `find . -type f -mtime 0` |
+
+## Script Python
+
+```python
+from natural_command_processor import NaturalCommandProcessor
+
+processor = NaturalCommandProcessor()
+
+# Criar payload
+payload = processor.create_payload("liste os arquivos", "ollama")
+
+# Enviar comando (requer servidor rodando)
+bash_command = processor.send_command("liste os arquivos", "ollama", "http://localhost:11434")
+print(f"Comando: {bash_command}")
+```
+
+## Configuração do Sistema
+
+O prompt do sistema instrui os modelos a:
+- Executar como root no diretório `/etc/fazai`
+- Retornar apenas comandos shell sem explicações
+- Considerar o ambiente Linux atual
+- Não fazer sanitização ou validação
+
+## Resposta Esperada
+
+Os modelos devem retornar apenas o comando bash necessário, por exemplo:
+- Input: "liste os processos em execução"
+- Output: `ps aux`
+
+## Parâmetros Importantes
+
+- `temperature: 0.1` - Para respostas determinísticas
+- `max_tokens: 2000` - Limite de tokens na resposta
+- `stream: false` - Para receber resposta completa

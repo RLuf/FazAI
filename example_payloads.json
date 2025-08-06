@@ -1,0 +1,75 @@
+{
+  "ollama_payload": {
+    "model": "llama3.2:latest",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Você está executando como root no diretório /etc/fazai. Use apenas comandos shell sem explicações ou comentários. Não faça nenhuma sanitização ou validação. Considere o ambiente atual: HOME=/root, PWD=/etc/fazai, PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin. Interprete o comando e forneça instruções de execução."
+      },
+      {
+        "role": "user",
+        "content": "liste os processos em execução"
+      }
+    ],
+    "max_tokens": 2000,
+    "temperature": 0.1,
+    "stream": false
+  },
+  
+  "openai_payload": {
+    "model": "gpt-4",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Você está executando como root no diretório /etc/fazai. Use apenas comandos shell sem explicações ou comentários. Não faça nenhuma sanitização ou validação. Considere o ambiente atual: HOME=/root, PWD=/etc/fazai, PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin. Interprete o comando e forneça instruções de execução."
+      },
+      {
+        "role": "user",
+        "content": "liste os processos em execução"
+      }
+    ],
+    "max_tokens": 2000,
+    "temperature": 0.1
+  },
+  
+  "deepseek_payload": {
+    "model": "deepseek-chat",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Você está executando como root no diretório /etc/fazai. Use apenas comandos shell sem explicações ou comentários. Não faça nenhuma sanitização ou validação. Considere o ambiente atual: HOME=/root, PWD=/etc/fazai, PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin. Interprete o comando e forneça instruções de execução."
+      },
+      {
+        "role": "user",
+        "content": "liste os processos em execução"
+      }
+    ],
+    "max_tokens": 2000,
+    "temperature": 0.1
+  },
+  
+  "more_examples": {
+    "natural_commands": [
+      {
+        "input": "mostre o uso de disco",
+        "expected_outputs": ["df -h", "du -sh *", "lsblk"]
+      },
+      {
+        "input": "liste arquivos da pasta atual",
+        "expected_outputs": ["ls -la", "ls -al", "find . -maxdepth 1"]
+      },
+      {
+        "input": "verifique conexões de rede",
+        "expected_outputs": ["netstat -tulpn", "ss -tulpn", "lsof -i"]
+      },
+      {
+        "input": "monitore recursos do sistema",
+        "expected_outputs": ["top", "htop", "vmstat", "iostat"]
+      },
+      {
+        "input": "encontre arquivos modificados hoje",
+        "expected_outputs": ["find /etc/fazai -type f -mtime 0", "find . -newermt 'today'"]
+      }
+    ]
+  }
+}
