@@ -75,7 +75,7 @@ async function main() {
     tags: true,
     content: [
       'q: sair   r: recarregar tools   s: status   L: logs   M: métricas',
-      'N: net_qos_monitor   A: agentes   P: Qdrant   S: SNMP',
+      'N: net_qos_monitor   A: agentes   P: Qdrant   S: SNMP   I: interativo',
     ].join('\n')
   });
 
@@ -153,6 +153,26 @@ async function main() {
   });
   screen.key(['S'], async () => {
     logBox.add('Exemplo: tool snmp_monitor');
+    screen.render();
+  });
+
+  // Inicia cliente interativo básico (WS)
+  screen.key(['I'], async () => {
+    logBox.add('Abrindo sessão interativa WS... Ctrl+C encerra no terminal externo');
+    try {
+      const WebSocket = require('ws');
+      const wsUrl = (process.env.FAZAI_WS_URL || API_URL.replace('http', 'ws')) + '/ws/interactive';
+      const ws = new WebSocket(wsUrl);
+      ws.on('open', () => logBox.add('WS conectado'));
+      ws.on('message', (msg) => {
+        try { const m = JSON.parse(msg.toString()); if (m.type === 'stdout') logBox.add(m.data); } catch (_) {}
+        screen.render();
+      });
+      ws.on('close', () => logBox.add('WS fechado'));
+      ws.on('error', (e) => logBox.add(`WS erro: ${e.message}`));
+    } catch (e) {
+      logBox.add('Falha ao abrir WS');
+    }
     screen.render();
   });
 

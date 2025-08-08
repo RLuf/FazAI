@@ -535,6 +535,7 @@ ${colors.bright}Comandos de Sistema Rápido:${colors.reset}
 ${colors.bright}Comandos de Visualização:${colors.reset}
   html <tipo> [graf]          Gera gráfico HTML (tipo: memoria, disco, processos)
   tui                         Abre o dashboard TUI (ncurses)
+  interactive                 Abre sessão interativa (WebSocket PTY)
 
 ${colors.bright}Comandos de Configuração:${colors.reset}
   config                      Abre ferramenta de configuração interativa
@@ -678,7 +679,7 @@ ${colors.bright}Para mais informações:${colors.reset}
     'tui': 'fazai_tui.sh'        // Adiciona comando tui para dashboard TUI
   };
   
-  if (basicCommands[args[0]]) {
+  if (basicCommands[args[0]] || args[0] === 'interactive') {
     try {
       // Se o comando for 'html', executa o script com parâmetros
       if (args[0] === 'html') {
@@ -737,6 +738,25 @@ ${colors.bright}Para mais informações:${colors.reset}
           console.log(`\n${colors.bright}${colors.fg.yellow}${stdout}${colors.reset}\n`);
           process.exit(0);
         });
+      } else if (args[0] === 'interactive') {
+        const WebSocket = require('ws');
+        const wsUrl = (process.env.FAZAI_WS_URL || API_URL.replace('http', 'ws')) + '/ws/interactive';
+        printInfo(`Conectando WS: ${wsUrl}`);
+        const ws = new WebSocket(wsUrl);
+        ws.on('open', () => {
+          printInfo('Sessão interativa aberta. Ctrl+C para sair.');
+          if (process.stdin.setRawMode) process.stdin.setRawMode(true);
+          process.stdin.resume();
+          process.stdin.on('data', (chunk) => {
+            if (chunk.length === 1 && chunk[0] === 3) { try { ws.close(); } catch(_) {}; process.exit(0); }
+            ws.send(JSON.stringify({ type: 'stdin', data: chunk.toString('utf8') }));
+          });
+        });
+        ws.on('message', (msg) => {
+          try { const m = JSON.parse(msg.toString()); if (m.type === 'stdout' && m.data) process.stdout.write(m.data); } catch(_) {}
+        });
+        ws.on('close', () => { printInfo('Sessão encerrada'); process.exit(0); });
+        ws.on('error', (e) => { printError(`WS erro: ${e.message}`); process.exit(1); });
       } else {
         // Para outros comandos básicos
         const { exec } = require('child_process');

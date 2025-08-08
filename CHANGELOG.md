@@ -16,9 +16,13 @@
 - Endpoint `/metrics` para Prometheus (ingestões + métricas básicas por host), facilitando integração com Grafana.
  - APIs/Tools de terceiros: `cloudflare` (zonas/DNS/firewall) e `spamexperts` (domínios/políticas) documentadas e validadas.
  - Ferramenta `rag_ingest` para gerar embeddings de PDFs/DOCX/TXT/URLs e indexar no Qdrant, com opção de backend OpenAI ou Python (sentence-transformers). Gera catálogo estático em `/var/www/html/fazai/rag/`.
+- Modo interativo via WebSocket + PTY (`/ws/interactive`) para sessões de terminal em tempo real.
+- Comando CLI `fazai interactive` para abrir sessão interativa no terminal.
+- TUI (`fazai_tui.js`) com atalho `I` para conectar na sessão interativa (leitura básica).
 
 ### Changed
 - Versão atualizada para **1.42.0** em `package.json`, `bin/fazai` (help/versão) e `opt/fazai/lib/main.js` (defaultMeta.version).
+- Ajuda do CLI e autocompletar Bash atualizados para incluir `interactive`.
 - Ordem de fallback de provedores inclui `gemma_cpp` no início para priorizar IA local.
 
 ### Notes
