@@ -2,7 +2,7 @@
 
 /*
  * FazAI - Ferramenta de Configuração
- * Versão: 1.41.0
+ * Versão: 1.42.0
  * Autor: Roger Luft
  */
 
@@ -118,7 +118,7 @@ function saveConfig(config) {
   try {
     let content = `###############################################################################
 # FazAI - Arquivo de Configuração Principal
-# Versão: 1.41.0
+# Versão: 1.42.0
 # Gerado automaticamente em: ${new Date().toISOString()}
 ###############################################################################
 
@@ -243,7 +243,7 @@ async function testConnectivity(config) {
 
 // Função principal
 async function main() {
-  log('FazAI - Ferramenta de Configuração v1.41.0', 'bright');
+  log('FazAI - Ferramenta de Configuração v1.42.0', 'bright');
   log('─'.repeat(50));
   
   const config = readConfig();

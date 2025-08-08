@@ -612,7 +612,7 @@ const fs = require('fs');
 const args = process.argv.slice(2);
 
 if (args.includes('--version')) {
-  console.log('FazAI v1.40.6');
+  console.log('FazAI v1.42.0');
   process.exit(0);
 }
 
@@ -642,7 +642,7 @@ if (args.includes('--status')) {
   process.exit(0);
 }
 
-console.log('FazAI CLI v1.40.6 - Use --help para mais informações');
+console.log('FazAI CLI v1.42.0 - Use --help para mais informações');
 EOF
     chmod +x "bin/fazai"
   fi
@@ -827,7 +827,7 @@ EOF
     cat > "/opt/fazai/tools/fazai-tui.sh" << 'EOF'
 #!/bin/bash
 # FazAI Dashboard TUI - Versão Básica
-echo "FazAI Dashboard TUI v1.40.6"
+echo "FazAI Dashboard TUI v1.42.0"
 echo "
   if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
     copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"
@@ -1118,7 +1118,7 @@ install_node_dependencies() {
     cat > "package.json" << 'EOF'
 {
   "name": "fazai",
-  "version": "1.40.6",
+  "version": "1.42.0",
   "description": "FazAI - Orquestrador Inteligente de Automação",
   "main": "main.js",
   "dependencies": {
@@ -1245,7 +1245,7 @@ install_tui() {
 const fs = require('fs');
 const path = require('path');
 
-console.log('FazAI - Interface de Configuração TUI v1.40.6');
+console.log('FazAI - Interface de Configuração TUI v1.42.0');
 console.log('=========================================');
 console.log('');
 console.log('Funcionalidades disponíveis:');
