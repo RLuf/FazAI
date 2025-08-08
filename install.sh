@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 # FazAI - Script de Instalação Oficial (VERSÃO CORRIGIDA)
 # Este script instala o FazAI em sistemas Debian/Ubuntu com suporte à interface TUI
@@ -523,6 +523,35 @@ install_gcc() {
   fi
 }
 
+# Função para instalar o pacote 'dialog' (necessário para TUI)
+install_dialog() {
+  log "INFO" "Verificando dependência 'dialog' para TUI..."
+  local PKG_MGR="apt-get"
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "$ID" in
+      fedora|rhel|centos)
+        PKG_MGR="dnf"
+        ;;
+      *)
+        PKG_MGR="apt-get"
+        ;;
+    esac
+  fi
+
+  if ! command -v dialog >/dev/null 2>&1; then
+    log "INFO" "Instalando 'dialog' via $PKG_MGR..."
+    $PKG_MGR update -y || true
+    if $PKG_MGR install -y dialog; then
+      log "SUCCESS" "'dialog' instalado com sucesso"
+    else
+      log "WARNING" "Falha ao instalar 'dialog'. Recursos TUI podem ficar indisponíveis."
+    fi
+  else
+    log "SUCCESS" "'dialog' já está instalado"
+  fi
+}
+
 # Função para criar estrutura de diretórios
 create_directories() {
   log "INFO" "Criando estrutura de diretórios..."
@@ -659,10 +688,7 @@ EOF
   fi
   chmod 755 /opt/fazai/lib/main.js
 
-  # Copia módulo de fallback DeepSeek
-  # deepseek_helper removido
-    copy_errors=$((copy_errors+1))
-  fi
+  # DeepSeek helper removido (no-op)
   
   if ! copy_with_verification "etc/fazai/fazai.conf.example" "/etc/fazai/fazai.conf.default" "Configuração padrão"; then
     copy_errors=$((copy_errors+1))
