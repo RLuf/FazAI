@@ -202,7 +202,7 @@ sudo nano /etc/fazai/fazai.conf
 
 O FazAI implementa um sistema de fallback robusto que garante alta disponibilidade:
 
-1. **Fallback entre Provedores**: Ordem automática: gemma_cpp → OpenRouter → DeepSeek → Requesty → OpenAI → Anthropic → Gemini → Ollama
+1. **Fallback entre Provedores**: Ordem automática: gemma_cpp → Gemma (local) → Llama server → OpenRouter → Requesty → OpenAI → Anthropic → Gemini → Ollama
 2. **Fallback Local**: `fazai_helper.js` e `deepseek_helper.js` para operação offline
 3. **GenaiScript**: Arquitetamento de comandos complexos usando modelos locais
 4. **Cache Inteligente**: Reduz latência e custos para comandos repetidos

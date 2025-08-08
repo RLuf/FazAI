@@ -123,7 +123,7 @@ const PORT = process.env.PORT || 3120;
 
 // Configuração unificada de provedores de IA
 let AI_CONFIG = {
-  default_provider: 'openrouter',
+  default_provider: 'gemma_cpp',
   enable_fallback: true,
   max_retries: 3,
   retry_delay: 2,
@@ -155,17 +155,7 @@ let AI_CONFIG = {
       temperature: 0.7,
       max_tokens: 2000
     },
-    deepseek: {
-      api_key: '',
-      endpoint: 'https://openrouter.ai/api/v1',
-      default_model: 'tngtech/deepseek-r1t2-chimera:free',
-      temperature: 0.3,
-      max_tokens: 2000,
-      headers: {
-        'HTTP-Referer': 'https://github.com/RLuf/FazAI',
-        'X-Title': 'FazAI Fallback'
-      }
-    },
+    
     ollama: {
       api_key: '',
       endpoint: 'http://127.0.0.1:11434/v1',
@@ -205,7 +195,7 @@ let AI_CONFIG = {
     }
   },
   // Ordem de fallback para provedores
-  fallback_order: ['gemma_cpp', 'llama_server', 'openrouter', 'deepseek', 'requesty', 'openai', 'anthropic', 'gemini', 'ollama']
+  fallback_order: ['gemma_cpp', 'llama_server', 'openrouter', 'requesty', 'openai', 'anthropic', 'gemini', 'ollama']
 };
 
 // Middleware para processar JSON
@@ -339,7 +329,7 @@ try {
     }
 
     // Atualiza configurações específicas dos provedores
-    ['openrouter', 'openai', 'requesty', 'deepseek', 'ollama', 'anthropic', 'gemini'].forEach(provider => {
+    ['openrouter', 'openai', 'requesty', 'ollama', 'anthropic', 'gemini'].forEach(provider => {
       if (config[provider]) {
         Object.keys(config[provider]).forEach(key => {
           if (AI_CONFIG.providers[provider][key] !== undefined) {
@@ -467,7 +457,7 @@ Para comandos como SMTP/email, sempre inclua "needs_agent": true e pergunte por 
         exec(`node ${genaiscriptPath} "${architectPrompt}"`, (error, stdout, stderr) => {
           if (error) {
             logger.error(`Erro no genaiscript: ${error.message}`);
-            resolve(fallbackToDeepseek(command));
+            resolve({ interpretation: 'echo "Falha no arquitetamento"', success: false });
           } else {
             try {
               const plan = JSON.parse(stdout.trim());
@@ -480,18 +470,18 @@ Para comandos como SMTP/email, sempre inclua "needs_agent": true e pergunte por 
               });
             } catch (parseErr) {
               logger.error(`Erro ao parsear resposta do genaiscript: ${parseErr.message}`);
-              resolve(fallbackToDeepseek(command));
+              resolve({ interpretation: 'echo "Falha no arquitetamento"', success: false });
             }
           }
         });
       });
     } else {
       // Fallback direto para deepseek
-      return await fallbackToDeepseek(command);
+      return { interpretation: 'echo "Falha no arquitetamento"', success: false };
     }
   } catch (err) {
     logger.error(`Erro no arquitetamento: ${err.message}`);
-    return await fallbackToDeepseek(command);
+    return { interpretation: 'echo "Falha no arquitetamento"', success: false };
   }
 }
 
@@ -573,11 +563,11 @@ async function executePlan(plan, originalCommand) {
  * @param {string} command - Comando a ser interpretado
  * @returns {Promise<object>} - Interpretação do comando
  */
-async function fallbackToDeepseek(command) {
-  logger.info('Fallback DeepSeek ignorado - sem API configurada');
+async function fallbackToDeepseek_removed() {
+  logger.info('Fallback DeepSeek removido');
   
   // Retorna uma interpretação simples baseada no comando
-  if (command.toLowerCase().includes('usuario') || command.toLowerCase().includes('user')) {
+  if (false) {
     return {
       interpretation: 'useradd -m cursor && echo "cursor:123456" | chpasswd && cat /etc/passwd | grep -E ":[0-9]{4}:" | cut -d: -f1',
       success: true

@@ -108,13 +108,13 @@ log() {
       ;;
   esac
 }
-# Consulta o modelo DeepSeek em caso de erro
-deepseek_help() {
+# Consulta ajuda da IA em caso de erro (placeholder desativado)
+ai_help() {
   local prompt="$1"
-  if [ -f "$DEEPSEEK_HELPER" ]; then
-    node "$DEEPSEEK_HELPER" "$prompt" 2>/dev/null | tee -a "$LOG_FILE"
+  if [ -f "$AI_HELPER" ]; then
+    node "$AI_HELPER" "$prompt" 2>/dev/null | tee -a "$LOG_FILE"
   else
-    log "WARNING" "deepseek_helper não encontrado"
+    log "WARNING" "ai_helper não encontrado"
   fi
 }
 
@@ -660,7 +660,7 @@ EOF
   chmod 755 /opt/fazai/lib/main.js
 
   # Copia módulo de fallback DeepSeek
-  if ! copy_with_verification "opt/fazai/lib/deepseek_helper.js" "/opt/fazai/lib/" "DeepSeek helper"; then
+  # deepseek_helper removido
     copy_errors=$((copy_errors+1))
   fi
   
@@ -1816,12 +1816,12 @@ main_install() {
 
       if [ "$step_function" = "copy_files" ]; then
         log "ERROR" "Falha ao copiar arquivos. Instalação interrompida. Verifique $LOG_FILE para detalhes."
-        deepseek_help "Falha ao copiar arquivos durante a instalação do FazAI"
+        ai_help "Falha ao copiar arquivos durante a instalação do FazAI"
         exit 1
       fi
 
       # Consulta ajuda da IA e pergunta se deve continuar
-      deepseek_help "Erro na etapa '$step_description'"
+      ai_help "Erro na etapa '$step_description'"
       read -p "Erro na etapa '$step_description'. Continuar mesmo assim? (s/N): " -n 1 -r
       echo
       if [[ ! $REPLY =~ ^[Ss]$ ]]; then

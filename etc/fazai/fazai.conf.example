@@ -5,7 +5,7 @@
 # Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL
 #
 # Este arquivo configura o comportamento do sistema FazAI, incluindo:
-# - Provedores de IA (OpenRouter, Requesty, OpenAI, Anthropic, Gemini, Ollama, Gemma local)
+# - Provedores de IA (Gemma local, OpenRouter, Requesty, OpenAI, Anthropic, Gemini, Ollama)
 # - Sistema de orquestração (modos de planejamento e ação)
 # - Configurações gerais do sistema
 # - Sistema de cache e performance
@@ -26,10 +26,10 @@
 # - anthropic: Utiliza a API da Anthropic (Claude)
 # - gemini: Utiliza a API do Google Gemini
 # - ollama: Utiliza modelos locais via Ollama
-provider = openrouter
+provider = gemma_cpp
 
 # Habilita fallback automático para outro provedor em caso de falha
-# Se true, tentará o próximo provedor na ordem: openrouter -> deepseek -> requesty -> openai -> anthropic -> gemini -> ollama
+# Se true, tentará o próximo provedor na ordem: gemma_cpp -> llama_server -> openrouter -> requesty -> openai -> anthropic -> gemini -> ollama
 enable_fallback = true
 
 # Número máximo de tentativas antes de desistir
@@ -119,7 +119,7 @@ endpoint = https://openrouter.ai/api/v1
 # Modelo padrão a ser utilizado
 # Formato: provedor/modelo
 # Exemplos: deepseek/deepseek-r1-0528:free, openai/gpt-4-turbo, anthropic/claude-3-opus
-default_model = deepseek/deepseek-r1-0528:free
+default_model = openai/gpt-4o
 
 # Lista de modelos alternativos que podem ser utilizados
 # Separe múltiplos modelos com vírgulas

@@ -555,7 +555,7 @@ ${colors.bright}Provedores de IA Suportados:${colors.reset}
 
 ${colors.bright}Sistema de Fallback:${colors.reset}
   O FazAI automaticamente tenta o próximo provedor em caso de falha:
-  OpenRouter → DeepSeek → Requesty → OpenAI → Anthropic → Gemini → Ollama
+  Gemma (local) → Llama server → OpenRouter → Requesty → OpenAI → Anthropic → Gemini → Ollama
 
 ${colors.bright}Exemplo de instalação Fedora:${colors.reset}
   sudo dnf install -y nodejs npm python3 python3-pip gcc dialog
