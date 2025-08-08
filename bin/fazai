@@ -486,6 +486,13 @@ async function main() {
     args.shift();
   }
   
+  // Flag pergunta direta (-q)
+  let questionMode = false;
+  if (args[0] === '-q' || args[0] === '--question') {
+    questionMode = true;
+    args.shift();
+  }
+
   // Comandos especiais
   if (args.length === 0) {
     printError('Nenhum comando fornecido. Use "fazai ajuda" para ver os comandos disponíveis.');
@@ -502,12 +509,13 @@ ${colors.bright}Compatível com:${colors.reset}
   • WSL (Debian/Ubuntu)
 
 ${colors.bright}Uso:${colors.reset}
-  fazai [-d|--debug] [--stream|-s] <comando>
+  fazai [-d|--debug] [--stream|-s] [-q] <comando>
 
 ${colors.bright}Comandos de Sistema:${colors.reset}
   ajuda, help, --help         Exibe esta mensagem de ajuda
   -d, --debug                 Ativa modo debug com verbose em tempo real
   versao, version, -v         Exibe a versão do FazAI
+  -q, --question              Pergunta direta (sem executar comandos)
   check-deps, verificar-deps  Verifica dependências e instalação do sistema
 
 ${colors.bright}Comandos de Serviço:${colors.reset}
@@ -935,12 +943,12 @@ ${colors.bright}Para mais informações:${colors.reset}
   const command = args.join(' ');
   
   try {
-    printInfo(`Enviando comando${streamEnabled ? ' (stream)' : ''}: "${command}"`);
+    printInfo(`Enviando comando${streamEnabled ? ' (stream)' : ''}${questionMode ? ' (question)' : ''}: "${command}"`);
     if (streamEnabled) {
-      await streamToConsole({ command });
+      await streamToConsole({ command, question: questionMode });
       process.exit(0);
     }
-    const result = await sendCommand(command);
+    const result = await sendCommand(questionMode ? { question: true, command } : command);
     
     if (result.success) {
       printSuccess('Comando executado com sucesso.');

@@ -18,7 +18,8 @@ _fazai_completions()
     local net_commands="snmp prometheus grafana qdrant agentes"
 
     # Todos os comandos disponíveis
-    opts="$system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands"
+    local flags="-q --question --stream -s -d --debug --help"
+    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands"
 
     # Opções específicas para cada subcomando
     case "${prev}" in
