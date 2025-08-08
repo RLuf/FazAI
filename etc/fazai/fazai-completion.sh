@@ -15,9 +15,10 @@ _fazai_completions()
     local visualization_commands="html tui"
     local config_commands="config cache cache-clear"
     local ai_commands="mcps"
+    local net_commands="snmp prometheus grafana qdrant agentes"
 
     # Todos os comandos disponíveis
-    opts="$system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands"
+    opts="$system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands"
 
     # Opções específicas para cada subcomando
     case "${prev}" in
@@ -146,7 +147,7 @@ complete -F _fazai_main_completion fazai
 # Função para mostrar ajuda de completion
 _fazai_show_completion_help()
 {
-    echo "FazAI Bash Completion v1.41.0"
+    echo "FazAI Bash Completion v1.42.0"
     echo ""
     echo "Comandos disponíveis:"
     echo "  Sistema:     ajuda, help, --help, -d, --debug, versao, version, -v, check-deps"

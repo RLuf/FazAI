@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     gnupg \
     git \
-    systemd \
+    ca-certificates \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
@@ -24,12 +24,14 @@ COPY etc/fazai/ /etc/fazai/
 RUN rm -f /etc/fazai/fazai.conf
 COPY etc/fazai/fazai.conf.example /etc/fazai/
 COPY package.json /opt/fazai/
+COPY opt/fazai/lib/ /opt/fazai/lib/
+COPY opt/fazai/tools/ /opt/fazai/tools/
 COPY install.sh /opt/fazai/
 
 WORKDIR /opt/fazai
 
 # Instalar dependências Node.js
-RUN npm install
+RUN npm install --omit=dev
 
 # Configurar permissões
 RUN chmod +x /opt/fazai/bin/fazai /opt/fazai/install.sh
@@ -47,4 +49,4 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Comando de inicialização
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["/opt/fazai/bin/fazai"]
+CMD ["/usr/bin/node","/opt/fazai/lib/main.js"]

@@ -32,7 +32,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Variáveis de configuração
-VERSION="1.41.0"
+VERSION="1.42.0"
 LOG_FILE="/var/log/fazai_install.log"
 RETRY_COUNT=3
 INSTALL_STATE_FILE="/var/lib/fazai/install.state"
@@ -69,6 +69,7 @@ DEPENDENCY_MODULES=(
     "chalk"
     "figlet"
     "inquirer"
+    "mysql2"
 )
 
 # Estado da instalação
@@ -739,6 +740,27 @@ EOF
       log "SUCCESS" "FazAI Config JS copiado e tornado executável"
     fi
   fi
+
+  # Copia novas tools
+  for t in \
+    "opt/fazai/tools/auto_tool.js" \
+    "opt/fazai/tools/net_qos_monitor.js" \
+    "opt/fazai/tools/agent_supervisor.js" \
+    "opt/fazai/tools/qdrant_setup.js" \
+    "opt/fazai/tools/snmp_monitor.js" \
+    "opt/fazai/tools/modsecurity_setup.js" \
+    "opt/fazai/tools/suricata_setup.js" \
+    "opt/fazai/tools/crowdsec_setup.js" \
+    "opt/fazai/tools/monit_setup.js" \
+    "opt/fazai/tools/rag_ingest.js"; do
+    if [ -f "$t" ]; then
+      if ! copy_with_verification "$t" "/opt/fazai/tools/" "Tool $(basename $t)"; then
+        copy_errors=$((copy_errors+1))
+      else
+        chmod 755 "/opt/fazai/tools/$(basename $t)" || true
+      fi
+    fi
+  done
 
   # Instala dependência dialog para TUI ncurses
   install_dialog
@@ -1581,6 +1603,15 @@ validate_installation() {
     "/opt/fazai/tools/fazai_web_frontend.html"
     "/opt/fazai/tools/fazai_web.sh"
     "/opt/fazai/tools/fazai_html_v1.sh"
+    "/opt/fazai/tools/auto_tool.js"
+    "/opt/fazai/tools/net_qos_monitor.js"
+    "/opt/fazai/tools/agent_supervisor.js"
+    "/opt/fazai/tools/qdrant_setup.js"
+    "/opt/fazai/tools/snmp_monitor.js"
+    "/opt/fazai/tools/modsecurity_setup.js"
+    "/opt/fazai/tools/suricata_setup.js"
+    "/opt/fazai/tools/crowdsec_setup.js"
+    "/opt/fazai/tools/monit_setup.js"
   )
   
   for file in "${essential_files[@]}"; do

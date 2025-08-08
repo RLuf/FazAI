@@ -1,5 +1,34 @@
 # Changelog
 
+## [v1.42.0] - 08/08/2025
+
+### Added
+- Integração local com Gemma (gemma.cpp): binários `gemma` e `gemma_oneshot` compilados com CMake (Makefiles, -j1), usando SentencePiece e Highway.
+- Provedor `gemma_cpp` no FazAI priorizado no fallback; usa `gemma_oneshot` para responder prompts locais sem depender de API.
+- Ferramenta `auto_tool` para geração dinâmica de tools a partir de descrição em linguagem natural (instala em `/opt/fazai/tools` e recarrega o daemon).
+- Ferramenta `net_qos_monitor` para monitoração de tráfego por IP (nftables) e limitação via `tc` (HTB), com gráfico HTML do top10 em `/var/www/html/fazai/top_ips.html`.
+- Ferramenta `agent_supervisor` para instalar/iniciar agentes remotos (via SSH) que coletam telemetria (processos, rede, I/O) e enviam para o FazAI.
+- Endpoint de ingestão `/ingest` no daemon para receber telemetria dos agentes.
+- Ferramenta `qdrant_setup` para subir Qdrant via Docker e criar coleção inicial para RAG (consultas semânticas de redes/Linux).
+- Dependência `mysql2` adicionada no `package.json` (preparação para persistir telemetria e relatórios).
+- Ferramenta `snmp_monitor` para consulta de OIDs via SNMP (net-snmp).
+- Ferramentas de segurança ativas: `modsecurity_setup`, `suricata_setup`, `crowdsec_setup`, `monit_setup`.
+- Endpoint `/metrics` para Prometheus (ingestões + métricas básicas por host), facilitando integração com Grafana.
+ - APIs/Tools de terceiros: `cloudflare` (zonas/DNS/firewall) e `spamexperts` (domínios/políticas) documentadas e validadas.
+ - Ferramenta `rag_ingest` para gerar embeddings de PDFs/DOCX/TXT/URLs e indexar no Qdrant, com opção de backend OpenAI ou Python (sentence-transformers). Gera catálogo estático em `/var/www/html/fazai/rag/`.
+
+### Changed
+- Versão atualizada para **1.42.0** em `package.json`, `bin/fazai` (help/versão) e `opt/fazai/lib/main.js` (defaultMeta.version).
+- Ordem de fallback de provedores inclui `gemma_cpp` no início para priorizar IA local.
+
+### Notes
+- Próximos passos sugeridos (não bloqueantes):
+  - Persistir `/ingest` no MySQL e expor painel web com visão de agentes/relatórios.
+  - Tools adicionais geradas via `auto_tool` (antispam relay HA, segurança/telemetria de rede, controle de navegação). 
+  - Popular Qdrant com embeddings de docs de redes/Linux para auxiliar o modelo nas decisões.
+
+---
+
 ## [v1.41.0] - 06/07/2025
 
 ### Added

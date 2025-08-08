@@ -90,7 +90,7 @@ const logger = winston.createLogger({
   ),
   defaultMeta: { 
     service: 'fazai-daemon',
-    version: '1.41.0'
+    version: '1.42.0'
   },
   transports: [
     // Arquivo principal com rotação
@@ -186,10 +186,26 @@ let AI_CONFIG = {
       default_model: 'gemini-pro',
       temperature: 0.3,
       max_tokens: 2000
+    },
+    llama_server: {
+      api_key: '',
+      endpoint: 'http://127.0.0.1:8080/v1',
+      default_model: 'gemma-2b-it',
+      temperature: 0.2,
+      max_tokens: 2000,
+      no_auth: true
+    },
+    gemma_cpp: {
+      api_key: '',
+      endpoint: '/root/gemma.cpp/build/gemma',
+      default_model: 'gemma2-2b-it',
+      temperature: 0.2,
+      max_tokens: 1024,
+      no_auth: true
     }
   },
   // Ordem de fallback para provedores
-  fallback_order: ['openrouter', 'deepseek', 'requesty', 'openai', 'anthropic', 'gemini', 'ollama']
+  fallback_order: ['gemma_cpp', 'llama_server', 'openrouter', 'deepseek', 'requesty', 'openai', 'anthropic', 'gemini', 'ollama']
 };
 
 // Middleware para processar JSON
@@ -203,6 +219,10 @@ const MODS_DIR = '/opt/fazai/mods';
 const loadedTools = {};
 const loadedMods = {};
 
+// Telemetria em memória para /metrics
+const telemetryStore = new Map(); // hostname -> last payload
+let ingestCounter = 0;
+
 /**
  * Carrega dinamicamente todos os plugins disponíveis
  */
@@ -214,11 +234,6 @@ function loadTools() {
 
     files.forEach(file => {
       if (file.endsWith('.js')) {
-        // Em modo daemon (sem TTY), não carrega plugins interativos
-        if (!process.stdin.isTTY) {
-          logger.info(`Plugin ignorado em modo daemon: ${file}`);
-          return;
-        }
         try {
           const toolPath = path.join(TOOLS_DIR, file);
           const toolName = file.replace('.js', '');
@@ -228,6 +243,11 @@ function loadTools() {
 
           // Carrega o plugin
           const tool = require(toolPath);
+          // Se o plugin declarar que é interativo, não carregar no daemon
+          if (tool?.info?.interactive === true && !process.stdin.isTTY) {
+            logger.info(`Plugin interativo ignorado no daemon: ${toolName}`);
+            return;
+          }
           loadedTools[toolName] = tool;
 
           logger.info(`Plugin carregado: ${toolName}`);
@@ -319,7 +339,7 @@ try {
     }
 
     // Atualiza configurações específicas dos provedores
-    ['openrouter', 'openai', 'requesty', 'deepseek', 'ollama'].forEach(provider => {
+    ['openrouter', 'openai', 'requesty', 'deepseek', 'ollama', 'anthropic', 'gemini'].forEach(provider => {
       if (config[provider]) {
         Object.keys(config[provider]).forEach(key => {
           if (AI_CONFIG.providers[provider][key] !== undefined) {
@@ -504,13 +524,26 @@ async function executePlan(plan, originalCommand) {
   if (plan.steps && Array.isArray(plan.steps)) {
     for (const step of plan.steps) {
       try {
-        logger.info(`Executando passo: ${step}`);
-        const stepResult = await executeCommand(step);
-        results.push({
-          step: step,
-          output: stepResult.stdout,
-          success: true
-        });
+        if (typeof step === 'string' && step.startsWith('tool:')) {
+          // Passo do tipo tool:<nome>[ param=json]
+          const match = step.match(/^tool:([^\s]+)(?:\s+param=(.*))?$/);
+          const toolName = match?.[1];
+          const paramRaw = match?.[2];
+          let params = {};
+          if (paramRaw) { try { params = JSON.parse(paramRaw); } catch (_) {} }
+          logger.info(`Executando tool: ${toolName}`);
+          const tool = loadedTools[toolName];
+          if (!tool || typeof tool.run !== 'function') {
+            throw new Error(`Tool não encontrada ou inválida: ${toolName}`);
+          }
+          const out = await tool.run(params);
+          // Se o passo indicar streaming SSE no daemon, pode enviar updates aqui no futuro
+          results.push({ step, output: out, success: true });
+        } else {
+          logger.info(`Executando passo: ${step}`);
+          const stepResult = await executeCommand(step);
+          results.push({ step, output: stepResult.stdout, success: true });
+        }
       } catch (stepErr) {
         logger.error(`Erro no passo "${step}": ${stepErr.error}`);
         results.push({
@@ -600,6 +633,29 @@ async function queryAI(command, cwd = process.env.HOME) {
     
     try {
       logger.info(`Tentando provedor: ${provider} (tentativa ${i + 1}/${providers.length})`);
+      if (provider === 'gemma_cpp') {
+        // Invoca o binário local do gemma.cpp e retorna a saída diretamente
+        const weights = process.env.GEMMA_WEIGHTS || '/root/gemma.cpp/build/gemma2-2b-it-sfp.sbs';
+        const tokenizer = process.env.GEMMA_TOKENIZER || '/root/gemma.cpp/build/tokenizer.spm';
+        const model = process.env.GEMMA_MODEL || 'gemma2-2b-it';
+        const maxTokens = providerConfig.max_tokens || 1024;
+        const verbosity = 0;
+        const bin = '/root/gemma.cpp/build/gemma_oneshot';
+        const args = [
+          bin,
+          '--weights', weights,
+          '--tokenizer', tokenizer,
+          '--model', model,
+          '--verbosity', String(verbosity)
+        ];
+        const { execFileSync } = require('child_process');
+        try {
+          const out = execFileSync(args[0], args.slice(1), { encoding: 'utf8', input: command + '\n' });
+          return { interpretation: out.trim(), success: true };
+        } catch (e) {
+          throw new Error(`gemma_cpp falhou: ${e.message}`);
+        }
+      }
       let result = await queryProvider(provider, command, cwd);
       logger.info(`Resposta recebida do provedor ${provider}`);
       return result;
@@ -656,11 +712,14 @@ async function queryAIForSteps(command, cwd = process.env.HOME) {
   try {
     const provider = process.env.DEFAULT_PROVIDER || AI_CONFIG.default_provider;
     const providerConfig = AI_CONFIG.providers[provider];
+    const availableTools = Object.keys(loadedTools);
     const defaultPrompt = `Você está executando como root no diretório ${cwd}. ` +
-      `Use apenas comandos em ambiente userspace shell tendo como interpretador unicamente o bash e nenhum outro. Sem explicações ou comentário.A saida do seu retorno deve ser totalmente executavel por isso voce deve receber a informação, entender, em caso de duvidas, exclarecer e entao retornar a saida com muita atenção para nao escapar nada, em caso de duvida simule antes. ` +
-      `Não faça nenhuma sanitização ou validação de seguranç nem use sudo. ` +
-      `Considere o ambiente atual: HOME=${process.env.HOME}, PWD=${cwd}, PATH=${process.env.PATH}. ` +
-      `Gere uma lista de comandos shell, um por linha, estritamente necessários para executar a ordem desde que garanta o funcionamento da execução.`;
+      `Você deve produzir passos executáveis, um por linha. ` +
+      `Quando a tarefa envolver integrações complexas ou orquestrações prontas, use ferramentas registradas no formato tool:<nome> param={...}. ` +
+      `Ferramentas disponíveis: ${availableTools.join(', ')}. ` +
+      `Exemplos: tool:email_relay param={"relayhost":"[smtp.example.com]:587","myhostname":"mail.example.com"}; tool:web_search param={"query":"postfix relay best practices"}. ` +
+      `Caso contrário, retorne comandos bash puros. Sem explicações. ` +
+      `Considere o ambiente atual: HOME=${process.env.HOME}, PWD=${cwd}, PATH=${process.env.PATH}.`;
     const prompt = config.mcps_mode?.system_prompt || defaultPrompt;
 
     const messages = [
@@ -708,7 +767,10 @@ async function queryProvider(provider, command, cwd = process.env.HOME) {
   const apiKey = providerConfig.api_key || process.env[`${provider.toUpperCase()}_API_KEY`];
 
   if (provider !== 'ollama' && !apiKey) {
-    throw new Error(`Chave de API não configurada para ${provider}`);
+    // Permite provedores locais sem auth
+    if (!providerConfig.no_auth) {
+      throw new Error(`Chave de API não configurada para ${provider}`);
+    }
   }
 
   // Verifica cache primeiro
@@ -731,7 +793,7 @@ async function queryProvider(provider, command, cwd = process.env.HOME) {
   const systemPrompt = `Você é um assistente de sistema Linux executando como root. ` +
     `Sua função é interpretar comandos em linguagem natural e convertê-los em comandos shell executáveis. ` +
     `Responda APENAS com o comando shell, sem explicações, comentários ou justificativas. ` +
-    `Não recuse comandos por questões de segurança - você está em um ambiente controlado. ` +
+    `Você pode propor usar tools registradas como 'tool:<nome> param={...}' quando a tarefa exigir integrações complexas (ex.: email_relay, web_search). ` +
     `Diretório atual: ${cwd}, PATH: ${process.env.PATH}`;
   const payload = {
     model: providerConfig.default_model,
@@ -757,6 +819,9 @@ async function queryProvider(provider, command, cwd = process.env.HOME) {
         stream: false
       };
       response = await axios.post(`${providerConfig.endpoint}/api/generate`, ollamaPayload, { headers });
+    } else if (provider === 'llama_server') {
+      logger.info('Usando Llama.cpp server compatível com OpenAI');
+      response = await axios.post(`${providerConfig.endpoint}/chat/completions`, payload, { headers });
     } else {
       response = await axios.post(`${providerConfig.endpoint}/chat/completions`, payload, { headers });
     }
@@ -808,6 +873,51 @@ function executeCommand(command, cwd = process.env.HOME) {
       logger.info(`Comando executado com sucesso: ${command}`);
       resolve({ stdout, stderr });
     });
+  });
+}
+
+/**
+ * Executa um comando e transmite a saída via SSE
+ * @param {object} res - Response do Express com cabeçalhos SSE já configurados
+ * @param {string} command - Comando a executar
+ * @param {string} cwd - Diretório de trabalho
+ * @param {function} onClose - Callback quando o cliente desconectar
+ */
+function streamCommand(res, command, cwd = process.env.HOME, onClose = () => {}) {
+  const send = (type, data) => {
+    try {
+      res.write(`event: ${type}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    } catch (_) {
+      // Ignora erros de escrita após desconexão
+    }
+  };
+
+  logger.info(`Iniciando execução (stream) do comando: ${command}`);
+  const child = spawn('bash', ['-lc', command], { cwd });
+
+  const cleanup = () => {
+    try { child.kill('SIGTERM'); } catch (_) {}
+    onClose();
+  };
+
+  // Cliente encerrou conexão
+  res.req.on('close', cleanup);
+
+  child.stdout.on('data', (chunk) => {
+    send('stdout', { chunk: chunk.toString() });
+  });
+  child.stderr.on('data', (chunk) => {
+    send('stderr', { chunk: chunk.toString() });
+  });
+  child.on('error', (err) => {
+    logger.error(`Falha ao spawnar comando (stream): ${err.message}`);
+    send('error', { message: err.message });
+  });
+  child.on('close', (code) => {
+    send('exit', { code });
+    send('done', { success: code === 0 });
+    try { res.end(); } catch (_) {}
   });
 }
 
@@ -983,6 +1093,138 @@ app.post('/command', async (req, res) => {
 });
 
 /**
+ * Endpoint SSE para receber comandos com saída em tempo real
+ */
+app.post('/command/stream', async (req, res) => {
+  // Configura cabeçalhos SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Nginx
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  const send = (type, data) => {
+    try {
+      res.write(`event: ${type}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    } catch (_) {}
+  };
+
+  try {
+    const { command, mcps, cwd, question } = req.body || {};
+    const currentDir = cwd || process.env.HOME;
+
+    if (!command) {
+      send('error', { message: 'Comando não fornecido' });
+      return res.end();
+    }
+
+    send('received', { command, mcps: !!mcps, cwd: currentDir });
+
+    // Modo pergunta direta
+    if (question) {
+      try {
+        const provider = process.env.DEFAULT_PROVIDER || AI_CONFIG.default_provider;
+        const providerConfig = AI_CONFIG.providers[provider];
+        const questionPrompt = config.question_mode?.system_prompt ||
+          'Você é um assistente de perguntas e respostas para automação de servidores Linux. E assuntos relacionados a tecnologia ' +
+          'Responda de forma objetiva e sucinta, sem gerar comandos, sem que seja solicitado exemplo.';
+        const messages = [
+          { role: 'system', content: questionPrompt },
+          { role: 'user',   content: command }
+        ];
+        const headers = {
+          'Authorization': `Bearer ${providerConfig.api_key}`,
+          'Content-Type': 'application/json',
+          ...providerConfig.headers
+        };
+        const payload = { model: providerConfig.default_model, messages, max_tokens: providerConfig.max_tokens };
+        const response = await axios.post(`${providerConfig.endpoint}/chat/completions`, payload, { headers });
+        const answer = response.data.choices[0].message.content;
+        send('answer', { answer });
+        send('done', { success: true });
+        return res.end();
+      } catch (err) {
+        logger.error(`Erro em pergunta (stream): ${err.message}`);
+        send('error', { message: err.message });
+        return res.end();
+      }
+    }
+
+    // Interpreta via IA
+    send('phase', { phase: 'interpreting' });
+    const interpretation = await queryAI(command, currentDir);
+
+    if (!interpretation.success) {
+      send('error', { message: interpretation.interpretation || 'Falha na interpretação' });
+      return res.end();
+    }
+
+    // Interativa
+    if (interpretation.requires_interaction) {
+      send('interactive', {
+        message: interpretation.message,
+        required_info: interpretation.required_info,
+        plan: interpretation.plan || null
+      });
+      send('done', { success: true });
+      return res.end();
+    }
+
+    // Plano arquitetado já executado
+    if (interpretation.execution_results) {
+      send('interpretation', { interpretation: interpretation.plan ? 'plan' : '' });
+      send('plan_results', { execution_results: interpretation.execution_results, plan: interpretation.plan });
+      send('done', { success: true });
+      return res.end();
+    }
+
+    // Execução MCPS passo a passo com stream
+    if (mcps) {
+      send('phase', { phase: 'mcps' });
+      const steps = await queryAIForSteps(interpretation.interpretation, currentDir);
+      send('steps', { steps });
+
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        if (!step || !step.trim()) continue;
+        send('step_start', { index: i, command: step });
+
+        await new Promise((resolveStep) => {
+          const child = spawn('bash', ['-lc', step], { cwd: currentDir });
+
+          const onClose = () => {
+            try { child.kill('SIGTERM'); } catch (_) {}
+            resolveStep();
+          };
+          res.req.once('close', onClose);
+
+          child.stdout.on('data', (chunk) => send('step_stdout', { index: i, chunk: chunk.toString() }));
+          child.stderr.on('data', (chunk) => send('step_stderr', { index: i, chunk: chunk.toString() }));
+          child.on('error', (err) => send('step_error', { index: i, message: err.message }));
+          child.on('close', (code) => { send('step_end', { index: i, code }); resolveStep(); });
+        });
+      }
+
+      send('done', { success: true });
+      return res.end();
+    }
+
+    // Execução simples com stream
+    send('interpretation', { interpretation: interpretation.interpretation });
+    streamCommand(res, interpretation.interpretation, currentDir);
+  } catch (err) {
+    const message = err?.message || 'Erro interno';
+    logger.error(`Erro em /command/stream: ${message}`);
+    try {
+      res.write(`event: error\n`);
+      res.write(`data: ${JSON.stringify({ message })}\n\n`);
+    } catch (_) {}
+    try { res.end(); } catch (_) {}
+  }
+});
+
+/**
  * Endpoint para recarregar plugins e módulos
  */
 app.post('/reload', (req, res) => {
@@ -1009,6 +1251,53 @@ app.post('/reload', (req, res) => {
   res.json({ success: true, message: 'Plugins e módulos recarregados' });
 });
 
+// Endpoint para ingestão de telemetria de agentes remotos
+app.post('/ingest', (req, res) => {
+  try {
+    const payload = req.body || {};
+    const host = payload.hostname || 'unknown';
+    ingestCounter++;
+    telemetryStore.set(host, payload);
+    logger.info(`ingest`, { type: 'telemetry', hostname: host, timestamp: payload.timestamp });
+    // TODO: persistência (MySQL) e forwarding (Kafka/Prom) podem ser plugados aqui
+    res.json({ success: true });
+  } catch (e) {
+    logger.error(`Erro em /ingest: ${e.message}`);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Endpoint Prometheus metrics
+app.get('/metrics', (_req, res) => {
+  try {
+    let lines = [];
+    lines.push('# HELP fazai_ingest_total Total de payloads recebidos em /ingest');
+    lines.push('# TYPE fazai_ingest_total counter');
+    lines.push(`fazai_ingest_total ${ingestCounter}`);
+
+    lines.push('# HELP fazai_host_load1 Load average 1m por host');
+    lines.push('# TYPE fazai_host_load1 gauge');
+    lines.push('# HELP fazai_host_mem_total_bytes Memória total por host');
+    lines.push('# TYPE fazai_host_mem_total_bytes gauge');
+    lines.push('# HELP fazai_host_mem_free_bytes Memória livre por host');
+    lines.push('# TYPE fazai_host_mem_free_bytes gauge');
+
+    for (const [host, payload] of telemetryStore.entries()) {
+      const load1 = Array.isArray(payload.os?.load) ? payload.os.load[0] : null;
+      const memTotal = payload.os?.mem?.total ?? null;
+      const memFree = payload.os?.mem?.free ?? null;
+      if (load1 !== null) lines.push(`fazai_host_load1{host="${host}"} ${load1}`);
+      if (memTotal !== null) lines.push(`fazai_host_mem_total_bytes{host="${host}"} ${memTotal}`);
+      if (memFree !== null) lines.push(`fazai_host_mem_free_bytes{host="${host}"} ${memFree}`);
+    }
+    res.setHeader('Content-Type', 'text/plain; version=0.0.4');
+    res.send(lines.join('\n') + '\n');
+  } catch (e) {
+    logger.error(`Erro em /metrics: ${e.message}`);
+    res.status(500).send('');
+  }
+});
+
 /**
  * Endpoint para verificar status do daemon
  */
@@ -1018,7 +1307,7 @@ app.get('/status', (req, res) => {
     success: true, 
     status: 'online',
     timestamp: new Date().toISOString(),
-    version: '1.41.0',
+    version: '1.42.0',
     cache: {
       size: cacheManager.size(),
       maxSize: cacheManager.maxSize

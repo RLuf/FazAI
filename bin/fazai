@@ -56,6 +56,7 @@ if (!fs.existsSync(mainJsPath)) {
 // Configuração do cliente
 const API_URL = process.env.FAZAI_API_URL || 'http://localhost:3120';
 const LOG_FILE = '/var/log/fazai/fazai.log';
+const STREAM_URL = `${API_URL}/command/stream`;
 
 // Cores para saída no terminal
 const colors = {
@@ -179,6 +180,127 @@ async function sendCommand(command) {
       // Erro na configuração da requisição
       throw new Error(`Erro ao enviar comando: ${err.message}`);
     }
+  }
+}
+
+/**
+ * Conecta ao endpoint SSE e imprime eventos em tempo real
+ * @param {{command: string, mcps?: boolean, cwd?: string, question?: boolean}} body
+ */
+async function streamToConsole(body) {
+  const http = require('http');
+  const https = require('https');
+  const url = require('url');
+  const parsed = url.parse(STREAM_URL);
+  const isHttps = parsed.protocol === 'https:';
+  const lib = isHttps ? https : http;
+
+  const payload = JSON.stringify(body);
+  const options = {
+    method: 'POST',
+    hostname: parsed.hostname,
+    port: parsed.port || (isHttps ? 443 : 80),
+    path: parsed.path,
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payload)
+    }
+  };
+
+  printInfo(`Conectando (SSE) a ${STREAM_URL}...`);
+  await new Promise((resolve, reject) => {
+    const req = lib.request(options, (res) => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        reject(new Error(`Status HTTP ${res.statusCode}`));
+        return;
+      }
+
+      res.setEncoding('utf8');
+      let buffer = '';
+
+      const flushBuffer = () => {
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            // armazenado até próximo data
+            streamToConsole._currentEvent = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            const ev = (streamToConsole._currentEvent || 'message');
+            const raw = line.slice(5).trim();
+            let data;
+            try { data = JSON.parse(raw); } catch { data = { text: raw }; }
+            renderSseEvent(ev, data);
+          }
+        }
+      };
+
+      res.on('data', (chunk) => { buffer += chunk; flushBuffer(); });
+      res.on('end', () => { flushBuffer(); resolve(); });
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+function renderSseEvent(event, data) {
+  switch (event) {
+    case 'received':
+      printInfo(`Recebido pelo daemon: "${data.command}" (mcps=${!!data.mcps})`);
+      break;
+    case 'phase':
+      printInfo(`Fase: ${data.phase}`);
+      break;
+    case 'interpretation':
+      if (data.interpretation) {
+        console.log(`\n${colors.bright}${colors.fg.yellow}Interpretação:${colors.reset} ${data.interpretation}\n`);
+      }
+      break;
+    case 'stdout':
+      process.stdout.write(data.chunk);
+      break;
+    case 'stderr':
+      process.stderr.write(`${colors.fg.yellow}${data.chunk}${colors.reset}`);
+      break;
+    case 'steps':
+      if (Array.isArray(data.steps)) {
+        printInfo(`MCPS: ${data.steps.length} passos gerados`);
+      }
+      break;
+    case 'step_start':
+      console.log(`\n${colors.bright}${colors.fg.cyan}Iniciando passo ${data.index + 1}:${colors.reset} ${data.command}`);
+      break;
+    case 'step_stdout':
+      process.stdout.write(data.chunk);
+      break;
+    case 'step_stderr':
+      process.stderr.write(`${colors.fg.yellow}${data.chunk}${colors.reset}`);
+      break;
+    case 'step_end':
+      const status = data.code === 0 ? `${colors.fg.green}OK${colors.reset}` : `${colors.fg.red}FAIL (code ${data.code})${colors.reset}`;
+      console.log(`\n${colors.bright}Passo ${data.index + 1} finalizado:${colors.reset} ${status}`);
+      break;
+    case 'plan_results':
+      printInfo('Plano arquitetado executado.');
+      break;
+    case 'interactive':
+      printWarning('Interação requerida pelo plano. Abra a interface apropriada.');
+      break;
+    case 'answer':
+      console.log(`\n${colors.bright}${colors.fg.yellow}Resposta:${colors.reset}\n${data.answer}\n`);
+      break;
+    case 'exit':
+      // apenas informativo
+      break;
+    case 'done':
+      printSuccess(`Concluído (success=${data.success})`);
+      break;
+    case 'error':
+      printError(data.message || 'Erro');
+      break;
+    default:
+      if (data?.text) console.log(data.text);
   }
 }
 
@@ -357,6 +479,12 @@ async function main() {
     printInfo('Modo debug ativado');
     args.shift();
   }
+  // Flag de streaming (--stream|-s)
+  let streamEnabled = false;
+  if (args[0] === '--stream' || args[0] === '-s') {
+    streamEnabled = true;
+    args.shift();
+  }
   
   // Comandos especiais
   if (args.length === 0) {
@@ -366,7 +494,7 @@ async function main() {
   
   if (args[0] === 'ajuda' || args[0] === 'help' || args[0] === '--help') {
     console.log(`
-${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.41.0${colors.reset}
+${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.42.0${colors.reset}
 
 ${colors.bright}Compatível com:${colors.reset}
   • Debian/Ubuntu
@@ -374,7 +502,7 @@ ${colors.bright}Compatível com:${colors.reset}
   • WSL (Debian/Ubuntu)
 
 ${colors.bright}Uso:${colors.reset}
-  fazai [-d|--debug] <comando>
+  fazai [-d|--debug] [--stream|-s] <comando>
 
 ${colors.bright}Comandos de Sistema:${colors.reset}
   ajuda, help, --help         Exibe esta mensagem de ajuda
@@ -415,6 +543,7 @@ ${colors.bright}Comandos de Configuração:${colors.reset}
 
 ${colors.bright}Modo MCPS (Planejamento Passo a Passo):${colors.reset}
   mcps <tarefa>               Exemplo: fazai mcps atualizar o sistema
+  mcps --stream <tarefa>      Executa MCPS com saída em tempo real
 
 ${colors.bright}Provedores de IA Suportados:${colors.reset}
   • OpenRouter (padrão)       - Múltiplos modelos via OpenRouter
@@ -473,7 +602,7 @@ ${colors.bright}Para mais informações:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log(`FazAI v1.41.0`);
+    console.log(`FazAI v1.42.0`);
     process.exit(0);
   }
 
@@ -756,7 +885,11 @@ ${colors.bright}Para mais informações:${colors.reset}
     }
 
     try {
-      printInfo(`Enviando comando MCPS: "${mcpsCommand}"`);
+      printInfo(`Enviando comando MCPS${streamEnabled ? ' (stream)' : ''}: "${mcpsCommand}"`);
+      if (streamEnabled) {
+        await streamToConsole({ command: mcpsCommand, mcps: true });
+        process.exit(0);
+      }
       const result = await sendCommandMcps(mcpsCommand);
 
       if (result.success) {
@@ -782,8 +915,11 @@ ${colors.bright}Para mais informações:${colors.reset}
   const command = args.join(' ');
   
   try {
-    printInfo(`Enviando comando: "${command}"`);
-    
+    printInfo(`Enviando comando${streamEnabled ? ' (stream)' : ''}: "${command}"`);
+    if (streamEnabled) {
+      await streamToConsole({ command });
+      process.exit(0);
+    }
     const result = await sendCommand(command);
     
     if (result.success) {

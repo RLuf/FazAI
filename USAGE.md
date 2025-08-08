@@ -1,4 +1,4 @@
-# FazAI - Guia de Uso v1.41.0
+# FazAI - Guia de Uso v1.42.0
 
 Este documento apresenta de forma organizada os principais comandos e exemplos para utilização do FazAI.
 
@@ -43,6 +43,22 @@ Use o FazAI para obter informações do servidor sem sair do CLI:
   fazai uptime              # Tempo de atividade (uptime)
   fazai html <tipo> [graf]  # Gera gráfico HTML (tipo: memoria, disco, processos)
   fazai tui                 # Abre o dashboard TUI (ncurses)
+  fazai --completion-help   # Ajuda do bash completion
+
+## 4.1 Integrações de Monitoramento
+
+- SNMP (consulta de OIDs)
+  - MCPS: `tool:snmp_monitor param={"host":"192.168.0.1","community":"public","oids":["1.3.6.1.2.1.1.1.0"]}`
+
+- Prometheus/Grafana
+  - Subir Prometheus/Grafana via MCPS usando ferramentas geradas por `auto_tool` ou scripts próprios
+  - Expor métricas via endpoint customizado (a ser adicionado) e/ou exporters
+
+- Agentes remotos
+  - `tool:agent_supervisor param={"hosts":["192.168.0.10"],"interval":30}` envia telemetria para `POST /ingest`
+
+- Qdrant (RAG)
+  - `tool:qdrant_setup param={"port":6333,"collection":"linux_networking_tech"}`
 
 ## 5. Modo MCPS (Planejamento Passo a Passo)
 

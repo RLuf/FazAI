@@ -4,6 +4,17 @@
 
 FazAI é um sistema de automação inteligente para servidores Linux, que permite executar comandos complexos usando linguagem natural e inteligência artificial.
 
+## Principais recursos (v1.42.0)
+
+- IA local com Gemma (gemma.cpp) integrada: baixa latência e operação offline
+- Geração dinâmica de ferramentas (auto_tool) a partir de linguagem natural
+- Monitoração e QoS por IP (nftables + tc) com gráfico HTML (top 10 IPs)
+- Agentes remotos com ingestão em `/ingest` e métricas Prometheus em `/metrics`
+- Integrações de segurança ativas: ModSecurity, Suricata, CrowdSec, Monit
+- SNMP (consultas de OIDs) para equipamentos de rede
+- APIs de terceiros prontas: Cloudflare (DNS/Firewall) e SpamExperts (domínios/políticas)
+- Suporte a Qdrant (RAG) para consultas semânticas de redes/Linux
+
 Consulte o [CHANGELOG](CHANGELOG.md) para histórico completo de alterações.
 
 **Para instruções detalhadas de uso, consulte [Instruções de Uso](USAGE.md).**
@@ -85,7 +96,7 @@ sudo ./install.sh
 
 ### Instalação via Docker
 
-O FazAI pode ser executado em um container Docker, facilitando a instalação e execução em qualquer ambiente:
+O FazAI pode ser executado em um container Docker, facilitando a instalação e execução em qualquer ambiente. A imagem inclui o daemon, ferramentas e endpoints (`/status`, `/logs`, `/ingest`, `/metrics`).
 
 ```bash
 # Construir a imagem
@@ -159,10 +170,14 @@ fazai -d sistema
 ## Interface TUI
 
 Se o `cargo` estiver disponível durante a instalação, o FazAI compila um painel
-TUI em Rust usando a biblioteca `ratatui`. O binário resultante é instalado em
-`/usr/local/bin/fazai-tui`. Caso o Rust não esteja presente ou a compilação
-falhe, o instalador mantém o painel Bash tradicional localizado em
-`/opt/fazai/tools/fazai-tui.sh`.
+TUI em Rust (`ratatui`) com cabeçalho em ASCII (rosto + "FazAI" + assinatura).
+O binário resultante é instalado em `/usr/local/bin/fazai-tui`.
+
+Caso o Rust não esteja presente ou a compilação falhe, o instalador mantém o
+painel Bash tradicional localizado em `/opt/fazai/tools/fazai-tui.sh` (com os
+mesmos elementos de identidade visual em ASCII).
+
+Atalhos: `q` (sair), futuras integrações: `l` (logs), `s` (status), `m` (métricas).
 
 ## Configuração
 
@@ -181,15 +196,32 @@ sudo nano /etc/fazai/fazai.conf
 - **Google Gemini** (https://generativelanguage.googleapis.com/v1beta) - Gemini Pro, Pro Vision
 - **Requesty** (https://router.requesty.ai/v1) - Gateway para múltiplos provedores
 - **Ollama** (http://127.0.0.1:11434/v1) - Modelos locais (llama3.2, mixtral, etc.)
+- **Gemma local (gemma.cpp)** - Via provedor interno `gemma_cpp` (requer pesos/tokenizer)
 
 ### Sistema de Fallback
 
 O FazAI implementa um sistema de fallback robusto que garante alta disponibilidade:
 
-1. **Fallback entre Provedores**: Ordem automática: OpenRouter → DeepSeek → Requesty → OpenAI → Anthropic → Gemini → Ollama
+1. **Fallback entre Provedores**: Ordem automática: gemma_cpp → OpenRouter → DeepSeek → Requesty → OpenAI → Anthropic → Gemini → Ollama
 2. **Fallback Local**: `fazai_helper.js` e `deepseek_helper.js` para operação offline
 3. **GenaiScript**: Arquitetamento de comandos complexos usando modelos locais
 4. **Cache Inteligente**: Reduz latência e custos para comandos repetidos
+
+### Telemetria e Observabilidade
+
+- Agentes remotos: envio periódico para `POST /ingest`
+- Endpoint Prometheus: `GET /metrics` (integração fácil com Grafana)
+- Gráficos HTML gerados por ferramentas (ex.: top IPs)
+
+### Ferramentas inclusas (seleção)
+
+- `auto_tool`: gera ferramentas sob demanda a partir de descrição
+- `net_qos_monitor`: monitora por IP (nftables), gera gráfico top10, aplica `tc`
+- `agent_supervisor`: instala/inicia agentes remotos (via SSH)
+- `snmp_monitor`: consultas SNMP v2c a OIDs
+- `modsecurity_setup`, `suricata_setup`, `crowdsec_setup`, `monit_setup`: wrappers/instaladores de segurança
+- `qdrant_setup`: sobe Qdrant via Docker e cria coleção para RAG
+- `cloudflare`, `spamexperts`: APIs de terceiros
 
 ### Comandos de Configuração
 

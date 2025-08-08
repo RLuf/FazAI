@@ -1,11 +1,11 @@
 ###############################################################################
 # FazAI - Arquivo de Configuração Principal
-# Versão: 1.41.0
+# Versão: 1.42.0
 #
 # Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL
 #
 # Este arquivo configura o comportamento do sistema FazAI, incluindo:
-# - Provedores de IA (OpenRouter, Requesty, OpenAI, Anthropic, Gemini, Ollama)
+# - Provedores de IA (OpenRouter, Requesty, OpenAI, Anthropic, Gemini, Ollama, Gemma local)
 # - Sistema de orquestração (modos de planejamento e ação)
 # - Configurações gerais do sistema
 # - Sistema de cache e performance
@@ -37,6 +37,71 @@ max_retries = 3
 
 # Tempo de espera entre tentativas (em segundos)
 retry_delay = 2
+
+###############################################################################
+# GEMMA LOCAL (gemma.cpp)
+###############################################################################
+
+[gemma_cpp]
+# Habilita o uso do Gemma local compilado (gemma.cpp)
+enabled = true
+# Caminhos padrão dos pesos/tokenizer (pode ser sobrescrito por variáveis de ambiente)
+weights = /root/gemma.cpp/build/gemma2-2b-it-sfp.sbs
+tokenizer = /root/gemma.cpp/build/tokenizer.spm
+model = gemma2-2b-it
+
+###############################################################################
+# TELEMETRIA / PROMETHEUS
+###############################################################################
+
+[telemetry]
+# Habilita ingestão de telemetria via POST /ingest
+enable_ingest = true
+# Habilita exposição Prometheus em GET /metrics
+enable_metrics = true
+
+###############################################################################
+# BANCO DE DADOS (MySQL)
+###############################################################################
+
+[mysql]
+enabled = false
+host = 127.0.0.1
+port = 3306
+database = fazai
+user = fazai
+password = trocar_senha
+
+###############################################################################
+# QDRANT (RAG)
+###############################################################################
+
+[qdrant]
+enabled = false
+url = http://127.0.0.1:6333
+collection = linux_networking_tech
+dim = 1024
+
+###############################################################################
+# INTEGRAÇÕES EXTERNAS (CLOUDFLARE / SPAMEXPERTS)
+###############################################################################
+
+[cloudflare]
+api_token = sua_chave_cloudflare_aqui
+
+[spamexperts]
+base_url = https://seu-endpoint.spamexperts.com
+api_key = sua_chave_spamexperts_aqui
+
+###############################################################################
+# SEGURANÇA ATIVA (WRAPPERS)
+###############################################################################
+
+[security]
+modsecurity = false
+suricata = false
+crowdsec = false
+monit = true
 
 ###############################################################################
 # CONFIGURAÇÃO DO OPENROUTER
