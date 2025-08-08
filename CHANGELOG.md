@@ -40,7 +40,7 @@
 - **Sistema de cache inteligente** com TTL configurável e limpeza automática.
 - **Suporte a múltiplos provedores de IA**: OpenRouter, OpenAI, Requesty, Anthropic (Claude), Google Gemini, Ollama.
 - **Sistema de fallback robusto** que tenta automaticamente o próximo provedor em caso de falha.
-- **Sistema de fallback local** com `fazai_helper.js` e `deepseek_helper.js` para operação offline.
+- **Sistema de fallback local** com `fazai_helper.js` para operação offline (DeepSeek removido em 1.42.0).
 - **GenaiScript** para arquitetamento de comandos complexos usando modelos locais.
 - **Logs aprimorados** com rotação automática, níveis separados e formatação colorida.
 - **Ferramenta de configuração melhorada** (`fazai-config.js`) com interface interativa.
