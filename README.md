@@ -147,6 +147,18 @@ fazai altere a porta do ssh de 22 para 31052
 
 # Modo MCPS passo a passo
 fazai mcps atualizar sistema
+
+# Stream em tempo real (SSE)
+fazai -s "ls -la /; sleep 1; echo fim"
+
+# Sessão interativa (WebSocket + PTY)
+fazai interactive
+
+# Pergunta direta (-q) sem executar comandos
+fazai -q "o que é kernel?"
+
+# Pergunta direta com stream (-s -q)
+fazai -s -q "pesquise por kernel e retorne um link relevante"
 ```
 
 ### Modo Debug
@@ -202,8 +214,8 @@ sudo nano /etc/fazai/fazai.conf
 
 O FazAI implementa um sistema de fallback robusto que garante alta disponibilidade:
 
-1. **Fallback entre Provedores**: Ordem automática: gemma_cpp → Gemma (local) → Llama server → OpenRouter → Requesty → OpenAI → Anthropic → Gemini → Ollama
-2. **Fallback Local**: `fazai_helper.js` (DeepSeek removido) para operação offline
+1. **Fallback entre Provedores**: Ordem automática: gemma_cpp → Llama server → OpenRouter → Requesty → OpenAI → Anthropic → Gemini → Ollama
+2. **Fallback Local**: `fazai_helper.js` para operação offline (DeepSeek removido)
 3. **GenaiScript**: Arquitetamento de comandos complexos usando modelos locais
 4. **Cache Inteligente**: Reduz latência e custos para comandos repetidos
 
