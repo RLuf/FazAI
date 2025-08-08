@@ -23,7 +23,9 @@
     "figlet": ">=1.5.2",
     "inquirer": ">=8.2.4",
     "winston": ">=3.8.1",
-    "mysql2": ">=3.9.7"
+    "mysql2": ">=3.9.7",
+    "ws": ">=8.0.0",
+    "node-pty": ">=1.0.0"
   },
   "devDependencies": {
     "nodemon": ">=2.0.19"

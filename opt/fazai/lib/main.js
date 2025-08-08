@@ -117,9 +117,10 @@ const logger = winston.createLogger({
   ]
 });
 
-// Configuração do servidor Express
+// Configuração do servidor Express + placeholder para WebSocket
 const app = express();
 const PORT = process.env.PORT || 3120;
+let server; // http server será inicializado em FazAIDaemon.start()
 
 // Configuração unificada de provedores de IA
 let AI_CONFIG = {
@@ -1496,8 +1497,15 @@ class FazAIDaemon extends EventEmitter {
     // Health check
     app.get('/health', (_req, res) => res.sendStatus(200));
 
-    // Inicia o servidor HTTP
-    app.listen(PORT, () => this.log(`Servidor ouvindo na porta ${PORT}`));
+    // Inicia o servidor HTTP e WebSocket interativo
+    const http = require('http');
+    server = http.createServer(app);
+    try {
+      setupInteractiveWs(server);
+    } catch (e) {
+      this.log(`WS interativo indisponível: ${e.message}`, 'warn');
+    }
+    server.listen(PORT, () => this.log(`Servidor ouvindo na porta ${PORT}`));
   }
 
   /**
@@ -1523,6 +1531,61 @@ class FazAIDaemon extends EventEmitter {
   log(message, level = 'info') {
     this.logger.log({ level, message });
   }
+}
+
+// WebSocket interativo via node-pty
+function setupInteractiveWs(httpServer) {
+  let WebSocketServer, nodePty;
+  try {
+    WebSocketServer = require('ws').Server;
+    nodePty = require('node-pty');
+  } catch (e) {
+    logger.warn('Dependências WS/PTY ausentes; modo interativo desabilitado');
+    return;
+  }
+
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws/interactive' });
+  logger.info('WebSocket interativo habilitado em /ws/interactive');
+
+  wss.on('connection', (ws, req) => {
+    // Inicia um shell de login não-interativo com bash -lc, com TTY
+    const shell = process.env.SHELL || 'bash';
+    const pty = nodePty.spawn(shell, ['-lc', ''], {
+      name: 'xterm-color',
+      cols: 120,
+      rows: 32,
+      cwd: process.env.HOME,
+      env: process.env
+    });
+
+    const send = (type, payload) => {
+      try { ws.send(JSON.stringify({ type, ...payload })); } catch (_) {}
+    };
+
+    send('ready', { cols: 120, rows: 32 });
+
+    pty.onData((data) => send('stdout', { data }));
+    pty.onExit(({ exitCode, signal }) => {
+      send('exit', { code: exitCode, signal });
+      try { ws.close(); } catch (_) {}
+    });
+
+    ws.on('message', (msg) => {
+      try {
+        const m = JSON.parse(msg.toString());
+        if (m.type === 'stdin' && typeof m.data === 'string') {
+          pty.write(m.data);
+        } else if (m.type === 'resize' && m.cols && m.rows) {
+          pty.resize(m.cols, m.rows);
+        } else if (m.type === 'exec' && typeof m.cmd === 'string') {
+          pty.write(`${m.cmd}\n`);
+        }
+      } catch (_) {}
+    });
+
+    ws.on('close', () => { try { pty.kill(); } catch (_) {} });
+    ws.on('error', () => { try { pty.kill(); } catch (_) {} });
+  });
 }
 
 // Sistema de Arquitetamento
