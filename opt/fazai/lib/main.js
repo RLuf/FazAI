@@ -133,7 +133,7 @@ let AI_CONFIG = {
     openrouter: {
       api_key: '',
       endpoint: 'https://openrouter.ai/api/v1',
-      default_model: 'deepseek/deepseek-r1-0528:free',
+      default_model: 'openai/gpt-4o',
       temperature: 0.3,
       max_tokens: 2000,
       headers: {
@@ -418,12 +418,7 @@ async function architectCommand(command) {
   // Auto-instala genaiscript.js se ausente
   const genaiPath = path.join(__dirname, 'genaiscript.js');
   if (!fs.existsSync(genaiPath)) {
-    logger.info('genaiscript.js não encontrado, executando instalador...');
-    try {
-      execSync('/opt/fazai/lib/tools/install-genaiscript.sh', { stdio: 'inherit' });
-    } catch (instErr) {
-      logger.error('Erro ao instalar genaiscript.js:', instErr);
-    }
+    logger.warn('genaiscript.js não encontrado, prosseguindo com fallback seguro');
   }
   try {
     // Tenta usar genaiscript primeiro
@@ -476,7 +471,6 @@ Para comandos como SMTP/email, sempre inclua "needs_agent": true e pergunte por 
         });
       });
     } else {
-      // Fallback direto para deepseek
       return { interpretation: 'echo "Falha no arquitetamento"', success: false };
     }
   } catch (err) {
@@ -1435,7 +1429,6 @@ app.get('/logs/download', (req, res) => {
 // Configurações centralizadas
 const CONFIG = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
   FALLBACK_EMAIL: process.env.FALLBACK_EMAIL || 'roger@webstorage.com.br',
   MAX_RETRIES: parseInt(process.env.MAX_RETRIES, 10) || 3,
   MIN_WORDS_FOR_ARCHITECTURE: parseInt(process.env.MIN_WORDS_FOR_ARCHITECTURE, 10) || 4
