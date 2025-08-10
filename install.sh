@@ -32,7 +32,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Variáveis de configuração
-VERSION="1.42.0"
+VERSION="1.42.1"
 LOG_FILE="/var/log/fazai_install.log"
 RETRY_COUNT=3
 INSTALL_STATE_FILE="/var/lib/fazai/install.state"
@@ -641,7 +641,7 @@ const fs = require('fs');
 const args = process.argv.slice(2);
 
 if (args.includes('--version')) {
-  console.log('FazAI v1.42.0');
+  console.log('FazAI v1.42.1');
   process.exit(0);
 }
 
@@ -671,7 +671,7 @@ if (args.includes('--status')) {
   process.exit(0);
 }
 
-console.log('FazAI CLI v1.42.0 - Use --help para mais informações');
+console.log('FazAI CLI v1.42.1 - Use --help para mais informações');
 EOF
     chmod +x "bin/fazai"
   fi
@@ -717,6 +717,16 @@ EOF
     fi
     if [ -f "/root/.env" ]; then
       /bin/bash /opt/fazai/tools/sync-keys.sh >/dev/null 2>&1 && log "INFO" "Chaves sincronizadas do .env"
+    fi
+  fi
+
+  # Copia gemma_bootstrap
+  if [ -f "opt/fazai/tools/gemma_bootstrap.sh" ]; then
+    if ! copy_with_verification "opt/fazai/tools/gemma_bootstrap.sh" "/opt/fazai/tools/" "Gemma bootstrap"; then
+      copy_errors=$((copy_errors+1))
+    else
+      chmod +x /opt/fazai/tools/gemma_bootstrap.sh
+      log "SUCCESS" "Gemma bootstrap instalado"
     fi
   fi
   
@@ -853,7 +863,7 @@ EOF
     cat > "/opt/fazai/tools/fazai-tui.sh" << 'EOF'
 #!/bin/bash
 # FazAI Dashboard TUI - Versão Básica
-echo "FazAI Dashboard TUI v1.42.0"
+echo "FazAI Dashboard TUI v1.42.1"
 echo "
   if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
     copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"
@@ -1144,7 +1154,7 @@ install_node_dependencies() {
     cat > "package.json" << 'EOF'
 {
   "name": "fazai",
-  "version": "1.42.0",
+  "version": "1.42.1",
   "description": "FazAI - Orquestrador Inteligente de Automação",
   "main": "main.js",
   "dependencies": {
@@ -1271,7 +1281,7 @@ install_tui() {
 const fs = require('fs');
 const path = require('path');
 
-console.log('FazAI - Interface de Configuração TUI v1.42.0');
+console.log('FazAI - Interface de Configuração TUI v1.42.1');
 console.log('=========================================');
 console.log('');
 console.log('Funcionalidades disponíveis:');

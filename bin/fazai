@@ -501,7 +501,7 @@ async function main() {
   
   if (args[0] === 'ajuda' || args[0] === 'help' || args[0] === '--help') {
     console.log(`
-${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.42.0${colors.reset}
+${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.42.1${colors.reset}
 
 ${colors.bright}Compatível com:${colors.reset}
   • Debian/Ubuntu
@@ -611,7 +611,7 @@ ${colors.bright}Para mais informações:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log(`FazAI v1.42.0`);
+    console.log('FazAI v1.42.1');
     process.exit(0);
   }
 

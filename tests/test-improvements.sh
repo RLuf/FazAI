@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FazAI - Script de Teste das Melhorias v1.42.0
+# FazAI - Script de Teste das Melhorias v1.42.1
 # Testa as novas funcionalidades implementadas
 
 set -e
@@ -237,7 +237,7 @@ test_fallback_system() {
 # Função principal
 main() {
     echo "=========================================="
-    echo "FazAI - Teste das Melhorias v1.42.0"
+    echo "FazAI - Teste das Melhorias v1.42.1"
     echo "=========================================="
     echo ""
     

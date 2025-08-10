@@ -5,7 +5,7 @@
  * Autor: Roger Luft
  * Licença: Creative Commons Attribution 4.0 International (CC BY 4.0)
  * https://creativecommons.org/licenses/by/4.0/
- * Versão: 1.42.0
+ * Versão: 1.42.2
  */
 
 /**
@@ -89,8 +89,8 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   defaultMeta: { 
-    service: 'fazai-daemon',
-    version: '1.42.0'
+    version: '1.42.2',
+    service: 'fazai-daemon'
   },
   transports: [
     // Arquivo principal com rotação
@@ -188,8 +188,13 @@ let AI_CONFIG = {
     },
     gemma_cpp: {
       api_key: '',
-      endpoint: '/root/gemma.cpp/build/gemma',
+      endpoint: '/opt/fazai/bin/gemma_oneshot',
       default_model: 'gemma2-2b-it',
+      // Extras lidos do conf: weights/tokenizer/model
+      weights: '/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs',
+      tokenizer: '/opt/fazai/models/gemma/tokenizer.spm',
+      // Prompt padrão para instruir o modelo local a responder somente com 1 comando shell
+      prompt: 'Responda APENAS com um comando shell Linux que atenda ao pedido a seguir. Sem explicações, sem comentários, sem markdown, sem crases. Se houver várias opções, escolha a mais direta e compatível com sistemas Linux comuns. Pedido:',
       temperature: 0.2,
       max_tokens: 1024,
       no_auth: true
@@ -201,6 +206,44 @@ let AI_CONFIG = {
 
 // Middleware para processar JSON
 app.use(express.json());
+// CORS para permitir frontend file:// e outras origens acessarem a API
+app.use((req, res, next) => {
+  try {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+  } catch (_) {}
+  next();
+});
+
+// Servir frontend web diretamente pelo daemon para evitar problemas com file://
+try {
+  const staticDir = '/opt/fazai/tools';
+  app.use('/web', express.static(staticDir));
+  // Redireciona raiz para /ui
+  app.get('/', (_req, res) => res.redirect('/ui'));
+  // Página principal da UI
+  app.get('/ui', (_req, res) => {
+    try {
+      res.sendFile(path.join(staticDir, 'fazai_web_frontend.html'));
+    } catch (e) {
+      res.status(500).send('Frontend indisponível');
+    }
+  });
+  // Acesso direto a /web sem nome de arquivo
+  app.get('/web', (_req, res) => {
+    try {
+      res.sendFile(path.join(staticDir, 'fazai_web_frontend.html'));
+    } catch (e) {
+      res.status(500).send('Frontend indisponível');
+    }
+  });
+} catch (e) {
+  logger.warn(`Falha ao configurar frontend estático: ${e.message}`);
+}
 
 // Diretório de plugins e módulos
 const TOOLS_DIR = '/opt/fazai/tools';
@@ -330,7 +373,7 @@ try {
     }
 
     // Atualiza configurações específicas dos provedores
-    ['openrouter', 'openai', 'requesty', 'ollama', 'anthropic', 'gemini'].forEach(provider => {
+    ['openrouter', 'openai', 'requesty', 'ollama', 'anthropic', 'gemini', 'gemma_cpp', 'llama_server'].forEach(provider => {
       if (config[provider]) {
         Object.keys(config[provider]).forEach(key => {
           if (AI_CONFIG.providers[provider][key] !== undefined) {
@@ -339,6 +382,32 @@ try {
         });
       }
     });
+
+    // Auto-bootstrap Gemma se configurado e faltar binário ou pesos
+    const gemma = AI_CONFIG.providers.gemma_cpp || {};
+    const needBootstrap = (
+      (gemma.endpoint && !fs.existsSync(gemma.endpoint)) ||
+      (gemma.weights && !fs.existsSync(gemma.weights))
+    );
+    if (config.gemma_cpp?.enabled === 'true' && needBootstrap) {
+      try {
+        logger.info('Gemma ausente (binário/pesos). Executando bootstrap...');
+        const bootstrapPath = '/opt/fazai/tools/gemma_bootstrap.sh';
+        if (fs.existsSync(bootstrapPath)) {
+          exec(`sudo -n ${bootstrapPath} || ${bootstrapPath}`, (error, stdout, stderr) => {
+            if (error) {
+              logger.warn(`Falha no bootstrap Gemma: ${error.message}`);
+            } else {
+              logger.info('Bootstrap Gemma concluído');
+            }
+          });
+        } else {
+          logger.warn('gemma_bootstrap.sh não encontrado');
+        }
+      } catch (e) {
+        logger.warn(`Erro ao tentar bootstrap do Gemma: ${e.message}`);
+      }
+    }
 
     logger.info('Configuração carregada com sucesso');
     // Ajusta nível de log via seção [logging]
@@ -611,7 +680,7 @@ async function queryAI(command, cwd = process.env.HOME) {
     
     // Verifica se o provedor tem chave de API configurada
     const apiKey = providerConfig.api_key || process.env[`${provider.toUpperCase()}_API_KEY`];
-    if (provider !== 'ollama' && !apiKey) {
+    if (provider !== 'ollama' && !apiKey && !providerConfig.no_auth) {
       logger.info(`Pulando ${provider} - chave de API não configurada`);
       continue;
     }
@@ -619,23 +688,19 @@ async function queryAI(command, cwd = process.env.HOME) {
     try {
       logger.info(`Tentando provedor: ${provider} (tentativa ${i + 1}/${providers.length})`);
       if (provider === 'gemma_cpp') {
-        // Invoca o binário local do gemma.cpp e retorna a saída diretamente
-        const weights = process.env.GEMMA_WEIGHTS || '/root/gemma.cpp/build/gemma2-2b-it-sfp.sbs';
-        const tokenizer = process.env.GEMMA_TOKENIZER || '/root/gemma.cpp/build/tokenizer.spm';
-        const model = process.env.GEMMA_MODEL || 'gemma2-2b-it';
-        const maxTokens = providerConfig.max_tokens || 1024;
+        // Invoca o binário local do gemma.cpp com prompt forte para comando único
+        const bin = (providerConfig.endpoint || '/opt/fazai/bin/gemma_oneshot').trim();
+        const model = (providerConfig.default_model || process.env.GEMMA_MODEL || 'gemma2-2b-it').trim();
+        const weights = (providerConfig.weights || process.env.GEMMA_WEIGHTS || '/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs').trim();
+        const tokenizer = (providerConfig.tokenizer || process.env.GEMMA_TOKENIZER || '/opt/fazai/models/gemma/tokenizer.spm').trim();
+        const promptPrefix = (providerConfig.prompt || 'Responda APENAS com um comando shell Linux que atenda ao pedido a seguir. Sem explicações, sem comentários, sem markdown, sem crases. Se houver várias opções, escolha a mais direta e compatível com sistemas Linux comuns. Pedido:').trim();
         const verbosity = 0;
-        const bin = '/root/gemma.cpp/build/gemma_oneshot';
-        const args = [
-          bin,
-          '--weights', weights,
-          '--tokenizer', tokenizer,
-          '--model', model,
-          '--verbosity', String(verbosity)
-        ];
+        const args = [bin, '--weights', weights, '--model', model, '--verbosity', String(verbosity)];
+        if (tokenizer) { args.push('--tokenizer', tokenizer); }
+        const input = `${promptPrefix} ${command}\n`;
         const { execFileSync } = require('child_process');
         try {
-          const out = execFileSync(args[0], args.slice(1), { encoding: 'utf8', input: command + '\n' });
+          const out = execFileSync(args[0], args.slice(1), { encoding: 'utf8', input });
           return { interpretation: out.trim(), success: true };
         } catch (e) {
           throw new Error(`gemma_cpp falhou: ${e.message}`);
@@ -1013,7 +1078,19 @@ app.post('/command', async (req, res) => {
 
     if (mcps) {
       logger.info('Modo MCPS habilitado');
-      const steps = await queryAIForSteps(interpretation.interpretation, currentDir);
+      const mcpsSeed = (function normalize(script){
+        try {
+          if (typeof script !== 'string') return '';
+          let s = script.trim();
+          if (s.startsWith('```')) {
+            s = s.replace(/^```[a-zA-Z0-9_-]*\s*\n/, '');
+            s = s.replace(/\n```\s*$/, '');
+          }
+          s = s.replace(/^`+/, '').replace(/`+$/, '');
+          return s.trim();
+        } catch (_) { return String(script || '').trim(); }
+      })(interpretation.interpretation);
+      const steps = await queryAIForSteps(mcpsSeed, currentDir);
       const results = [];
       for (const step of steps) {
         try {
@@ -1034,7 +1111,21 @@ app.post('/command', async (req, res) => {
     } else {
       // Executa o comando interpretado (modo tradicional)
       logger.info('Executando comando interpretado');
-      const result = await executeCommand(interpretation.interpretation, currentDir);
+      const normalized = (function normalize(script){
+        try {
+          if (typeof script !== 'string') return '';
+          let s = script.trim();
+          if (s.startsWith('```')) {
+            s = s.replace(/^```[a-zA-Z0-9_-]*\s*\n/, '');
+            s = s.replace(/\n```\s*$/, '');
+          }
+          s = s.replace(/^`+/, '').replace(/`+$/, '');
+          // Apenas a primeira linha para evitar texto extra
+          s = s.split('\n')[0].trim();
+          return s;
+        } catch (_) { return String(script || '').trim(); }
+      })(interpretation.interpretation);
+      const result = await executeCommand(normalized, currentDir);
 
       logger.info('Comando executado com sucesso');
       res.json({
@@ -1196,8 +1287,25 @@ app.post('/command/stream', async (req, res) => {
     }
 
     // Execução simples com stream
-    send('interpretation', { interpretation: interpretation.interpretation });
-    streamCommand(res, interpretation.interpretation, currentDir);
+    const normalizeForExec = (script) => {
+      try {
+        if (typeof script !== 'string') return '';
+        let s = script.trim();
+        // Remove fenced code blocks
+        if (s.startsWith('```')) {
+          s = s.replace(/^```[a-zA-Z0-9_-]*\s*\n/, '');
+          s = s.replace(/\n```\s*$/, '');
+        }
+        // Remove inline backticks
+        s = s.replace(/^`+/, '').replace(/`+$/,'').trim();
+        // Usa apenas a primeira linha
+        s = s.split('\n')[0].trim();
+        return s;
+      } catch (_) { return String(script || '').trim(); }
+    };
+    const normalized = normalizeForExec(interpretation.interpretation);
+    send('interpretation', { interpretation: normalized });
+    streamCommand(res, normalized, currentDir);
   } catch (err) {
     const message = err?.message || 'Erro interno';
     logger.error(`Erro em /command/stream: ${message}`);
@@ -1292,7 +1400,7 @@ app.get('/status', (req, res) => {
     success: true, 
     status: 'online',
     timestamp: new Date().toISOString(),
-    version: '1.42.0',
+            version: '1.42.2',
     cache: {
       size: cacheManager.size(),
       maxSize: cacheManager.maxSize
@@ -1505,7 +1613,7 @@ class FazAIDaemon extends EventEmitter {
     } catch (e) {
       this.log(`WS interativo indisponível: ${e.message}`, 'warn');
     }
-    server.listen(PORT, () => this.log(`Servidor ouvindo na porta ${PORT}`));
+    server.listen(PORT, '0.0.0.0', () => this.log(`Servidor ouvindo na porta ${PORT} (0.0.0.0)`));
   }
 
   /**

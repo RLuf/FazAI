@@ -4,7 +4,7 @@
 
 FazAI é um sistema de automação inteligente para servidores Linux, que permite executar comandos complexos usando linguagem natural e inteligência artificial.
 
-## Principais recursos (v1.42.0)
+## Principais recursos (v1.42.1)
 
 - IA local com Gemma (gemma.cpp) integrada: baixa latência e operação offline
 - Geração dinâmica de ferramentas (auto_tool) a partir de linguagem natural

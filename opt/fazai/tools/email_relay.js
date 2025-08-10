@@ -50,7 +50,11 @@ async function configurePostfixRelay({ relayhost = '', myhostname = '', mynetwor
   // Integração com SpamAssassin via content_filter
   await postconf('content_filter', 'spamassassin:dummy');
   // Master.cf: adiciona serviço spamassassin
-  await execPromise("bash -lc 'grep -q "^spamassassin" /etc/postfix/master.cf || printf "\nspamassassin  unix  -       n       n       -       -       pipe\n  user=spamd argv=/usr/bin/spamc -f -e /usr/sbin/sendmail -oi -f \"${sender}\" -- ${recipient}\n" | tee -a /etc/postfix/master.cf' ");
+  const spamassassinConfig = `
+spamassassin  unix  -       n       n       -       -       pipe
+  user=spamd argv=/usr/bin/spamc -f -e /usr/sbin/sendmail -oi -f "\${sender}" -- \${recipient}
+`;
+  await execPromise(`bash -c 'grep -q "^spamassassin" /etc/postfix/master.cf || printf "${spamassassinConfig}" | tee -a /etc/postfix/master.cf'`);
   await execPromise('systemctl restart postfix');
 }
 

@@ -1,8 +1,8 @@
-# FazAI - TODO e Roadmap v1.42.0+
+# FazAI - TODO e Roadmap v1.42.1+
 
 ## 🚀 Próximas Implementações
 
-### v1.42.0 - Cache Persistente e Métricas
+### v1.42.1 - Cache Persistente e Métricas
 - [ ] **Cache Persistente**: Armazenamento em disco para sobreviver a reinicializações
 - [ ] **Métricas Avançadas**: Dashboard com estatísticas de uso e performance
 - [ ] **Plugins Dinâmicos**: Sistema de plugins mais robusto e modular
@@ -301,4 +301,4 @@ module.exports = { GemmaKernelInterface };
 
 **Última atualização:** 06/07/2025  
 **Versão:** 1.41.0  
-**Próxima versão planejada:** 1.42.0 
+**Próxima versão planejada:** 1.42.2 

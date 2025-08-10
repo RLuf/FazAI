@@ -2,7 +2,7 @@
 
 # FazAI - Script de Desinstalação
 # Este script remove o FazAI do sistema
-# Versão: 1.42.0 - Atualizado para limpeza completa e reinstalação
+# Versão: 1.42.1 - Atualizado para limpeza completa e reinstalação
 
 # Cores para saída no terminal
 RED='\033[0;31m'
@@ -14,7 +14,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Versão do script
-VERSION="1.42.0"
+VERSION="1.42.1"
 
 # Função para exibir mensagens
 print_message() {
@@ -115,7 +115,7 @@ if [ "$PRESERVE_CONFIG" = true ]; then
         print_success "Configuração principal salva no backup"
     fi
     
-    # Backup das ferramentas específicas (v1.42.0)
+    # Backup das ferramentas específicas (v1.42.1)
     TOOLS_TO_BACKUP=(
         "/opt/fazai/tools/github-setup.sh"
         "/opt/fazai/tools/sync-changes.sh"
@@ -176,7 +176,7 @@ else
     print_warning "Link simbólico do CLI não encontrado."
 fi
 
-# Remove outros links simbólicos relacionados (v1.42.0)
+# Remove outros links simbólicos relacionados (v1.42.1)
 LINKS_TO_REMOVE=(
     "fazai-config"
     "fazai-backup"
@@ -194,7 +194,7 @@ for link in "${LINKS_TO_REMOVE[@]}"; do
     fi
 done
 
-# Remove ferramentas específicas (v1.42.0)
+# Remove ferramentas específicas (v1.42.1)
 print_message "Removendo ferramentas específicas..."
 TOOLS_TO_REMOVE=(
     "/opt/fazai/tools/github-setup.sh"
@@ -319,7 +319,7 @@ if [ -f /var/lib/fazai/install.state ]; then
     print_success "Estado de instalação removido."
 fi
 
-# Limpeza de processos órfãos (v1.42.0)
+# Limpeza de processos órfãos (v1.42.1)
 print_message "Verificando processos órfãos..."
 PIDS=$(pgrep -f "fazai" 2>/dev/null || true)
 if [ -n "$PIDS" ]; then
@@ -336,7 +336,7 @@ else
     print_success "Nenhum processo órfão encontrado."
 fi
 
-# Limpeza de arquivos temporários (v1.42.0)
+# Limpeza de arquivos temporários (v1.42.1)
 print_message "Limpando arquivos temporários..."
 TEMP_FILES=(
     "/tmp/fazai_*.log"
@@ -371,7 +371,7 @@ if [ "$PRESERVE_CONFIG" = true ]; then
     echo -e "Backup adicional disponível em: ${BLUE}$BACKUP_DIR${NC}"
 fi
 
-echo -e "${PURPLE}[INFO]${NC} Limpeza específica da versão 1.42.0 concluída:"
+echo -e "${PURPLE}[INFO]${NC} Limpeza específica da versão 1.42.1 concluída:"
 echo -e "  • Ferramentas movidas removidas"
 echo -e "  • Módulos nativos removidos"
 echo -e "  • Arquivos dos2unix removidos"

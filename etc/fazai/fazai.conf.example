@@ -1,6 +1,6 @@
 ###############################################################################
 # FazAI - Arquivo de Configuração Principal
-# Versão: 1.42.0
+# Versão: 1.42.1
 #
 # Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL
 #
@@ -45,9 +45,13 @@ retry_delay = 2
 [gemma_cpp]
 # Habilita o uso do Gemma local compilado (gemma.cpp)
 enabled = true
-# Caminhos padrão dos pesos/tokenizer (pode ser sobrescrito por variáveis de ambiente)
-weights = /root/gemma.cpp/build/gemma2-2b-it-sfp.sbs
-tokenizer = /root/gemma.cpp/build/tokenizer.spm
+# Caminho do binário (pré-compilado) gemma_oneshot
+endpoint = /opt/fazai/bin/gemma_oneshot
+# Caminho dos pesos (preferir formato single-file com tokenizer embutido)
+weights = /opt/fazai/models/gemma/gemma2-2b-it-sfp-single.sbs
+# Se estiver usando pesos multi-arquivo, informe tokenizer; caso single-file, deixe vazio
+tokenizer = 
+# Model ID aceito pelo gemma.cpp (ex.: gemma2-2b-it, 2b-it)
 model = gemma2-2b-it
 
 ###############################################################################

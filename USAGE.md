@@ -1,4 +1,4 @@
-# FazAI - Guia de Uso v1.42.0
+# FazAI - Guia de Uso v1.42.1
 
 Este documento apresenta de forma organizada os principais comandos e exemplos para utilização do FazAI.
 

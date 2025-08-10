@@ -272,7 +272,7 @@ tail -f /var/log/fazai/fazai.log | grep -E "(cache|fallback|provider)"
 
 ## 🔮 Próximos Passos
 
-### Melhorias Planejadas para v1.42.0
+### Melhorias Planejadas para v1.42.1
 - **Cache Persistente**: Armazenamento em disco para sobreviver a reinicializações
 - **Métricas Avançadas**: Dashboard com estatísticas de uso
 - **Plugins Dinâmicos**: Sistema de plugins mais robusto

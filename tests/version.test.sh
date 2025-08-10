@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-EXPECTED="1.42.0"
+EXPECTED="1.42.1"
 PACKAGE_VERSION="$(node -p "require('./package.json').version")"
 if [ "$PACKAGE_VERSION" != "$EXPECTED" ]; then
   echo "package.json version mismatch: expected $EXPECTED but found $PACKAGE_VERSION"

@@ -62,7 +62,13 @@ async function embedWithOpenAI(texts, model, apiKey) {
 }
 
 function embedWithPython(texts, model) {
-  const code = `import sys,json\ntexts=json.load(sys.stdin)\nfrom sentence_transformers import SentenceTransformer\nmodel=SentenceTransformer('${model or 'sentence-transformers/all-MiniLM-L6-v2'}')\nvecs=model.encode(texts, normalize_embeddings=True).tolist()\njson.dump(vecs, sys.stdout)`;
+  const pyModel = model || 'sentence-transformers/all-MiniLM-L6-v2';
+  const code = `import sys,json
+texts=json.load(sys.stdin)
+from sentence_transformers import SentenceTransformer
+model=SentenceTransformer('${pyModel}')
+vecs=model.encode(texts, normalize_embeddings=True).tolist()
+json.dump(vecs, sys.stdout)`;
   const proc = spawnSync('python3', ['-c', code], { input: JSON.stringify(texts), encoding: 'utf8' });
   if (proc.status !== 0) throw new Error(proc.stderr || 'embedding python failure');
   return JSON.parse(proc.stdout);
