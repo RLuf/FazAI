@@ -148,7 +148,7 @@ complete -F _fazai_main_completion fazai
 # Função para mostrar ajuda de completion
 _fazai_show_completion_help()
 {
-    echo "FazAI Bash Completion v1.42.1"
+    echo "FazAI Bash Completion v1.42.2"
     echo ""
     echo "Comandos disponíveis:"
     echo "  Sistema:     ajuda, help, --help, -d, --debug, versao, version, -v, check-deps"
@@ -158,6 +158,7 @@ _fazai_show_completion_help()
     echo "  Visualização: html <tipo> [graf], tui, interactive"
     echo "  Configuração: config, cache, cache-clear"
     echo "  IA:          mcps <tarefa>"
+    echo "  Rede:        snmp, prometheus, grafana, qdrant, agentes"
     echo ""
     echo "Exemplos:"
     echo "  fazai html memoria bar"
