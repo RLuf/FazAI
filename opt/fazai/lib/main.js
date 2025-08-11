@@ -149,13 +149,7 @@ let AI_CONFIG = {
       temperature: 0.4,
       max_tokens: 2000
     },
-    requesty: {
-      api_key: '',
-      endpoint: 'https://router.requesty.ai/v1',
-      default_model: 'openai/gpt-4o',
-      temperature: 0.7,
-      max_tokens: 2000
-    },
+    
     
     ollama: {
       api_key: '',
@@ -200,8 +194,8 @@ let AI_CONFIG = {
       no_auth: true
     }
   },
-  // Ordem de fallback para provedores
-  fallback_order: ['gemma_cpp', 'llama_server', 'openrouter', 'requesty', 'openai', 'anthropic', 'gemini', 'ollama']
+  // Ordem de fallback para provedores (Requesty removido)
+  fallback_order: ['gemma_cpp', 'llama_server', 'openrouter', 'openai', 'anthropic', 'gemini', 'ollama']
 };
 
 // Middleware para processar JSON
@@ -840,11 +834,23 @@ async function queryProvider(provider, command, cwd = process.env.HOME) {
   };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-  const systemPrompt = `Você é um assistente de sistema Linux executando como root. ` +
-    `Sua função é interpretar comandos em linguagem natural e convertê-los em comandos shell executáveis. ` +
-    `Responda APENAS com o comando shell, sem explicações, comentários ou justificativas. ` +
-    `Você pode propor usar tools registradas como 'tool:<nome> param={...}' quando a tarefa exigir integrações complexas (ex.: email_relay, web_search). ` +
-    `Diretório atual: ${cwd}, PATH: ${process.env.PATH}`;
+  // Prompts configuráveis (simples e autônomo). Poderão migrar para fazai.conf
+  const SIMPLE_PROMPT = `Você é um tradutor de linguagem natural para shell Linux.
+Saída: apenas UM comando shell por resposta, sem aspas desnecessárias, sem backticks, sem comentários, sem explicações.
+Não modifique caminhos ou nomes; não envolva em fences.
+Se a tarefa exigir passos, responda com o primeiro comando executável.
+Diretório atual: ${cwd}.`;
+
+  const AUTONOMOUS_PROMPT = `Você é um operador de sistemas Linux sênior, executando como root.
+Objetivo: interpretar a intenção do usuário e devolver o comando shell executável mais seguro e eficaz.
+Regras:
+- Saída: apenas UM comando shell (sem explicações, sem aspas/backticks desnecessários).
+- Prefira comandos idempotentes e sem interação.
+- Quando a tarefa exigir integrações orquestradas, retorne 'tool:<nome> param={...}'. Ex.: tool:web_search param={"query":"<texto>"}
+- Não crie comentários ou echo; devolva apenas o comando.
+Contexto: cwd=${cwd}, PATH=${process.env.PATH}`;
+
+  const systemPrompt = AUTONOMOUS_PROMPT;
   const payload = {
     model: providerConfig.default_model,
     messages: [

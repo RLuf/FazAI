@@ -53,6 +53,9 @@ weights = /opt/fazai/models/gemma/gemma2-2b-it-sfp-single.sbs
 tokenizer = 
 # Model ID aceito pelo gemma.cpp (ex.: gemma2-2b-it, 2b-it)
 model = gemma2-2b-it
+ # Parâmetros do modelo
+ temperature = 0.2
+ max_tokens = 1024
 
 ###############################################################################
 # TELEMETRIA / PROMETHEUS
