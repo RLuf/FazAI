@@ -5,7 +5,7 @@
 # Autor: Roger Luft
 # Versão: 1.0
 
-set -e
+# set -e
 
 # Cores para saída
 RED='\033[0;31m'
@@ -113,7 +113,6 @@ create_backup() {
         "USAGE.md"
         "TODO.md"
         "IMPROVEMENTS_v1.41.0.md"
-        "a"
     )
     
     # Criar backup apenas dos arquivos que existem
@@ -164,34 +163,30 @@ update_file() {
     case "$(basename "$file_path")" in
         "package.json")
             # Substituir "version": "X.Y.Z"
-            if sed -E "s/\"version\": \"$old_version\"/\"version\": \"$new_version\"/g" "$file_path" > "$temp_file"; then
-                if ! cmp -s "$file_path" "$temp_file"; then
-                    changes_made=true
-                fi
+            sed -E "s/\"version\": \"$old_version\"/\"version\": \"$new_version\"/g" "$file_path" > "$temp_file"
+            if ! cmp -s "$file_path" "$temp_file"; then
+                changes_made=true
             fi
             ;;
         "main.js")
             # Substituir versões em comentários e strings
-            if sed -E "s/version: '$old_version'/version: '$new_version'/g; s/Version: $old_version/Version: $new_version/g" "$file_path" > "$temp_file"; then
-                if ! cmp -s "$file_path" "$temp_file"; then
-                    changes_made=true
-                fi
+            sed -E "s/version: '$old_version'/version: '$new_version'/g; s/Version: $old_version/Version: $new_version/g" "$file_path" > "$temp_file"
+            if ! cmp -s "$file_path" "$temp_file"; then
+                changes_made=true
             fi
             ;;
         "install.sh"|"uninstall.sh")
             # Substituir VERSION="X.Y.Z" e versões em strings
-            if sed -E "s/VERSION=\"$old_version\"/VERSION=\"$new_version\"/g; s/v$old_version/v$new_version/g; s/FazAI v$old_version/FazAI v$new_version/g" "$file_path" > "$temp_file"; then
-                if ! cmp -s "$file_path" "$temp_file"; then
-                    changes_made=true
-                fi
+            sed -E "s/VERSION=\"1\.42\.[0-9]+\"/VERSION=\"$new_version\"/g; s/v1\.42\.[0-9]+/v$new_version/g; s/FazAI v1\.42\.[0-9]+/FazAI v$new_version/g; s/\"version\": \"1\.42\.[0-9]+\"/\"version\": \"$new_version\"/g" "$file_path" > "$temp_file"
+            if ! cmp -s "$file_path" "$temp_file"; then
+                changes_made=true
             fi
             ;;
         "fazai")
             # Substituir versões em strings e comentários
-            if sed -E "s/v$old_version/v$new_version/g; s/FazAI.*v$old_version/FazAI - Orquestrador Inteligente de Automação v$new_version/g" "$file_path" > "$temp_file"; then
-                if ! cmp -s "$file_path" "$temp_file"; then
-                    changes_made=true
-                fi
+            sed -E "s/v1\.42\.[0-9]+/v$new_version/g; s/FazAI v1\.42\.[0-9]+/FazAI v$new_version/g; s/FazAI.*v1\.42\.[0-9]+/FazAI v$new_version/g" "$file_path" > "$temp_file"
+            if ! cmp -s "$file_path" "$temp_file"; then
+                changes_made=true
             fi
             ;;
         "CHANGELOG.md")
@@ -213,18 +208,15 @@ update_file() {
 ---"
             
             # Inserir nova seção após a primeira linha
-            if sed "2i\\
-$new_section
-" "$file_path" > "$temp_file"; then
+            if sed "2i\\$new_section" "$file_path" > "$temp_file"; then
                 changes_made=true
             fi
             ;;
         *)
             # Substituição genérica para outros arquivos
-            if sed -E "s/$old_version/$new_version/g" "$file_path" > "$temp_file"; then
-                if ! cmp -s "$file_path" "$temp_file"; then
-                    changes_made=true
-                fi
+            sed -E "s/$old_version/$new_version/g" "$file_path" > "$temp_file"
+            if ! cmp -s "$file_path" "$temp_file"; then
+                changes_made=true
             fi
             ;;
     esac
@@ -241,6 +233,8 @@ $new_section
         rm -f "$temp_file"
         log_info "Nenhuma alteração necessária em: $file_path"
     fi
+    
+    return 0
 }
 
 # Função principal de atualização
@@ -267,7 +261,6 @@ update_version() {
         "USAGE.md"
         "TODO.md"
         "IMPROVEMENTS_v1.41.0.md"
-        "a"
     )
     
     local updated_count=0
@@ -276,9 +269,8 @@ update_version() {
     for file in "${files_to_update[@]}"; do
         local file_path="$PROJECT_ROOT/$file"
         
-        if update_file "$file_path" "$old_version" "$new_version" "$dry_run"; then
-            ((updated_count++))
-        fi
+        update_file "$file_path" "$old_version" "$new_version" "$dry_run"
+        ((updated_count++))
     done
     
     # Atualizar CHANGELOG.md por último
@@ -403,14 +395,14 @@ main() {
     # Executar atualização
     if [[ "$dry_run" == true ]]; then
         log_info "MODO DRY-RUN: Simulando alterações..."
-        update_version "$current_version" "$new_version" true
+        update_version "$changelog_version" "$new_version" true
         log_info "Simulação concluída. Execute sem --dry-run para aplicar as alterações."
     else
-        update_version "$current_version" "$new_version" false
+        update_version "$changelog_version" "$new_version" false
         validate_changes "$new_version"
         
         log_success "Versionamento concluído com sucesso!"
-        log_info "Versão atualizada: $current_version → $new_version"
+        log_info "Versão atualizada: $changelog_version → $new_version"
         log_info "Execute 'git add . && git commit -m \"Bump version to $new_version\"' para commitar as alterações"
     fi
 }
