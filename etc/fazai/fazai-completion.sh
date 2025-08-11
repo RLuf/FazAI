@@ -8,18 +8,21 @@ _fazai_completions()
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Comandos principais organizados por categoria
-    local system_commands="ajuda help --help -d --debug versao version -v check-deps verificar-deps"
+    local system_commands="ajuda help --help -d --debug versao version -v check-deps verificar-deps manual"
     local service_commands="start stop restart status reload"
     local log_commands="logs limpar-logs clear-logs web"
     local system_info_commands="kernel sistema memoria disco processos rede data uptime"
-    local visualization_commands="html tui interactive"
+    local visualization_commands="html tui interactive web"
     local config_commands="config cache cache-clear"
     local ai_commands="mcps"
-    local flags="-q --question -s --stream -w --web -d --debug --help"
+    local flags="-q --question -s --stream -w --web -d --debug --help --completion-help"
     local net_commands="snmp prometheus grafana qdrant agentes"
+    local tool_commands="system-check version-bump sync-changes sync-keys github-setup install-llamacpp"
+    local security_commands="modsecurity suricata crowdsec monit"
+    local monitoring_commands="net-qos-monitor snmp-monitor agent-supervisor"
 
     # Todos os comandos disponíveis
-    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands"
+    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands $tool_commands $security_commands $monitoring_commands"
 
     # Opções específicas para cada subcomando
     case "${prev}" in
@@ -46,6 +49,16 @@ _fazai_completions()
         cache)
             # Sugere opções de cache
             COMPREPLY=( $(compgen -W "clear status info" -- ${cur}) )
+            return 0
+            ;;
+        system-check|version-bump|sync-changes|sync-keys|github-setup|install-llamacpp)
+            # Ferramentas de sistema não precisam de argumentos adicionais
+            COMPREPLY=()
+            return 0
+            ;;
+        modsecurity|suricata|crowdsec|monit)
+            # Ferramentas de segurança não precisam de argumentos adicionais
+            COMPREPLY=()
             return 0
             ;;
         start|stop|restart|status)
@@ -148,7 +161,7 @@ complete -F _fazai_main_completion fazai
 # Função para mostrar ajuda de completion
 _fazai_show_completion_help()
 {
-    echo "FazAI Bash Completion v1.42.1"
+    echo "FazAI Bash Completion v1.42.3"
     echo ""
     echo "Comandos disponíveis:"
     echo "  Sistema:     ajuda, help, --help, -d, --debug, versao, version, -v, check-deps"

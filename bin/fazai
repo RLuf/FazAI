@@ -497,7 +497,7 @@ async function main() {
   
   if (args[0] === 'ajuda' || args[0] === 'help' || args[0] === '--help') {
     console.log(`
-${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.42.1${colors.reset}
+${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.42.3${colors.reset}
 
 ${colors.bright}Compatível com:${colors.reset}
   • Debian/Ubuntu
@@ -509,6 +509,7 @@ ${colors.bright}Uso:${colors.reset}
 
 ${colors.bright}Comandos de Sistema:${colors.reset}
   ajuda, help, --help         Exibe esta mensagem de ajuda
+  manual                      Abre o manual completo de utilização
   -d, --debug                 Ativa modo debug com verbose em tempo real
   versao, version, -v         Exibe a versão do FazAI
   -q, --question              Pergunta direta (sem executar comandos)
@@ -588,6 +589,56 @@ ${colors.bright}Para mais informações:${colors.reset}
     process.exit(0);
   }
   
+  if (args[0] === 'manual') {
+    const manualPath = '/opt/fazai/MANUAL_COMPLETO.md';
+    if (fs.existsSync(manualPath)) {
+      const { exec } = require('child_process');
+      printInfo('Abrindo manual completo do FazAI...');
+      
+      // Tenta abrir com diferentes visualizadores
+      const viewers = ['xdg-open', 'open', 'cat'];
+      let viewerFound = false;
+      
+      for (const viewer of viewers) {
+        if (viewer === 'cat') {
+          exec(`cat "${manualPath}"`, (error, stdout, stderr) => {
+            if (error) {
+              printError(`Erro ao exibir manual: ${error.message}`);
+              process.exit(1);
+            }
+            console.log(stdout);
+            process.exit(0);
+          });
+          viewerFound = true;
+          break;
+        } else {
+          exec(`which ${viewer}`, (error) => {
+            if (!error) {
+              exec(`${viewer} "${manualPath}"`, (error) => {
+                if (error) {
+                  printError(`Erro ao abrir manual: ${error.message}`);
+                  process.exit(1);
+                }
+                printSuccess('Manual aberto com sucesso!');
+                process.exit(0);
+              });
+              viewerFound = true;
+            }
+          });
+          if (viewerFound) break;
+        }
+      }
+      
+      if (!viewerFound) {
+        printError('Nenhum visualizador encontrado. Use: cat /opt/fazai/MANUAL_COMPLETO.md');
+        process.exit(1);
+      }
+    } else {
+      printError('Manual não encontrado. Verifique se o arquivo MANUAL_COMPLETO.md está em /opt/fazai/');
+      process.exit(1);
+    }
+  }
+  
   if (args[0] === 'logs') {
     const lines = args[1] ? parseInt(args[1], 10) : 10;
     showLogs(isNaN(lines) ? 10 : lines);
@@ -611,7 +662,7 @@ ${colors.bright}Para mais informações:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log('FazAI v1.42.1');
+    console.log('FazAI v1.42.3');
     process.exit(0);
   }
 

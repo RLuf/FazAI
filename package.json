@@ -1,6 +1,6 @@
 {
   "name": "fazai",
-  "version": "1.42.2",
+  "version": "1.42.3",
   "description": "FazAI - Orquestrador Inteligente de Automação",
   "main": "opt/fazai/lib/main.js",
   "scripts": {
@@ -14,7 +14,7 @@
     "web": "bash opt/fazai/tools/fazai_web.sh"
   },
   "dependencies": {
-    "axios": ">=0.27.2",
+    "axios": "^1.11.0",
     "blessed": ">=0.1.81",
     "blessed-contrib": "^1.0.11",
     "chalk": ">=4.1.2",
@@ -22,10 +22,10 @@
     "ffi-napi-v22": "^0.0.1",
     "figlet": ">=1.5.2",
     "inquirer": ">=8.2.4",
-    "winston": ">=3.8.1",
     "mysql2": ">=3.9.7",
-    "ws": ">=8.0.0",
-    "node-pty": ">=1.0.0"
+    "node-pty": ">=1.0.0",
+    "winston": ">=3.8.1",
+    "ws": ">=8.0.0"
   },
   "devDependencies": {
     "nodemon": ">=2.0.19"
