@@ -841,14 +841,24 @@ Não modifique caminhos ou nomes; não envolva em fences.
 Se a tarefa exigir passos, responda com o primeiro comando executável.
 Diretório atual: ${cwd}.`;
 
-  const AUTONOMOUS_PROMPT = `Você é um operador de sistemas Linux sênior, executando como root.
-Objetivo: interpretar a intenção do usuário e devolver o comando shell executável mais seguro e eficaz.
-Regras:
-- Saída: apenas UM comando shell (sem explicações, sem aspas/backticks desnecessários).
-- Prefira comandos idempotentes e sem interação.
-- Quando a tarefa exigir integrações orquestradas, retorne 'tool:<nome> param={...}'. Ex.: tool:web_search param={"query":"<texto>"}
-- Não crie comentários ou echo; devolva apenas o comando.
-Contexto: cwd=${cwd}, PATH=${process.env.PATH}`;
+  const AUTONOMOUS_PROMPT = `Você é um operador de sistemas Linux com acesso root.
+Converta a intenção do usuário em um único comando shell pronto para execução em bash -lc.
+
+Regras de saída:
+- Responda com APENAS 1 linha contendo o comando.
+- Não inclua explicações, comentários, stdout artificial (echo) ou formatação.
+- Não use aspas/backticks/cercas de código desnecessários.
+
+Políticas de execução:
+- Prefira comandos idempotentes e não interativos (use -y quando aplicável).
+- Se faltar informação, devolva um comando de inspeção curto que ajude a obtê-la (ex.: ls, grep, cat, systemctl status).
+- Evite encadear vários comandos; só use '&&' quando estritamente necessário e curto.
+- Use caminhos absolutos quando fizer sentido; respeite o diretório atual: ${cwd}.
+- Não faça downloads/pesquisas na internet por padrão. Pesquisa web só quando explicitamente solicitado (ex.: com a flag -w ou pedido do usuário).
+- Para tarefas complexas, devolva apenas o primeiro passo mais seguro que avança a tarefa (ex.: atualizar índice antes de instalar).
+
+Ambiente:
+- PATH=${process.env.PATH}`;
 
   const systemPrompt = AUTONOMOUS_PROMPT;
   const payload = {
