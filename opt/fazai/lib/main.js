@@ -367,7 +367,7 @@ try {
     }
 
     // Atualiza configurações específicas dos provedores
-    ['openrouter', 'openai', 'requesty', 'ollama', 'anthropic', 'gemini', 'gemma_cpp', 'llama_server'].forEach(provider => {
+    ['openrouter', 'openai', 'ollama', 'anthropic', 'gemini', 'gemma_cpp', 'llama_server'].forEach(provider => {
       if (config[provider]) {
         Object.keys(config[provider]).forEach(key => {
           if (AI_CONFIG.providers[provider][key] !== undefined) {

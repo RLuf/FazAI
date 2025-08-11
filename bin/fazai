@@ -135,12 +135,13 @@ function printWarning(message) {
  * @param {string} command - Comando a ser enviado
  * @returns {Promise<object>} - Resposta do daemon
  */
-async function sendCommand(command) {
+async function sendCommand(command, questionMode = false) {
   // Debug: mostra detalhes da requisição
-  printDebug(`[sendCommand] POST ${API_URL}/command payload: ${JSON.stringify({command})}`);
+  const payload = questionMode ? { question: true, command } : { command };
+  printDebug(`[sendCommand] POST ${API_URL}/command payload: ${JSON.stringify(payload)}`);
   try {
     printInfo(`Conectando ao daemon em ${API_URL}...`);
-    const response = await axios.post(`${API_URL}/command`, { command }, {
+    const response = await axios.post(`${API_URL}/command`, payload, {
       timeout: 30000 // 30 segundos de timeout
     });
     // Debug: mostra detalhes da resposta HTTP
@@ -483,6 +484,8 @@ async function main() {
       streamEnabled = true;
     } else if (arg === '-q' || arg === '--question') {
       questionMode = true;
+    } else if (arg === '-w' || arg === '--web') {
+      // Flag web é processada separadamente, não adiciona aos args
     } else {
       args.push(arg);
     }
@@ -965,7 +968,7 @@ ${colors.bright}Para mais informações:${colors.reset}
         process.exit(1);
       }
     }
-    const result = await sendCommand(questionMode ? { question: true, command } : command);
+    const result = await sendCommand(command, questionMode);
     
     if (result.success) {
       printSuccess('Comando executado com sucesso.');
