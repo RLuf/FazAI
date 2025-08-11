@@ -2,6 +2,27 @@
 
 ## [v1.42.3] - 10/08/2025
 
+### Fixed
+- **Script de Versionamento**: Corrigidos múltiplos bugs no script `bin/tools/version-bump.sh`
+  - Corrigida passagem incorreta de variáveis na função `main`
+  - Removidas condições `if` desnecessárias que impediam execução do `sed`
+  - Corrigida sintaxe do comando `sed` para inserção em `CHANGELOG.md`
+  - Removidas entradas "a" estranhas dos arrays de arquivos
+  - Melhorados padrões regex para capturar versões de patch diferentes
+  - Adicionado `return 0` explícito na função `update_file`
+  - Temporariamente comentado `set -e` para debugging
+
+### Technical Details
+- **Arquivos Corrigidos**: `package.json`, `bin/fazai`, `opt/fazai/lib/main.js`, `install.sh`, `uninstall.sh`, `TODO.md`
+- **Padrões Regex**: Atualizados para capturar versões `1.42.x` genéricas em vez de versões específicas
+- **Validação**: Script agora executa completamente e valida todas as alterações
+- **Backup**: Sistema de backup automático funcionando corretamente
+
+### Notes
+- Script de versionamento agora funciona corretamente para todas as versões
+- Todas as versões nos arquivos principais foram atualizadas para 1.42.3
+- Próximo passo: reativar `set -e` após confirmação de estabilidade
+
 ### Added
 - **Manual Completo de Utilização**: Documentação abrangente de todas as ferramentas e funcionalidades
   - Manual detalhado de cada ferramenta em `bin/tools/` com exemplos de uso

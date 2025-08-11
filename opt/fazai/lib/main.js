@@ -93,7 +93,7 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   defaultMeta: { 
-    version: '1.42.2',
+    version: '1.42.3',
     service: 'fazai-daemon'
   },
   transports: [
@@ -454,7 +454,7 @@ try {
     }
 
     // Atualiza configurações específicas dos provedores
-    ['openrouter', 'openai', 'requesty', 'ollama', 'anthropic', 'gemini', 'gemma_cpp', 'llama_server'].forEach(provider => {
+    ['openrouter', 'openai', 'ollama', 'anthropic', 'gemini', 'gemma_cpp', 'llama_server'].forEach(provider => {
       if (config[provider]) {
         Object.keys(config[provider]).forEach(key => {
           if (AI_CONFIG.providers[provider][key] !== undefined) {
@@ -1528,7 +1528,7 @@ app.get('/status', (req, res) => {
     success: true, 
     status: 'online',
     timestamp: new Date().toISOString(),
-            version: '1.42.2',
+            version: '1.42.3',
     cache: {
       size: cacheManager.size(),
       maxSize: cacheManager.maxSize

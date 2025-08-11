@@ -301,4 +301,4 @@ module.exports = { GemmaKernelInterface };
 
 **Última atualização:** 06/07/2025  
 **Versão:** 1.41.0  
-**Próxima versão planejada:** 1.42.2 
+**Próxima versão planejada:** 1.42.3 
