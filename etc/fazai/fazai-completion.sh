@@ -16,10 +16,21 @@ _fazai_completions()
     local config_commands="config cache cache-clear"
     local ai_commands="mcps"
     local flags="-q --question -s --stream -w --web -d --debug --help"
+    
+    # Ferramentas por categoria
+    local monitoring_tools="net_qos_monitor ports_monitor snmp_monitor system_info"
+    local security_tools="modsecurity_setup suricata_setup crowdsec_setup monit_setup"
+    local cloud_tools="cloudflare spamexperts"
+    local rag_ai_tools="rag_ingest qdrant_setup auto_tool"
+    local management_tools="agent_supervisor fazai-config"
+    local utility_tools="http_fetch web_search geoip_lookup blacklist_check weather alerts"
+    local interface_tools="fazai_web fazai_html_v1 fazai_tui fazai-config-tui"
+    
+    # Comandos de rede e monitoramento
     local net_commands="snmp prometheus grafana qdrant agentes"
 
     # Todos os comandos disponíveis
-    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands"
+    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands $monitoring_tools $security_tools $cloud_tools $rag_ai_tools $management_tools $utility_tools $interface_tools"
 
     # Opções específicas para cada subcomando
     case "${prev}" in
@@ -46,6 +57,31 @@ _fazai_completions()
         cache)
             # Sugere opções de cache
             COMPREPLY=( $(compgen -W "clear status info" -- ${cur}) )
+            return 0
+            ;;
+        modsecurity_setup)
+            # Sugere servidores web para ModSecurity
+            COMPREPLY=( $(compgen -W "nginx apache" -- ${cur}) )
+            return 0
+            ;;
+        cloudflare)
+            # Sugere operações Cloudflare
+            COMPREPLY=( $(compgen -W "zones dns firewall" -- ${cur}) )
+            return 0
+            ;;
+        rag_ingest)
+            # Sugere tipos de documentos para RAG
+            COMPREPLY=( $(compgen -W "pdf docx txt url" -- ${cur}) )
+            return 0
+            ;;
+        auto_tool)
+            # Sugere tipos de ferramentas para gerar
+            COMPREPLY=( $(compgen -W "monitoring security network backup" -- ${cur}) )
+            return 0
+            ;;
+        net_qos_monitor)
+            # Sugere sub-redes comuns
+            COMPREPLY=( $(compgen -W "192.168.1.0/24 192.168.0.0/24 10.0.0.0/24" -- ${cur}) )
             return 0
             ;;
         start|stop|restart|status)
