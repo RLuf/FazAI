@@ -471,27 +471,23 @@ async function clearLogs() {
  * Função principal
  */
 async function main() {
-  // Obtém argumentos da linha de comando
-  const args = process.argv.slice(2);
-  // Verifica flag de debug (-d ou --debug)
-  if (args[0] === '-d' || args[0] === '--debug') {
-    debugEnabled = true;
-    printInfo('Modo debug ativado');
-    args.shift();
-  }
-  // Flag de streaming (--stream|-s)
+  // Obtém argumentos e normaliza flags em qualquer posição
+  const rawArgs = process.argv.slice(2);
+  let args = [];
   let streamEnabled = false;
-  if (args[0] === '--stream' || args[0] === '-s') {
-    streamEnabled = true;
-    args.shift();
-  }
-  
-  // Flag pergunta direta (-q)
   let questionMode = false;
-  if (args[0] === '-q' || args[0] === '--question') {
-    questionMode = true;
-    args.shift();
-  }
+  rawArgs.forEach((arg) => {
+    if (arg === '-d' || arg === '--debug') {
+      debugEnabled = true;
+    } else if (arg === '--stream' || arg === '-s') {
+      streamEnabled = true;
+    } else if (arg === '-q' || arg === '--question') {
+      questionMode = true;
+    } else {
+      args.push(arg);
+    }
+  });
+  if (debugEnabled) printInfo('Modo debug ativado');
 
   // Comandos especiais
   if (args.length === 0) {
@@ -549,6 +545,10 @@ ${colors.bright}Comandos de Configuração:${colors.reset}
   config                      Abre ferramenta de configuração interativa
   cache                       Mostra status do cache de IA
   cache-clear                 Limpa o cache de IA
+
+${colors.bright}Comandos de Pesquisa:${colors.reset}
+  -q, --question              Pergunta direta (IA)
+  -w, --web                   Força pesquisa web (tool web_search)
 
 ${colors.bright}Modo MCPS (Planejamento Passo a Passo):${colors.reset}
   mcps <tarefa>               Exemplo: fazai mcps atualizar o sistema
@@ -947,6 +947,23 @@ ${colors.bright}Para mais informações:${colors.reset}
     if (streamEnabled) {
       await streamToConsole({ command, question: questionMode });
       process.exit(0);
+    }
+    if (rawArgs.includes('-w') || rawArgs.includes('--web')) {
+      // Força pesquisa web
+      const axios = require('axios');
+      const res = await axios.post(`${API_URL}/search`, { query: command });
+      if (res.data && res.data.success) {
+        const first = res.data.first;
+        if (first && first.url) {
+          console.log(first.url);
+        } else {
+          console.log(JSON.stringify(res.data.results.slice(0, 3), null, 2));
+        }
+        process.exit(0);
+      } else {
+        printError(`Falha na pesquisa web: ${res.data && res.data.error ? res.data.error : 'erro'}`);
+        process.exit(1);
+      }
     }
     const result = await sendCommand(questionMode ? { question: true, command } : command);
     

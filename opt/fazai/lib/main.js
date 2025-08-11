@@ -1360,6 +1360,30 @@ app.post('/ingest', (req, res) => {
   }
 });
 
+// Endpoint de busca web simples usando tool web_search
+app.post('/search', async (req, res) => {
+  try {
+    const query = (req.body && (req.body.q || req.body.query || req.body.command)) || '';
+    if (!query || typeof query !== 'string') {
+      return res.status(400).json({ success: false, error: 'Parâmetro q/query/command inválido' });
+    }
+    const webSearchPath = '/opt/fazai/tools/web_search.js';
+    if (!fs.existsSync(webSearchPath)) {
+      return res.status(500).json({ success: false, error: 'web_search tool ausente' });
+    }
+    const webSearch = require(webSearchPath);
+    const result = await webSearch.search(query);
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: result.error || 'Falha na pesquisa' });
+    }
+    const first = Array.isArray(result.results) && result.results.length > 0 ? result.results[0] : null;
+    return res.json({ success: true, total: result.results.length, first, results: result.results });
+  } catch (e) {
+    logger.error(`Erro em /search: ${e.message}`);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Endpoint Prometheus metrics
 app.get('/metrics', (_req, res) => {
   try {
