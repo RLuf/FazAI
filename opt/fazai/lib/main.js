@@ -30,6 +30,10 @@ const winston = require('winston');
 const EventEmitter = require('events');
 const crypto = require('crypto');
 
+// Importar módulos de tarefas complexas e MCP
+const { ComplexTasksManager } = require('./complex_tasks');
+const { MCPOPNsense } = require('./mods/mcp_opnsense');
+
 // Sistema de cache simples em memória
 class CacheManager {
   constructor() {
@@ -247,6 +251,10 @@ const MODS_DIR = '/opt/fazai/mods';
 const loadedTools = {};
 const loadedMods = {};
 
+// Instâncias globais dos módulos de tarefas complexas
+let complexTasksManager = null;
+let mcpOPNsense = null;
+
 // Telemetria em memória para /metrics
 const telemetryStore = new Map(); // hostname -> last payload
 let ingestCounter = 0;
@@ -284,6 +292,38 @@ function loadTools() {
         }
       }
     });
+
+    // Adicionar ferramentas de tarefas complexas
+    if (complexTasksManager) {
+      loadedTools['complex_tasks'] = {
+        name: 'Complex Tasks Manager',
+        description: 'Gerencia tarefas complexas como geração de gráficos, publicação HTTP e extração de dados',
+        execute: async (command, params) => {
+          return await complexTasksManager.executeTask(command, params);
+        },
+        info: {
+          interactive: false,
+          supportedTasks: ['generate_chart', 'publish_chart', 'extract_data', 'create_dashboard', 'monitor_system', 'generate_report']
+        }
+      };
+      logger.info('Ferramenta de tarefas complexas carregada');
+    }
+
+    // Adicionar ferramenta MCP OPNsense
+    if (mcpOPNsense) {
+      loadedTools['opnsense'] = {
+        name: 'OPNsense MCP',
+        description: 'Gerencia firewall OPNsense via MCP (Model Context Protocol)',
+        execute: async (command, params) => {
+          return await mcpOPNsense.executeMCPCommand(command, params);
+        },
+        info: {
+          interactive: false,
+          supportedCommands: ['get_system_info', 'get_firewall_rules', 'create_firewall_rule', 'start_service', 'apply_config']
+        }
+      };
+      logger.info('Ferramenta MCP OPNsense carregada');
+    }
   } catch (err) {
     logger.error('Erro ao ler diretório de plugins:', err);
   }
@@ -326,6 +366,53 @@ function loadNativeModules() {
     });
   } catch (err) {
     logger.error('Erro ao ler diretório de módulos:', err);
+  }
+}
+
+/**
+ * Inicializa módulos de tarefas complexas
+ */
+function initializeComplexModules() {
+  logger.info('Inicializando módulos de tarefas complexas');
+
+  try {
+    // Inicializar Complex Tasks Manager
+    complexTasksManager = new ComplexTasksManager({
+      port: config.complex_tasks?.port || 8080,
+      host: config.complex_tasks?.host || '0.0.0.0',
+      staticDir: config.complex_tasks?.static_dir || '/var/www/fazai',
+      chartsDir: config.complex_tasks?.charts_dir || '/var/cache/fazai/charts',
+      dataDir: config.complex_tasks?.data_dir || '/var/lib/fazai/data'
+    });
+
+    // Inicializar servidor HTTP se configurado
+    if (config.complex_tasks?.enable_server !== false) {
+      complexTasksManager.initializeServer()
+        .then(() => {
+          logger.info('Servidor de tarefas complexas iniciado com sucesso');
+        })
+        .catch(err => {
+          logger.error('Erro ao iniciar servidor de tarefas complexas:', err);
+        });
+    }
+
+    // Inicializar MCP OPNsense se configurado
+    if (config.opnsense?.enabled) {
+      mcpOPNsense = new MCPOPNsense({
+        host: config.opnsense.host,
+        port: config.opnsense.port || 443,
+        username: config.opnsense.username,
+        password: config.opnsense.password,
+        apiKey: config.opnsense.api_key,
+        useSSL: config.opnsense.use_ssl !== false
+      });
+
+      logger.info('MCP OPNsense inicializado com sucesso');
+    }
+
+    logger.info('Módulos de tarefas complexas inicializados');
+  } catch (err) {
+    logger.error('Erro ao inicializar módulos de tarefas complexas:', err);
   }
 }
 
@@ -1356,6 +1443,7 @@ app.post('/reload', (req, res) => {
   // Recarrega plugins e módulos
   loadTools();
   loadNativeModules();
+  initializeComplexModules();
 
   res.json({ success: true, message: 'Plugins e módulos recarregados' });
 });
@@ -1629,6 +1717,7 @@ class FazAIDaemon extends EventEmitter {
     // Carrega ferramentas e módulos nativos
     loadTools();
     loadNativeModules();
+    initializeComplexModules();
 
     // Endpoint para receber comandos via API
     app.post('/command', async (req, res) => {
