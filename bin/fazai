@@ -99,6 +99,121 @@ function printDebug(message) {
 }
 
 /**
+ * Exibe help específico para uma ferramenta
+ * @param {string} toolName - Nome da ferramenta
+ */
+function showToolHelp(toolName) {
+  const toolHelp = {
+    'modsecurity': {
+      name: 'ModSecurity Setup',
+      description: 'Configura e gerencia o ModSecurity para proteção de aplicações web',
+      usage: 'fazai "configure modsecurity for nginx"',
+      examples: [
+        'fazai "install modsecurity"',
+        'fazai "check modsecurity status"',
+        'fazai "update modsecurity rules"'
+      ]
+    },
+    'suricata': {
+      name: 'Suricata Setup',
+      description: 'Configura o Suricata IDS/IPS para detecção de intrusões',
+      usage: 'fazai "install and configure suricata ids"',
+      examples: [
+        'fazai "check suricata status"',
+        'fazai "update suricata rules"'
+      ]
+    },
+    'net_qos': {
+      name: 'Network QoS Monitor',
+      description: 'Monitora tráfego de rede por IP e aplica QoS',
+      usage: 'fazai "start network qos monitoring"',
+      examples: [
+        'fazai "show top network ips"',
+        'fazai "limit bandwidth for ip 192.168.1.100 to 10Mbps"'
+      ]
+    },
+    'rag_ingest': {
+      name: 'RAG Ingest',
+      description: 'Sistema de RAG para ingestão e indexação de documentos',
+      usage: 'fazai "ingest pdf document.pdf"',
+      examples: [
+        'fazai "ingest url https://example.com"',
+        'fazai "search rag for network configuration"'
+      ]
+    },
+    'auto_tool': {
+      name: 'Auto Tool Generator',
+      description: 'Gera ferramentas dinamicamente a partir de descrições',
+      usage: 'fazai "create tool for log monitoring with email alerts"',
+      examples: [
+        'fazai "generate tool for automatic database backup"',
+        'fazai "list auto-generated tools"'
+      ]
+    }
+  };
+
+  const tool = toolHelp[toolName];
+  if (!tool) {
+    printError(`Ferramenta "${toolName}" não encontrada. Use "fazai tools" para ver todas as ferramentas disponíveis.`);
+    return;
+  }
+
+  console.log(`\n${colors.bright}${colors.fg.cyan}=== ${tool.name} ===${colors.reset}`);
+  console.log(`${colors.bright}Descrição:${colors.reset} ${tool.description}`);
+  console.log(`${colors.bright}Uso:${colors.reset} ${tool.usage}`);
+  console.log(`${colors.bright}Exemplos:${colors.reset}`);
+  tool.examples.forEach(example => {
+    console.log(`  ${colors.fg.yellow}${example}${colors.reset}`);
+  });
+  console.log(`\n${colors.bright}Para mais informações:${colors.reset} MANUAL_FERRAMENTAS.md\n`);
+}
+
+/**
+ * Exibe documentação completa
+ */
+function showDocumentation() {
+  console.log(`\n${colors.bright}${colors.fg.cyan}=== Documentação do FazAI ===${colors.reset}`);
+  console.log(`${colors.bright}Manual Completo:${colors.reset} MANUAL_FERRAMENTAS.md`);
+  console.log(`${colors.bright}README:${colors.reset} README.md`);
+  console.log(`${colors.bright}Uso:${colors.reset} USAGE.md`);
+  console.log(`${colors.bright}Changelog:${colors.reset} CHANGELOG.md`);
+  console.log(`\n${colors.bright}Comandos de Ajuda:${colors.reset}`);
+  console.log(`  ${colors.fg.yellow}fazai help <ferramenta>${colors.reset} - Help específico para uma ferramenta`);
+  console.log(`  ${colors.fg.yellow}fazai tools${colors.reset} - Lista todas as ferramentas disponíveis`);
+  console.log(`  ${colors.fg.yellow}fazai docs${colors.reset} - Exibe esta mensagem`);
+  console.log(`\n${colors.bright}Para abrir o manual completo:${colors.reset}`);
+  console.log(`  ${colors.fg.cyan}cat MANUAL_FERRAMENTAS.md${colors.reset}\n`);
+}
+
+/**
+ * Exibe todas as ferramentas disponíveis
+ */
+function showAvailableTools() {
+  console.log(`\n${colors.bright}${colors.fg.cyan}=== Ferramentas Disponíveis ===${colors.reset}`);
+  
+  const categories = {
+    'Sistema': ['system-check', 'version-bump', 'github-setup', 'sync-changes', 'sync-keys'],
+    'Segurança': ['modsecurity', 'suricata', 'crowdsec', 'monit'],
+    'Monitoramento': ['net_qos', 'ports_monitor', 'snmp', 'system_info'],
+    'IA e RAG': ['rag_ingest', 'auto_tool', 'agent_supervisor'],
+    'Rede': ['cloudflare', 'spamexperts', 'qdrant'],
+    'Configuração': ['fazai-config', 'fazai-config-tui'],
+    'Visualização': ['fazai_html_v1', 'fazai_tui', 'fazai_web'],
+    'Desenvolvimento': ['weather', 'web_search', 'alerts', 'blacklist_check', 'email_relay', 'geoip_lookup', 'http_fetch', 'modsecurity_setup', 'monit_setup', 'qdrant_setup', 'suricata_setup']
+  };
+
+  Object.entries(categories).forEach(([category, tools]) => {
+    console.log(`\n${colors.bright}${colors.fg.yellow}${category}:${colors.reset}`);
+    tools.forEach(tool => {
+      console.log(`  ${colors.fg.cyan}${tool}${colors.reset}`);
+    });
+  });
+
+  console.log(`\n${colors.bright}Para help específico:${colors.reset} fazai help <ferramenta>`);
+  console.log(`${colors.bright}Para documentação completa:${colors.reset} fazai docs\n`);
+}
+
+/**
  * Exibe mensagem de erro formatada
  * @param {string} message - Mensagem de erro
  */
@@ -496,8 +611,13 @@ async function main() {
   }
   
   if (args[0] === 'ajuda' || args[0] === 'help' || args[0] === '--help') {
+    // Se for help específico para uma ferramenta
+    if (args[1]) {
+      showToolHelp(args[1]);
+      process.exit(0);
+    }
     console.log(`
-${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.42.1${colors.reset}
+${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.42.3${colors.reset}
 
 ${colors.bright}Compatível com:${colors.reset}
   • Debian/Ubuntu
@@ -509,6 +629,9 @@ ${colors.bright}Uso:${colors.reset}
 
 ${colors.bright}Comandos de Sistema:${colors.reset}
   ajuda, help, --help         Exibe esta mensagem de ajuda
+  help <ferramenta>           Exibe help específico para uma ferramenta
+  docs                        Exibe documentação completa
+  tools                       Lista todas as ferramentas disponíveis
   -d, --debug                 Ativa modo debug com verbose em tempo real
   versao, version, -v         Exibe a versão do FazAI
   -q, --question              Pergunta direta (sem executar comandos)
@@ -611,7 +734,18 @@ ${colors.bright}Para mais informações:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log('FazAI v1.42.1');
+    console.log('FazAI v1.42.3');
+    process.exit(0);
+  }
+
+  // Comandos de documentação
+  if (args[0] === 'docs') {
+    showDocumentation();
+    process.exit(0);
+  }
+
+  if (args[0] === 'tools') {
+    showAvailableTools();
     process.exit(0);
   }
 

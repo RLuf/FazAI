@@ -8,7 +8,7 @@ _fazai_completions()
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Comandos principais organizados por categoria
-    local system_commands="ajuda help --help -d --debug versao version -v check-deps verificar-deps"
+    local system_commands="ajuda help --help -d --debug versao version -v check-deps verificar-deps docs tools"
     local service_commands="start stop restart status reload"
     local log_commands="logs limpar-logs clear-logs web"
     local system_info_commands="kernel sistema memoria disco processos rede data uptime"
@@ -16,10 +16,30 @@ _fazai_completions()
     local config_commands="config cache cache-clear"
     local ai_commands="mcps"
     local flags="-q --question -s --stream -w --web -d --debug --help"
+    
+    # Ferramentas de segurança
+    local security_tools="modsecurity suricata crowdsec monit"
+    
+    # Ferramentas de monitoramento
+    local monitoring_tools="net_qos ports_monitor snmp system_info"
+    
+    # Ferramentas de IA e RAG
+    local ai_tools="rag_ingest auto_tool agent_supervisor"
+    
+    # Ferramentas de rede
+    local network_tools="cloudflare spamexperts qdrant"
+    
+    # Ferramentas de desenvolvimento
+    local dev_tools="sync-changes sync-keys github-setup"
+    
+    # Ferramentas de sistema
+    local system_tools="system-check version-bump install-llamacpp"
+    
+    # Comandos de rede e serviços
     local net_commands="snmp prometheus grafana qdrant agentes"
 
     # Todos os comandos disponíveis
-    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands"
+    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands $security_tools $monitoring_tools $ai_tools $network_tools $dev_tools $system_tools"
 
     # Opções específicas para cada subcomando
     case "${prev}" in
@@ -43,9 +63,34 @@ _fazai_completions()
             COMPREPLY=( $(compgen -W "show edit reset backup restore test" -- ${cur}) )
             return 0
             ;;
+        help)
+            # Sugere ferramentas para help específico
+            COMPREPLY=( $(compgen -W "modsecurity suricata crowdsec net_qos ports_monitor snmp rag_ingest auto_tool agent_supervisor cloudflare spamexperts qdrant" -- ${cur}) )
+            return 0
+            ;;
         cache)
             # Sugere opções de cache
             COMPREPLY=( $(compgen -W "clear status info" -- ${cur}) )
+            return 0
+            ;;
+        modsecurity|suricata|crowdsec)
+            # Sugere opções para ferramentas de segurança
+            COMPREPLY=( $(compgen -W "install configure status update rules check logs" -- ${cur}) )
+            return 0
+            ;;
+        net_qos|ports_monitor|snmp)
+            # Sugere opções para ferramentas de monitoramento
+            COMPREPLY=( $(compgen -W "start stop status configure alerts show" -- ${cur}) )
+            return 0
+            ;;
+        rag_ingest|auto_tool|agent_supervisor)
+            # Sugere opções para ferramentas de IA
+            COMPREPLY=( $(compgen -W "install configure status use create generate" -- ${cur}) )
+            return 0
+            ;;
+        cloudflare|spamexperts|qdrant)
+            # Sugere opções para ferramentas de rede
+            COMPREPLY=( $(compgen -W "configure status update check show" -- ${cur}) )
             return 0
             ;;
         start|stop|restart|status)
