@@ -17,9 +17,33 @@ _fazai_completions()
     local ai_commands="mcps"
     local flags="-q --question -s --stream -w --web -d --debug --help"
     local net_commands="snmp prometheus grafana qdrant agentes"
+    
+    # Ferramentas de sistema e monitoramento
+    local system_tools="system-check sync-changes"
+    
+    # Ferramentas de segurança e telemetria
+    local security_tools="modsecurity suricata crowdsec monit"
+    
+    # Ferramentas de desenvolvimento e versionamento
+    local dev_tools="version-bump github-setup"
+    
+    # Ferramentas de integração e APIs
+    local api_tools="cloudflare spamexperts"
+    
+    # Ferramentas de monitoramento de rede
+    local network_tools="snmp-monitor net-qos-monitor"
+    
+    # Ferramentas de IA e RAG
+    local ai_tools="qdrant-setup rag-ingest auto-tool"
+    
+    # Ferramentas de configuração e gerenciamento
+    local config_tools="agent-supervisor install-llamacpp"
+    
+    # Todas as ferramentas disponíveis
+    local all_tools="$system_tools $security_tools $dev_tools $api_tools $network_tools $ai_tools $config_tools"
 
     # Todos os comandos disponíveis
-    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands"
+    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands $all_tools"
 
     # Opções específicas para cada subcomando
     case "${prev}" in
@@ -46,6 +70,21 @@ _fazai_completions()
         cache)
             # Sugere opções de cache
             COMPREPLY=( $(compgen -W "clear status info" -- ${cur}) )
+            return 0
+            ;;
+        system-check|sync-changes)
+            # Sugere opções para ferramentas de sistema
+            COMPREPLY=( $(compgen -W "--deps-only --services-only --backup --dry-run" -- ${cur}) )
+            return 0
+            ;;
+        version-bump)
+            # Sugere opções para versionamento
+            COMPREPLY=( $(compgen -W "-v --version -a --auto -d --dry-run -b --backup -h --help" -- ${cur}) )
+            return 0
+            ;;
+        github-setup)
+            # Sugere opções para setup do GitHub
+            COMPREPLY=( $(compgen -W "--hooks --workflows --all" -- ${cur}) )
             return 0
             ;;
         start|stop|restart|status)
@@ -148,7 +187,7 @@ complete -F _fazai_main_completion fazai
 # Função para mostrar ajuda de completion
 _fazai_show_completion_help()
 {
-    echo "FazAI Bash Completion v1.42.1"
+    echo "FazAI Bash Completion v1.42.3"
     echo ""
     echo "Comandos disponíveis:"
     echo "  Sistema:     ajuda, help, --help, -d, --debug, versao, version, -v, check-deps"

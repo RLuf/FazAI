@@ -1,5 +1,64 @@
 # Changelog
 
+## [v1.42.3] - 10/08/2025
+
+### Added
+- **Manual Completo de Utilização**: Documentação abrangente de todas as ferramentas e funcionalidades
+  - Manual detalhado de cada ferramenta em `bin/tools/` com exemplos de uso
+  - Documentação de todas as funcionalidades do CLI com exemplos práticos
+  - Guia de integração com sistemas de monitoramento (SNMP, Prometheus, Grafana)
+  - Documentação de ferramentas de segurança e telemetria
+  - Exemplos de uso para todas as funcionalidades principais
+- **Bash Completion Aprimorado**: Autocompletar expandido com todas as ferramentas e opções
+  - Completar para todas as ferramentas em `bin/tools/`
+  - Sugestões contextuais para argumentos de comandos
+  - Completar para ferramentas de monitoramento e segurança
+  - Completar para comandos MCPS com tarefas comuns
+- **Help System Expandido**: Sistema de ajuda integrado com documentação completa
+  - Comando `fazai help` com categorização por funcionalidade
+  - Help específico para cada ferramenta (`fazai help <ferramenta>`)
+  - Exemplos práticos para cada comando
+  - Guia de troubleshooting e resolução de problemas
+
+### Technical Details
+- **Documentação Estruturada**: Organização por categorias funcionais
+  - Ferramentas de Sistema e Monitoramento
+  - Ferramentas de Segurança e Telemetria
+  - Ferramentas de Desenvolvimento e Versionamento
+  - Ferramentas de Integração e APIs
+- **Bash Completion**: Arquivo `etc/fazai/fazai-completion.sh` atualizado
+  - Suporte a todas as ferramentas disponíveis
+  - Completar contextual para argumentos
+  - Sugestões inteligentes baseadas no comando anterior
+- **Help System**: Integração com sistema de comandos existente
+  - Categorização automática de comandos
+  - Busca por funcionalidade
+  - Exemplos práticos para cada comando
+
+### Usage Examples
+```bash
+# Acesso ao manual completo
+fazai help
+
+# Help específico para ferramentas
+fazai help version-bump
+fazai help system-check
+fazai help snmp-monitor
+
+# Bash completion (automático)
+fazai <TAB>                    # Lista todos os comandos
+fazai html <TAB>               # Sugere tipos de dados
+fazai mcps <TAB>               # Sugere tarefas comuns
+```
+
+### Notes
+- Manual cobre 100% das funcionalidades disponíveis
+- Bash completion funciona em todos os shells compatíveis
+- Sistema de help integrado com CLI existente
+- Documentação organizada por categorias funcionais
+
+---
+
 ## [v1.42.2] - 10/08/2025
 
 ### Added
