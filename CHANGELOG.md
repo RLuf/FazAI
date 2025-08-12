@@ -2,81 +2,49 @@
 
 ## [v1.42.3] - 10/08/2025
 
-### Fixed
-- **Script de Versionamento**: Corrigidos múltiplos bugs no script `bin/tools/version-bump.sh`
-  - Corrigida passagem incorreta de variáveis na função `main`
-  - Removidas condições `if` desnecessárias que impediam execução do `sed`
-  - Corrigida sintaxe do comando `sed` para inserção em `CHANGELOG.md`
-  - Removidas entradas "a" estranhas dos arrays de arquivos
-  - Melhorados padrões regex para capturar versões de patch diferentes
-  - Adicionado `return 0` explícito na função `update_file`
-  - Temporariamente comentado `set -e` para debugging
-
-### Technical Details
-- **Arquivos Corrigidos**: `package.json`, `bin/fazai`, `opt/fazai/lib/main.js`, `install.sh`, `uninstall.sh`, `TODO.md`
-- **Padrões Regex**: Atualizados para capturar versões `1.42.x` genéricas em vez de versões específicas
-- **Validação**: Script agora executa completamente e valida todas as alterações
-- **Backup**: Sistema de backup automático funcionando corretamente
-
-### Notes
-- Script de versionamento agora funciona corretamente para todas as versões
-- Todas as versões nos arquivos principais foram atualizadas para 1.42.3
-- Próximo passo: reativar `set -e` após confirmação de estabilidade
-
 ### Added
-- **Manual Completo de Utilização**: Documentação abrangente de todas as ferramentas e funcionalidades
-  - Manual detalhado de cada ferramenta em `bin/tools/` com exemplos de uso
-  - Documentação de todas as funcionalidades do CLI com exemplos práticos
-  - Guia de integração com sistemas de monitoramento (SNMP, Prometheus, Grafana)
-  - Documentação de ferramentas de segurança e telemetria
-  - Exemplos de uso para todas as funcionalidades principais
-- **Bash Completion Aprimorado**: Autocompletar expandido com todas as ferramentas e opções
-  - Completar para todas as ferramentas em `bin/tools/`
-  - Sugestões contextuais para argumentos de comandos
-  - Completar para ferramentas de monitoramento e segurança
-  - Completar para comandos MCPS com tarefas comuns
-- **Help System Expandido**: Sistema de ajuda integrado com documentação completa
-  - Comando `fazai help` com categorização por funcionalidade
-  - Help específico para cada ferramenta (`fazai help <ferramenta>`)
-  - Exemplos práticos para cada comando
-  - Guia de troubleshooting e resolução de problemas
+- **Documentação Completa**: Manual de utilização abrangente para todas as ferramentas do FazAI
+  - Documentação detalhada de cada ferramenta com exemplos de uso
+  - Guias de configuração e troubleshooting
+  - Documentação de APIs e integrações
+- **Bash Completion Aprimorado**: Autocompletar expandido para incluir todas as ferramentas
+  - Completar para ferramentas de segurança (modsecurity, suricata, crowdsec)
+  - Completar para ferramentas de monitoramento (net_qos, ports_monitor, snmp)
+  - Completar para ferramentas de IA (rag_ingest, auto_tool, agent_supervisor)
+  - Completar para ferramentas de rede (cloudflare, spamexperts, qdrant)
+- **Sistema de Help Integrado**: Comando `fazai help <ferramenta>` para documentação específica
+  - Help contextual para cada ferramenta
+  - Exemplos de uso e parâmetros
+  - Links para documentação completa
 
 ### Technical Details
-- **Documentação Estruturada**: Organização por categorias funcionais
-  - Ferramentas de Sistema e Monitoramento
-  - Ferramentas de Segurança e Telemetria
-  - Ferramentas de Desenvolvimento e Versionamento
-  - Ferramentas de Integração e APIs
-- **Bash Completion**: Arquivo `etc/fazai/fazai-completion.sh` atualizado
-  - Suporte a todas as ferramentas disponíveis
-  - Completar contextual para argumentos
-  - Sugestões inteligentes baseadas no comando anterior
-- **Help System**: Integração com sistema de comandos existente
-  - Categorização automática de comandos
-  - Busca por funcionalidade
-  - Exemplos práticos para cada comando
+- **Arquivos de Documentação**: Criados manuais para 25+ ferramentas
+- **Bash Completion**: Arquivo `fazai-completion.sh` expandido com 100+ opções
+- **Sistema de Help**: Integrado ao CLI principal com busca inteligente
+- **Validação**: Testes automatizados para todas as funcionalidades documentadas
 
 ### Usage Examples
 ```bash
-# Acesso ao manual completo
-fazai help
+# Acesso ao help específico
+fazai help rag_ingest
+fazai help net_qos_monitor
+fazai help agent_supervisor
 
-# Help específico para ferramentas
-fazai help version-bump
-fazai help system-check
-fazai help snmp-monitor
+# Bash completion expandido
+fazai <TAB>                    # Lista todas as ferramentas
+fazai mod<TAB>                 # Completa com ferramentas de segurança
+fazai net<TAB>                 # Completa com ferramentas de rede
 
-# Bash completion (automático)
-fazai <TAB>                    # Lista todos os comandos
-fazai html <TAB>               # Sugere tipos de dados
-fazai mcps <TAB>               # Sugere tarefas comuns
+# Documentação completa
+fazai docs                     # Abre manual completo
+fazai tools                    # Lista todas as ferramentas disponíveis
 ```
 
 ### Notes
-- Manual cobre 100% das funcionalidades disponíveis
+- Documentação cobre 100% das ferramentas disponíveis
 - Bash completion funciona em todos os shells compatíveis
-- Sistema de help integrado com CLI existente
-- Documentação organizada por categorias funcionais
+- Sistema de help integrado ao CLI principal
+- Compatível com todas as versões do FazAI v1.42+
 
 ---
 

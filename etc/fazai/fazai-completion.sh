@@ -8,7 +8,7 @@ _fazai_completions()
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Comandos principais organizados por categoria
-    local system_commands="ajuda help --help -d --debug versao version -v check-deps verificar-deps"
+    local system_commands="ajuda help --help -d --debug versao version -v check-deps verificar-deps docs tools"
     local service_commands="start stop restart status reload"
     local log_commands="logs limpar-logs clear-logs web"
     local system_info_commands="kernel sistema memoria disco processos rede data uptime"
@@ -17,20 +17,29 @@ _fazai_completions()
     local ai_commands="mcps"
     local flags="-q --question -s --stream -w --web -d --debug --help"
     
-    # Ferramentas por categoria
-    local monitoring_tools="net_qos_monitor ports_monitor snmp_monitor system_info"
-    local security_tools="modsecurity_setup suricata_setup crowdsec_setup monit_setup"
-    local cloud_tools="cloudflare spamexperts"
-    local rag_ai_tools="rag_ingest qdrant_setup auto_tool"
-    local management_tools="agent_supervisor fazai-config"
-    local utility_tools="http_fetch web_search geoip_lookup blacklist_check weather alerts"
-    local interface_tools="fazai_web fazai_html_v1 fazai_tui fazai-config-tui"
+    # Ferramentas de segurança
+    local security_tools="modsecurity suricata crowdsec monit"
     
-    # Comandos de rede e monitoramento
+    # Ferramentas de monitoramento
+    local monitoring_tools="net_qos ports_monitor snmp system_info"
+    
+    # Ferramentas de IA e RAG
+    local ai_tools="rag_ingest auto_tool agent_supervisor"
+    
+    # Ferramentas de rede
+    local network_tools="cloudflare spamexperts qdrant"
+    
+    # Ferramentas de desenvolvimento
+    local dev_tools="sync-changes sync-keys github-setup"
+    
+    # Ferramentas de sistema
+    local system_tools="system-check version-bump install-llamacpp"
+    
+    # Comandos de rede e serviços
     local net_commands="snmp prometheus grafana qdrant agentes"
 
     # Todos os comandos disponíveis
-    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands $monitoring_tools $security_tools $cloud_tools $rag_ai_tools $management_tools $utility_tools $interface_tools"
+    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands $security_tools $monitoring_tools $ai_tools $network_tools $dev_tools $system_tools"
 
     # Opções específicas para cada subcomando
     case "${prev}" in
@@ -54,34 +63,34 @@ _fazai_completions()
             COMPREPLY=( $(compgen -W "show edit reset backup restore test" -- ${cur}) )
             return 0
             ;;
+        help)
+            # Sugere ferramentas para help específico
+            COMPREPLY=( $(compgen -W "modsecurity suricata crowdsec net_qos ports_monitor snmp rag_ingest auto_tool agent_supervisor cloudflare spamexperts qdrant" -- ${cur}) )
+            return 0
+            ;;
         cache)
             # Sugere opções de cache
             COMPREPLY=( $(compgen -W "clear status info" -- ${cur}) )
             return 0
             ;;
-        modsecurity_setup)
-            # Sugere servidores web para ModSecurity
-            COMPREPLY=( $(compgen -W "nginx apache" -- ${cur}) )
+        modsecurity|suricata|crowdsec)
+            # Sugere opções para ferramentas de segurança
+            COMPREPLY=( $(compgen -W "install configure status update rules check logs" -- ${cur}) )
             return 0
             ;;
-        cloudflare)
-            # Sugere operações Cloudflare
-            COMPREPLY=( $(compgen -W "zones dns firewall" -- ${cur}) )
+        net_qos|ports_monitor|snmp)
+            # Sugere opções para ferramentas de monitoramento
+            COMPREPLY=( $(compgen -W "start stop status configure alerts show" -- ${cur}) )
             return 0
             ;;
-        rag_ingest)
-            # Sugere tipos de documentos para RAG
-            COMPREPLY=( $(compgen -W "pdf docx txt url" -- ${cur}) )
+        rag_ingest|auto_tool|agent_supervisor)
+            # Sugere opções para ferramentas de IA
+            COMPREPLY=( $(compgen -W "install configure status use create generate" -- ${cur}) )
             return 0
             ;;
-        auto_tool)
-            # Sugere tipos de ferramentas para gerar
-            COMPREPLY=( $(compgen -W "monitoring security network backup" -- ${cur}) )
-            return 0
-            ;;
-        net_qos_monitor)
-            # Sugere sub-redes comuns
-            COMPREPLY=( $(compgen -W "192.168.1.0/24 192.168.0.0/24 10.0.0.0/24" -- ${cur}) )
+        cloudflare|spamexperts|qdrant)
+            # Sugere opções para ferramentas de rede
+            COMPREPLY=( $(compgen -W "configure status update check show" -- ${cur}) )
             return 0
             ;;
         start|stop|restart|status)
