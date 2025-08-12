@@ -14,7 +14,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Versão do script
-VERSION="1.42.1"
+VERSION="1.42.3"
 
 # Função para exibir mensagens
 print_message() {
@@ -115,7 +115,7 @@ if [ "$PRESERVE_CONFIG" = true ]; then
         print_success "Configuração principal salva no backup"
     fi
     
-    # Backup das ferramentas específicas (v1.42.1)
+    # Backup das ferramentas específicas (v1.42.3)
     TOOLS_TO_BACKUP=(
         "/opt/fazai/tools/github-setup.sh"
         "/opt/fazai/tools/sync-changes.sh"
@@ -176,7 +176,7 @@ else
     print_warning "Link simbólico do CLI não encontrado."
 fi
 
-# Remove outros links simbólicos relacionados (v1.42.1)
+# Remove outros links simbólicos relacionados (v1.42.3)
 LINKS_TO_REMOVE=(
     "fazai-config"
     "fazai-backup"
@@ -194,7 +194,7 @@ for link in "${LINKS_TO_REMOVE[@]}"; do
     fi
 done
 
-# Remove ferramentas específicas (v1.42.1)
+# Remove ferramentas específicas (v1.42.3)
 print_message "Removendo ferramentas específicas..."
 TOOLS_TO_REMOVE=(
     "/opt/fazai/tools/github-setup.sh"
@@ -319,7 +319,7 @@ if [ -f /var/lib/fazai/install.state ]; then
     print_success "Estado de instalação removido."
 fi
 
-# Limpeza de processos órfãos (v1.42.1)
+# Limpeza de processos órfãos (v1.42.3)
 print_message "Verificando processos órfãos..."
 PIDS=$(pgrep -f "fazai" 2>/dev/null || true)
 if [ -n "$PIDS" ]; then
@@ -336,7 +336,7 @@ else
     print_success "Nenhum processo órfão encontrado."
 fi
 
-# Limpeza de arquivos temporários (v1.42.1)
+# Limpeza de arquivos temporários (v1.42.3)
 print_message "Limpando arquivos temporários..."
 TEMP_FILES=(
     "/tmp/fazai_*.log"
