@@ -135,12 +135,13 @@ function printWarning(message) {
  * @param {string} command - Comando a ser enviado
  * @returns {Promise<object>} - Resposta do daemon
  */
-async function sendCommand(command) {
+async function sendCommand(command, questionMode = false) {
   // Debug: mostra detalhes da requisição
-  printDebug(`[sendCommand] POST ${API_URL}/command payload: ${JSON.stringify({command})}`);
+  const payload = questionMode ? { question: true, command } : { command };
+  printDebug(`[sendCommand] POST ${API_URL}/command payload: ${JSON.stringify(payload)}`);
   try {
     printInfo(`Conectando ao daemon em ${API_URL}...`);
-    const response = await axios.post(`${API_URL}/command`, { command }, {
+    const response = await axios.post(`${API_URL}/command`, payload, {
       timeout: 30000 // 30 segundos de timeout
     });
     // Debug: mostra detalhes da resposta HTTP
@@ -468,6 +469,409 @@ async function clearLogs() {
 }
 
 /**
+ * Exibe ajuda específica para uma ferramenta
+ * @param {string} tool - Nome da ferramenta
+ */
+function showToolHelp(tool) {
+  const toolHelps = {
+    'system-check': `
+${colors.bright}${colors.fg.cyan}system-check - Verificação Completa do Sistema${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Script de verificação completa do sistema FazAI, incluindo dependências, serviços e integridade de arquivos.
+
+${colors.bright}Uso:${colors.reset}
+  sudo ./bin/tools/system-check.sh [OPÇÕES]
+
+${colors.bright}Opções:${colors.reset}
+  --deps-only                 Verificar apenas dependências
+  --services-only             Verificar apenas serviços
+  --full                      Verificação completa (padrão)
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Verifica dependências (Node.js 22+, Python 3.10+)
+  • Valida status dos serviços (fazai, ollama, mcp-server)
+  • Verifica integridade de arquivos críticos
+  • Valida permissões de diretórios
+  • Gera relatório em /var/log/fazai/system-check.log
+
+${colors.bright}Exemplo:${colors.reset}
+  sudo ./bin/tools/system-check.sh --full
+`,
+
+    'version-bump': `
+${colors.bright}${colors.fg.cyan}version-bump - Versionamento Automático${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Script automatizado para incremento de versão em todos os arquivos do projeto.
+
+${colors.bright}Uso:${colors.reset}
+  sudo ./bin/tools/version-bump.sh [OPÇÕES]
+
+${colors.bright}Opções:${colors.reset}
+  -v, --version VERSION      Nova versão (ex: 1.42.3)
+  -a, --auto                 Detectar versão automaticamente do CHANGELOG
+  -d, --dry-run              Simular alterações sem aplicar
+  -b, --backup               Criar backup antes das alterações
+  -h, --help                 Exibir ajuda
+
+${colors.bright}Exemplos:${colors.reset}
+  sudo ./bin/tools/version-bump.sh -a                    # Bump automático
+  sudo ./bin/tools/version-bump.sh -v 1.43.0            # Bump manual
+  sudo ./bin/tools/version-bump.sh -a -d                 # Simular
+  sudo ./bin/tools/version-bump.sh -v 1.43.0 -b         # Com backup
+
+${colors.bright}Arquivos Atualizados:${colors.reset}
+  • package.json, bin/fazai, opt/fazai/lib/main.js
+  • install.sh, uninstall.sh, CHANGELOG.md
+  • E outros arquivos de documentação
+`,
+
+    'snmp-monitor': `
+${colors.bright}${colors.fg.cyan}snmp-monitor - Monitoramento SNMP${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Monitoramento de dispositivos de rede via SNMP.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai monitor snmp host=192.168.1.1 community=public oids=1.3.6.1.2.1.1.1.0
+  fazai monitor snmp interface=eth0 on host=192.168.1.1
+  fazai setup snmp monitoring for host=192.168.1.1 interval=30s
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Consulta de OIDs SNMP
+  • Monitoramento de interfaces
+  • Coleta de estatísticas de rede
+  • Alertas configuráveis
+  • Integração com sistemas de monitoramento
+`,
+
+    'prometheus': `
+${colors.bright}${colors.fg.cyan}prometheus - Coleta de Métricas${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Configuração e gerenciamento do Prometheus para coleta de métricas.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai setup prometheus with storage=local retention=30d
+  fazai configure prometheus targets for services=nginx,mysql,redis
+  fazai check prometheus status
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Coleta de métricas
+  • Armazenamento de séries temporais
+  • Alertas configuráveis
+  • Integração com Grafana
+  • API REST para consultas
+`,
+
+    'grafana': `
+${colors.bright}${colors.fg.cyan}grafana - Visualização de Dados${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Configuração e gerenciamento do Grafana para visualização de dados.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  sudo ./bin/tools/grafana.sh with port=3000
+  fazai configure grafana datasource prometheus url=http://localhost:9090
+  fazai create grafana dashboard for fazai_metrics
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Visualização de métricas
+  • Dashboards configuráveis
+  • Alertas visuais
+  • Integração com múltiplas fontes de dados
+  • API para automação
+`,
+
+    'qdrant-setup': `
+${colors.bright}${colors.fg.cyan}qdrant-setup - Banco de Dados Vetorial${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Configuração do Qdrant para busca semântica e RAG.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai setup qdrant with port=6333 collection=linux_networking
+  fazai create qdrant collection name=linux_docs dimension=384
+  fazai index documents in qdrant collection=linux_docs
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Banco de dados vetorial
+  • Busca semântica
+  • Indexação de documentos
+  • API REST para consultas
+  • Integração com modelos de IA
+`,
+
+    'rag-ingest': `
+${colors.bright}${colors.fg.cyan}rag-ingest - Ingestão de Documentos${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Ferramenta para ingestão de documentos e geração de embeddings para RAG.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai ingest document type=pdf path=/path/to/document.pdf
+  fazai ingest url https://example.com/documentation
+  fazai generate rag catalog for collection=linux_docs
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Suporte a PDF, DOCX, TXT
+  • Geração de embeddings
+  • Indexação no Qdrant
+  • Catálogo estático em HTML
+  • Backend OpenAI ou Python local
+`,
+
+    'auto-tool': `
+${colors.bright}${colors.fg.cyan}auto-tool - Geração de Ferramentas${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Geração dinâmica de ferramentas a partir de descrição em linguagem natural.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai generate tool for "monitor spam emails and block suspicious senders"
+  fazai create tool for "automated backup of critical files with rotation"
+  fazai generate tool for "network traffic analysis with anomaly detection"
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Geração automática de código
+  • Integração com daemon FazAI
+  • Recarregamento automático
+  • Validação de código gerado
+  • Documentação automática
+`,
+
+    'net-qos-monitor': `
+${colors.bright}${colors.fg.cyan}net-qos-monitor - Monitoramento de QoS${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Monitoramento e controle de qualidade de serviço de rede.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai setup qos monitoring for interface=eth0
+  fazai configure qos rules for priority=high service=voip
+  fazai monitor qos bandwidth for connection=192.168.1.100
+  fazai check qos status
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Monitoramento de largura de banda
+  • Controle de prioridade de tráfego
+  • Limitação de taxa
+  • QoS para VoIP e streaming
+  • Relatórios de performance
+  • Integração com switches
+`,
+
+    'cloudflare': `
+${colors.bright}${colors.fg.cyan}cloudflare - API da Cloudflare${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Integração com a API da Cloudflare para gerenciamento de DNS, firewall e zonas.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai use cloudflare api to create A record domain=example.com name=www value=192.168.1.100
+  fazai configure cloudflare firewall rules for zone=example.com
+  fazai check cloudflare zone status for domain=example.com
+  fazai manage cloudflare ssl certificates for domain=example.com
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Gerenciamento completo de DNS
+  • Configuração de firewall
+  • Gerenciamento de certificados SSL
+  • Análise de tráfego
+  • Proteção DDoS
+  • Integração com WAF
+`,
+
+    'spamexperts': `
+${colors.bright}${colors.fg.cyan}spamexperts - Proteção Anti-Spam${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Integração com SpamExperts para proteção avançada contra spam e malware.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai setup spamexperts for domain=example.com
+  fazai configure spamexperts whitelist for email=admin@example.com
+  fazai check spamexperts status for domain=example.com
+  fazai manage spamexperts quarantine for user=user@example.com
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Filtros anti-spam avançados
+  • Proteção contra malware
+  • Listas brancas e negras
+  • Quarentena de emails suspeitos
+  • Relatórios de segurança
+  • Integração com servidores de email
+`,
+
+    'agent-supervisor': `
+${colors.bright}${colors.fg.cyan}agent-supervisor - Gerenciamento de Agentes${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Sistema de supervisão e telemetria para agentes FazAI remotos.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai supervisor start agent=agent01
+  fazai supervisor status all
+  fazai supervisor configure agent=agent01 interval=30s
+  fazai supervisor logs agent=agent01
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Monitoramento de agentes remotos
+  • Coleta de telemetria
+  • Configuração remota
+  • Logs centralizados
+  • Alertas de status
+  • Escalabilidade horizontal
+`,
+
+    'sync-changes': `
+${colors.bright}${colors.fg.cyan}sync-changes - Sincronização de Mudanças${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Ferramenta para sincronizar mudanças entre ambientes de desenvolvimento e produção.
+
+${colors.bright}Uso:${colors.reset}
+  sudo ./bin/tools/sync-changes.sh [OPÇÕES]
+
+${colors.bright}Opções:${colors.reset}
+  --dry-run                   Simular sincronização
+  --backup                    Criar backup antes da sincronização
+  --force                     Forçar sincronização mesmo com conflitos
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Sincronização de arquivos
+  • Detecção de conflitos
+  • Backup automático
+  • Logs de sincronização
+  • Rollback em caso de erro
+`,
+
+    'github-setup': `
+${colors.bright}${colors.fg.cyan}github-setup - Configuração do GitHub${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Configuração automática de hooks, workflows e integrações do GitHub.
+
+${colors.bright}Uso:${colors.reset}
+  sudo ./bin/tools/github-setup.sh [OPÇÕES]
+
+${colors.bright}Opções:${colors.reset}
+  --hooks                     Configurar webhooks
+  --workflows                 Configurar GitHub Actions
+  --all                       Configurar tudo
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Configuração de webhooks
+  • GitHub Actions automáticos
+  • Integração com CI/CD
+  • Deploy automático
+  • Notificações de eventos
+`,
+
+    'install-llamacpp': `
+${colors.bright}${colors.fg.cyan}install-llamacpp - Instalação do LlamaCPP${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Instalação e configuração do LlamaCPP para inferência local de modelos de IA.
+
+${colors.bright}Uso:${colors.reset}
+  sudo ./bin/tools/install-llamacpp.sh [OPÇÕES]
+
+${colors.bright}Opções:${colors.reset}
+  --cpu-only                  Instalar apenas versão CPU
+  --cuda                      Instalar com suporte CUDA
+  --opencl                    Instalar com suporte OpenCL
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Instalação automática
+  • Compilação otimizada
+  • Suporte a múltiplas GPUs
+  • Modelos pré-treinados
+  • API REST local
+`,
+
+    'modsecurity': `
+${colors.bright}${colors.fg.cyan}modsecurity - Proteção Web${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Configuração do ModSecurity para proteção contra ataques web.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai setup modsecurity for nginx
+  fazai configure modsecurity rules for apache
+  fazai check modsecurity status
+  fazai update modsecurity rules
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Proteção contra OWASP Top 10
+  • Regras personalizáveis
+  • Logs de segurança
+  • Integração com WAF
+  • Aprendizado automático
+`,
+
+    'suricata': `
+${colors.bright}${colors.fg.cyan}suricata - Detecção de Intrusão${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Sistema de detecção e prevenção de intrusão (IDS/IPS).
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai setup suricata for network=eth0
+  fazai configure suricata rules for threats=malware
+  fazai start suricata monitoring
+  fazai check suricata alerts
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Detecção de malware
+  • Análise de tráfego
+  • Regras de segurança
+  • Alertas em tempo real
+  • Integração com SIEM
+`,
+
+    'crowdsec': `
+${colors.bright}${colors.fg.cyan}crowdsec - Proteção Colaborativa${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Sistema de proteção colaborativa contra ataques automatizados.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai setup crowdsec for service=nginx
+  fazai configure crowdsec bouncers
+  fazai check crowdsec status
+  fazai view crowdsec decisions
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Proteção colaborativa
+  • Bouncers automáticos
+  • Machine learning
+  • Integração com múltiplos serviços
+  • Dashboard web
+`,
+
+    'monit': `
+${colors.bright}${colors.fg.cyan}monit - Monitoramento de Processos${colors.reset}
+
+${colors.bright}Descrição:${colors.reset} Monitoramento e recuperação automática de processos e serviços.
+
+${colors.bright}Uso via FazAI:${colors.reset}
+  fazai setup monit for service=nginx
+  fazai configure monit alerts for email=admin@example.com
+  fazai check monit status
+  fazai view monit logs
+
+${colors.bright}Funcionalidades:${colors.reset}
+  • Monitoramento de processos
+  • Recuperação automática
+  • Alertas por email
+  • Interface web
+  • Logs detalhados
+`,
+
+    'default': `
+${colors.bright}${colors.fg.yellow}Ferramenta não encontrada: ${tool}${colors.reset}
+
+${colors.bright}Ferramentas disponíveis:${colors.reset}
+  • system-check, version-bump, sync-changes, github-setup
+  • snmp-monitor, net-qos-monitor, prometheus, grafana
+  • qdrant-setup, rag-ingest, auto-tool, cloudflare
+  • spamexperts, agent-supervisor, install-llamacpp
+  • modsecurity, suricata, crowdsec, monit
+
+${colors.bright}Use:${colors.reset} fazai help <ferramenta> para ajuda específica
+${colors.bright}Use:${colors.reset} fazai ajuda para lista completa de comandos
+`
+  };
+
+  const help = toolHelps[tool] || toolHelps.default;
+  console.log(help);
+}
+
+/**
  * Função principal
  */
 async function main() {
@@ -483,6 +887,8 @@ async function main() {
       streamEnabled = true;
     } else if (arg === '-q' || arg === '--question') {
       questionMode = true;
+    } else if (arg === '-w' || arg === '--web') {
+      // Flag web é processada separadamente, não adiciona aos args
     } else {
       args.push(arg);
     }
@@ -495,9 +901,24 @@ async function main() {
     process.exit(1);
   }
   
+  // Help específico para ferramentas
+  if (args[0] === 'help' && args[1]) {
+    const tool = args[1];
+    showToolHelp(tool);
+    process.exit(0);
+  }
+  
   if (args[0] === 'ajuda' || args[0] === 'help' || args[0] === '--help') {
-    console.log(`
-${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.42.1${colors.reset}
+
+    // Se for "fazai help <ferramenta>", mostra ajuda específica
+  if (args[1] && args[1] !== '--help') {
+    showToolHelp(args[1]);
+    return;
+  }
+  
+  console.log(`
+${colors.bright}${colors.fg.cyan}FazAI - Orquestrador Inteligente de Automação v1.42.3${colors.reset}
+
 
 ${colors.bright}Compatível com:${colors.reset}
   • Debian/Ubuntu
@@ -536,6 +957,34 @@ ${colors.bright}Comandos de Sistema Rápido:${colors.reset}
   data                        Mostra data e hora (date)
   uptime                      Tempo de atividade (uptime)
 
+${colors.bright}Ferramentas de Sistema:${colors.reset}
+  system-check                Verificação completa do sistema
+  sync-changes                Sincronização entre ambientes
+  version-bump                Versionamento automático
+  github-setup                Configuração do GitHub
+
+${colors.bright}Ferramentas de Segurança:${colors.reset}
+  modsecurity                Proteção contra ataques web
+  suricata                    Detecção de intrusão (IDS/IPS)
+  crowdsec                    Proteção colaborativa
+  monit                       Monitoramento de processos
+
+${colors.bright}Ferramentas de Monitoramento:${colors.reset}
+  snmp-monitor               Monitoramento SNMP
+  net-qos-monitor            QoS e limitação de tráfego
+  prometheus                  Coleta de métricas
+  grafana                     Visualização de dados
+
+${colors.bright}Ferramentas de IA e RAG:${colors.reset}
+  qdrant-setup               Banco de dados vetorial
+  rag-ingest                 Ingestão de documentos
+  auto-tool                  Geração de ferramentas
+
+${colors.bright}Ferramentas de Integração:${colors.reset}
+  cloudflare                 API da Cloudflare
+  spamexperts                Proteção anti-spam
+  agent-supervisor           Gerenciamento de agentes
+
 ${colors.bright}Comandos de Visualização:${colors.reset}
   html <tipo> [graf]          Gera gráfico HTML (tipo: memoria, disco, processos)
   tui                         Abre o dashboard TUI (ncurses)
@@ -545,6 +994,11 @@ ${colors.bright}Comandos de Configuração:${colors.reset}
   config                      Abre ferramenta de configuração interativa
   cache                       Mostra status do cache de IA
   cache-clear                 Limpa o cache de IA
+
+${colors.bright}Comandos de Rede:${colors.reset}
+  snmp, prometheus, grafana   Ferramentas de monitoramento e métricas
+  qdrant                      Sobe/gerencia instância Qdrant
+  agentes                     Gerencia agentes de telemetria remotos
 
 ${colors.bright}Comandos de Pesquisa:${colors.reset}
   -q, --question              Pergunta direta (IA)
@@ -644,7 +1098,10 @@ ${colors.bright}Para mais informações:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log('FazAI v1.42.1');
+
+
+    console.log('FazAI v1.42.3');
+
     process.exit(0);
   }
 
@@ -998,7 +1455,7 @@ ${colors.bright}Para mais informações:${colors.reset}
         process.exit(1);
       }
     }
-    const result = await sendCommand(questionMode ? { question: true, command } : command);
+    const result = await sendCommand(command, questionMode);
     
     if (result.success) {
       printSuccess('Comando executado com sucesso.');
