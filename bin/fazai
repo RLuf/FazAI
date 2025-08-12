@@ -1008,6 +1008,38 @@ ${colors.bright}Modo MCPS (Planejamento Passo a Passo):${colors.reset}
   mcps <tarefa>               Exemplo: fazai mcps atualizar o sistema
   mcps --stream <tarefa>      Executa MCPS com saída em tempo real
 
+${colors.bright}Ferramentas de Monitoramento:${colors.reset}
+  net_qos_monitor             Monitor de tráfego por IP com QoS e gráficos
+  ports_monitor               Monitora portas abertas e conexões
+  snmp_monitor               Consulta dispositivos via SNMP
+
+${colors.bright}Ferramentas de Segurança:${colors.reset}
+  modsecurity_setup          Instala e configura ModSecurity + OWASP CRS
+  suricata_setup             Instala e configura Suricata IDS/IPS
+  crowdsec_setup             Instala e configura CrowdSec
+  monit_setup                Instala e configura Monit para monitoramento
+
+${colors.bright}Ferramentas de Nuvem e APIs:${colors.reset}
+  cloudflare                 Integração com API Cloudflare (DNS, Firewall)
+  spamexperts                Integração com SpamExperts (Antispam)
+
+${colors.bright}Ferramentas de RAG e IA:${colors.reset}
+  rag_ingest                 Sistema de RAG - ingesta documentos e gera embeddings
+  qdrant_setup               Configuração do banco vetorial Qdrant
+  auto_tool                  Geração dinâmica de ferramentas via IA
+
+${colors.bright}Ferramentas de Gerenciamento:${colors.reset}
+  agent_supervisor           Gerenciamento de agentes remotos para telemetria
+  fazai-config               Configuração interativa do sistema
+
+${colors.bright}Ferramentas Utilitárias:${colors.reset}
+  http_fetch                 Cliente HTTP avançado
+  web_search                 Pesquisa web integrada
+  geoip_lookup              Lookup de geolocalização por IP
+  blacklist_check           Verificação de blacklists
+  weather                    Informações meteorológicas
+  alerts                     Sistema de alertas
+
 ${colors.bright}Provedores de IA Suportados:${colors.reset}
   • OpenRouter (padrão)       - Múltiplos modelos via OpenRouter
   • OpenAI                    - GPT-4, GPT-3.5-turbo
@@ -1034,6 +1066,7 @@ ${colors.bright}Exemplos de Uso:${colors.reset}
   fazai cache                  # Verificar status do cache
 
 ${colors.bright}Para mais informações:${colors.reset}
+  • Manual Completo: MANUAL_DO_USUARIO.md
   • Documentação: README.md, USAGE.md
   • Logs: /var/log/fazai/fazai.log
   • Configuração: /etc/fazai/fazai.conf

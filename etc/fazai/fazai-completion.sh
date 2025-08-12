@@ -16,34 +16,21 @@ _fazai_completions()
     local config_commands="config cache cache-clear"
     local ai_commands="mcps"
     local flags="-q --question -s --stream -w --web -d --debug --help"
+    
+    # Ferramentas por categoria
+    local monitoring_tools="net_qos_monitor ports_monitor snmp_monitor system_info"
+    local security_tools="modsecurity_setup suricata_setup crowdsec_setup monit_setup"
+    local cloud_tools="cloudflare spamexperts"
+    local rag_ai_tools="rag_ingest qdrant_setup auto_tool"
+    local management_tools="agent_supervisor fazai-config"
+    local utility_tools="http_fetch web_search geoip_lookup blacklist_check weather alerts"
+    local interface_tools="fazai_web fazai_html_v1 fazai_tui fazai-config-tui"
+    
+    # Comandos de rede e monitoramento
     local net_commands="snmp prometheus grafana qdrant agentes"
-    
-    # Ferramentas de sistema e monitoramento
-    local system_tools="system-check sync-changes"
-    
-    # Ferramentas de segurança e telemetria
-    local security_tools="modsecurity suricata crowdsec monit"
-    
-    # Ferramentas de desenvolvimento e versionamento
-    local dev_tools="version-bump github-setup"
-    
-    # Ferramentas de integração e APIs
-    local api_tools="cloudflare spamexperts"
-    
-    # Ferramentas de monitoramento de rede
-    local network_tools="snmp-monitor net-qos-monitor"
-    
-    # Ferramentas de IA e RAG
-    local ai_tools="qdrant-setup rag-ingest auto-tool"
-    
-    # Ferramentas de configuração e gerenciamento
-    local config_tools="agent-supervisor install-llamacpp"
-    
-    # Todas as ferramentas disponíveis
-    local all_tools="$system_tools $security_tools $dev_tools $api_tools $network_tools $ai_tools $config_tools"
 
     # Todos os comandos disponíveis
-    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands $all_tools"
+    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands $monitoring_tools $security_tools $cloud_tools $rag_ai_tools $management_tools $utility_tools $interface_tools"
 
     # Opções específicas para cada subcomando
     case "${prev}" in
@@ -72,19 +59,29 @@ _fazai_completions()
             COMPREPLY=( $(compgen -W "clear status info" -- ${cur}) )
             return 0
             ;;
-        system-check|sync-changes)
-            # Sugere opções para ferramentas de sistema
-            COMPREPLY=( $(compgen -W "--deps-only --services-only --backup --dry-run" -- ${cur}) )
+        modsecurity_setup)
+            # Sugere servidores web para ModSecurity
+            COMPREPLY=( $(compgen -W "nginx apache" -- ${cur}) )
             return 0
             ;;
-        version-bump)
-            # Sugere opções para versionamento
-            COMPREPLY=( $(compgen -W "-v --version -a --auto -d --dry-run -b --backup -h --help" -- ${cur}) )
+        cloudflare)
+            # Sugere operações Cloudflare
+            COMPREPLY=( $(compgen -W "zones dns firewall" -- ${cur}) )
             return 0
             ;;
-        github-setup)
-            # Sugere opções para setup do GitHub
-            COMPREPLY=( $(compgen -W "--hooks --workflows --all" -- ${cur}) )
+        rag_ingest)
+            # Sugere tipos de documentos para RAG
+            COMPREPLY=( $(compgen -W "pdf docx txt url" -- ${cur}) )
+            return 0
+            ;;
+        auto_tool)
+            # Sugere tipos de ferramentas para gerar
+            COMPREPLY=( $(compgen -W "monitoring security network backup" -- ${cur}) )
+            return 0
+            ;;
+        net_qos_monitor)
+            # Sugere sub-redes comuns
+            COMPREPLY=( $(compgen -W "192.168.1.0/24 192.168.0.0/24 10.0.0.0/24" -- ${cur}) )
             return 0
             ;;
         start|stop|restart|status)
@@ -187,10 +184,7 @@ complete -F _fazai_main_completion fazai
 # Função para mostrar ajuda de completion
 _fazai_show_completion_help()
 {
-
-
-    echo "FazAI Bash Completion v1.42.3"
-
+    echo "FazAI Bash Completion v1.42.1"
     echo ""
     echo "Comandos disponíveis:"
     echo "  Sistema:     ajuda, help, --help, -d, --debug, versao, version, -v, check-deps"
@@ -200,7 +194,6 @@ _fazai_show_completion_help()
     echo "  Visualização: html <tipo> [graf], tui, interactive"
     echo "  Configuração: config, cache, cache-clear"
     echo "  IA:          mcps <tarefa>"
-    echo "  Rede:        snmp, prometheus, grafana, qdrant, agentes"
     echo ""
     echo "Exemplos:"
     echo "  fazai html memoria bar"
