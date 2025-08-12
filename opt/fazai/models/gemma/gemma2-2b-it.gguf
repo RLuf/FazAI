@@ -1,0 +1,27 @@
+# Configuração do modelo Gemma2-2.0-2b para gemma.cpp
+# Este arquivo é um placeholder - o modelo real deve ser convertido para GGUF
+
+# Informações do modelo
+model_name = "gemma2-2b-it"
+model_version = "2.0"
+model_type = "gemma"
+vocab_size = 256000
+hidden_size = 2048
+intermediate_size = 5632
+num_hidden_layers = 18
+num_attention_heads = 8
+max_position_embeddings = 8192
+rms_norm_eps = 1e-6
+
+# Configurações de inferência
+context_length = 8192
+batch_size = 1
+temperature = 0.2
+top_p = 0.9
+top_k = 40
+repeat_penalty = 1.1
+
+# Caminhos dos arquivos
+model_path = "model.safetensors"
+tokenizer_path = "tokenizer.model"
+config_path = "config.json"
