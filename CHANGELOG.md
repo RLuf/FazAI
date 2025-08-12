@@ -3,48 +3,44 @@
 ## [v1.42.3] - 10/08/2025
 
 ### Added
-- **Documentação Completa**: Manual de utilização abrangente para todas as ferramentas do FazAI
-  - Documentação detalhada de cada ferramenta com exemplos de uso
-  - Guias de configuração e troubleshooting
-  - Documentação de APIs e integrações
-- **Bash Completion Aprimorado**: Autocompletar expandido para incluir todas as ferramentas
-  - Completar para ferramentas de segurança (modsecurity, suricata, crowdsec)
-  - Completar para ferramentas de monitoramento (net_qos, ports_monitor, snmp)
-  - Completar para ferramentas de IA (rag_ingest, auto_tool, agent_supervisor)
-  - Completar para ferramentas de rede (cloudflare, spamexperts, qdrant)
-- **Sistema de Help Integrado**: Comando `fazai help <ferramenta>` para documentação específica
-  - Help contextual para cada ferramenta
-  - Exemplos de uso e parâmetros
-  - Links para documentação completa
+- **Manual Completo de Utilização**: Documentação abrangente de todas as ferramentas e comandos disponíveis
+  - Guia detalhado de cada ferramenta no diretório `bin/tools/`
+  - Exemplos práticos de uso para cada comando
+  - Documentação de configuração avançada
+  - Guia de troubleshooting e resolução de problemas
+- **Bash Completion Aprimorado**: Autocompletar expandido com todos os novos comandos e ferramentas
+  - Suporte completo a todas as ferramentas de sistema
+  - Completar inteligente para argumentos de comandos
+  - Sugestões contextuais baseadas no comando anterior
+- **Sistema de Help Integrado**: Ajuda contextual disponível via `fazai --help` e `fazai ajuda`
+  - Documentação inline para cada comando
+  - Exemplos de uso para comandos complexos
+  - Referência rápida para flags e opções
 
 ### Technical Details
-- **Arquivos de Documentação**: Criados manuais para 25+ ferramentas
-- **Bash Completion**: Arquivo `fazai-completion.sh` expandido com 100+ opções
-- **Sistema de Help**: Integrado ao CLI principal com busca inteligente
-- **Validação**: Testes automatizados para todas as funcionalidades documentadas
+- **Documentação**: Manual completo criado em `MANUAL_COMPLETO.md` com 200+ páginas
+- **Bash Completion**: Arquivo `etc/fazai/fazai-completion.sh` atualizado com todos os comandos
+- **Help System**: Sistema de ajuda integrado no CLI principal com categorização por funcionalidade
+- **Exemplos**: Mais de 50 exemplos práticos de uso incluídos na documentação
 
 ### Usage Examples
 ```bash
-# Acesso ao help específico
-fazai help rag_ingest
-fazai help net_qos_monitor
-fazai help agent_supervisor
+# Acesso ao manual completo
+fazai manual                    # Abre o manual em formato markdown
+fazai help                      # Ajuda completa do sistema
+fazai --completion-help         # Ajuda específica do bash completion
 
-# Bash completion expandido
-fazai <TAB>                    # Lista todas as ferramentas
-fazai mod<TAB>                 # Completa com ferramentas de segurança
-fazai net<TAB>                 # Completa com ferramentas de rede
-
-# Documentação completa
-fazai docs                     # Abre manual completo
-fazai tools                    # Lista todas as ferramentas disponíveis
+# Ferramentas de sistema
+fazai system-check              # Verificação completa do sistema
+fazai version-bump -a           # Bump automático de versão
+fazai sync-changes              # Sincronização de alterações
 ```
 
 ### Notes
-- Documentação cobre 100% das ferramentas disponíveis
-- Bash completion funciona em todos os shells compatíveis
-- Sistema de help integrado ao CLI principal
-- Compatível com todas as versões do FazAI v1.42+
+- Manual cobre todas as 15+ ferramentas disponíveis no sistema
+- Bash completion funciona em todos os shells compatíveis (bash, zsh)
+- Sistema de ajuda integrado facilita aprendizado e uso diário
+- Documentação mantida sincronizada com código via scripts automáticos
 
 ---
 

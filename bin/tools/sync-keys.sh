@@ -20,12 +20,12 @@ extract_keys() {
     if [ ! -f "$ENV_FILE" ]; then
         echo "Arquivo .env não encontrado em $ENV_FILE"
         exit 1
-    }
+    fi
 
-    # Extrair chaves relacionadas a APIs
-    grep -E "^[A-Z_]+(KEY|TOKEN|SECRET)=" "$ENV_FILE" | while read -r line; do
-        key=$(echo "$line" | cut -d'=' -f1)
-        value=$(echo "$line" | cut -d'=' -f2-)
+    # Extrair chaves relacionadas a APIs e processar uma por vez
+    while IFS='=' read -r key value; do
+        # Pular linhas vazias ou comentários
+        [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
         
         # Determinar a seção baseada no nome da chave
         section=""
@@ -40,7 +40,7 @@ extract_keys() {
         
         # Atualizar o valor no fazai.conf
         update_config "$section" "$key" "$value"
-    done
+    done < <(grep -E "^[A-Z_]+(KEY|TOKEN|SECRET)=" "$ENV_FILE")
 }
 
 # Função para atualizar configuração
