@@ -161,7 +161,7 @@ complete -F _fazai_main_completion fazai
 # Função para mostrar ajuda de completion
 _fazai_show_completion_help()
 {
-    echo "FazAI Bash Completion v1.42.3"
+    echo "FazAI Bash Completion v1.42.2"
     echo ""
     echo "Comandos disponíveis:"
     echo "  Sistema:     ajuda, help, --help, -d, --debug, versao, version, -v, check-deps"

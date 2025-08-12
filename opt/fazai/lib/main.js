@@ -93,7 +93,7 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   defaultMeta: { 
-    version: '1.42.3',
+    version: '1.42.2',
     service: 'fazai-daemon'
   },
   transports: [
@@ -1528,7 +1528,7 @@ app.get('/status', (req, res) => {
     success: true, 
     status: 'online',
     timestamp: new Date().toISOString(),
-            version: '1.42.3',
+            version: '1.42.2',
     cache: {
       size: cacheManager.size(),
       maxSize: cacheManager.maxSize

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "editor": {
+    "vimMode": true
+  },
+  "model": {
+    "modelId": "gpt-5",
+    "displayModelId": "gpt-5",
+    "displayName": "OpenAI GPT-5",
+    "displayNameShort": "GPT-5",
+    "aliases": []
+  },
+  "hasChangedDefaultModel": true,
+  "permissions": {
+    "allow": [
+      "Shell(ls)",
+      "Write(/home/rluft/fazai/bin/fazai)",
+      "Write(/home/rluft/fazai/opt/fazai/lib/main.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/http_fetch.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/web_search.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/email_relay.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/crowdsec.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/modsecurity.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/geoip_lookup.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/blacklist_check.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/cloudflare.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/spamexperts.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/alerts.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/ports_monitor.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/snmp_monitor.js)",
+      "Shell(cmake)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/net_qos_monitor.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/auto_tool.js)",
+      "Write(/home/rluft/fazai/package.json)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/agent_supervisor.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/qdrant_setup.js)",
+      "Write(/home/rluft/fazai/CHANGELOG.md)",
+      "Write(/home/rluft/fazai/etc/fazai/fazai-completion.sh)",
+      "Write(/home/rluft/fazai/USAGE.md)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/modsecurity_setup.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/suricata_setup.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/crowdsec_setup.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/monit_setup.js)",
+      "Write(/home/rluft/fazai/install.sh)",
+      "Write(/home/rluft/fazai/etc/fazai/fazai.conf.example)",
+      "Write(/home/rluft/fazai/Dockerfile)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/fazai_tui.js)",
+      "Shell(printenv)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/fazai-tui.sh)",
+      "Write(/home/rluft/fazai/tui/src/main.rs)",
+      "Write(/home/rluft/fazai/README.md)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/rag_ingest.js)",
+      "Write(/home/rluft/fazai/opt/fazai/tools/gemma_bootstrap.sh)"
+    ],
+    "deny": []
+  },
+  "privacyCache": {
+    "ghostMode": true,
+    "privacyMode": 2,
+    "updatedAt": 1754879271497
+  }
+}
