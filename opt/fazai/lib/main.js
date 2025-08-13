@@ -40,6 +40,14 @@ const { ComplexTasksManager } = require('./complex_tasks');
 // Corrige caminho do MCP OPNsense (arquivo está em lib/mcp_opnsense.js)
 const { MCPOPNsense } = require('./mcp_opnsense');
 
+// Importar handlers do agente inteligente
+let agentHandlers = null;
+try {
+  agentHandlers = require('./handlers/agent');
+} catch (error) {
+  console.warn('Agent handlers não disponíveis:', error.message);
+}
+
 // Sistema de cache simples em memória
 class CacheManager {
   constructor() {
@@ -1790,6 +1798,12 @@ class FazAIDaemon extends EventEmitter {
         res.status(500).json({ success: false, error: err.message });
       }
     });
+
+    // Montar rotas do agente se disponível
+    if (agentHandlers) {
+      agentHandlers.mountAgent(app);
+      this.log('Rotas do agente inteligente montadas', 'info');
+    }
 
     // Health check
     app.get('/health', (_req, res) => res.sendStatus(200));

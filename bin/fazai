@@ -53,6 +53,132 @@ if (!fs.existsSync(mainJsPath)) {
   process.exit(1);
 }
 
+// Função para executar agente inteligente
+async function runAgent(objective) {
+  try {
+    console.log('\x1b[36m🤖 FazAI Agent iniciando...\x1b[0m');
+    console.log('\x1b[33mObjetivo:\x1b[0m', objective);
+    console.log('');
+
+    // Criar sessão
+    const sessionResponse = await axios.post(`${API_URL}/agent/sessions`, {});
+    if (!sessionResponse.data.ok) {
+      throw new Error('Falha ao criar sessão');
+    }
+    
+    const sessionId = sessionResponse.data.session_id;
+    console.log('\x1b[32m✓ Sessão criada:\x1b[0m', sessionId);
+
+    // Configurar handler de interrupção
+    process.on('SIGINT', async () => {
+      console.log('\n\x1b[33m🛑 Interrompendo agente...\x1b[0m');
+      try {
+        await axios.post(`${API_URL}/agent/abort`, { session_id: sessionId });
+      } catch (e) {
+        // Ignorar erros de abort
+      }
+      process.exit(130);
+    });
+
+    // Iniciar stream SSE
+    const response = await axios.post(`${API_URL}/agent/generate`, {
+      session_id: sessionId,
+      objective: objective,
+      history: []
+    }, {
+      responseType: 'stream',
+      headers: {
+        'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache'
+      }
+    });
+
+    let buffer = '';
+    
+    response.data.on('data', (chunk) => {
+      buffer += chunk.toString();
+      
+      // Processar eventos SSE
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const event = JSON.parse(line.slice(6));
+            handleAgentEvent(event);
+          } catch (e) {
+            // Ignorar linhas que não são JSON válido
+          }
+        }
+      }
+    });
+
+    response.data.on('end', () => {
+      console.log('\n\x1b[32m✅ Agente concluído\x1b[0m');
+    });
+
+    response.data.on('error', (error) => {
+      console.error('\n\x1b[31m❌ Erro no stream:\x1b[0m', error.message);
+    });
+
+  } catch (error) {
+    console.error('\x1b[31m❌ Erro ao executar agente:\x1b[0m', error.message);
+    process.exit(1);
+  }
+}
+
+// Handler de eventos do agente
+function handleAgentEvent(event) {
+  switch (event.type) {
+    case 'token':
+      process.stdout.write(event.text);
+      break;
+      
+    case 'plan':
+      console.log('\n\x1b[35m📋 Plano:\x1b[0m', event.steps.join(' → '));
+      break;
+      
+    case 'action':
+      console.log('\n\x1b[34m⚡ Ação:\x1b[0m', event.action, event.command || event.name || '');
+      break;
+      
+    case 'exec_log':
+      process.stdout.write(event.chunk);
+      break;
+      
+    case 'observe':
+      console.log('\n\x1b[36m👁️  Observação:\x1b[0m', event.note);
+      break;
+      
+    case 'ask':
+      console.log('\n\x1b[33m❓ Pergunta:\x1b[0m', event.question);
+      if (event.options && event.options.length > 0) {
+        console.log('\x1b[33mOpções:\x1b[0m');
+        event.options.forEach((option, i) => {
+          console.log(`  ${i + 1}. ${option}`);
+        });
+      }
+      // TODO: Implementar interação com usuário
+      break;
+      
+    case 'done':
+      console.log('\n\x1b[32m✅ Iteração concluída\x1b[0m');
+      if (event.result) {
+        console.log('\x1b[32mResultado:\x1b[0m', event.result);
+      }
+      break;
+      
+    case 'error':
+      console.error('\n\x1b[31m❌ Erro:\x1b[0m', event.message);
+      break;
+      
+    default:
+      // Ignorar eventos desconhecidos
+      break;
+  }
+}
+
 // Configuração do cliente
 const API_URL = process.env.FAZAI_API_URL || 'http://localhost:3120';
 const LOG_FILE = '/var/log/fazai/fazai.log';
@@ -506,6 +632,7 @@ ${colors.bright}Compatível com:${colors.reset}
 
 ${colors.bright}Uso:${colors.reset}
   fazai [-d|--debug] [--stream|-s] [-q] <comando>
+  fazai agent <objetivo>
 
 ${colors.bright}Comandos de Sistema:${colors.reset}
   ajuda, help, --help         Exibe esta mensagem de ajuda
@@ -553,6 +680,10 @@ ${colors.bright}Comandos de Pesquisa:${colors.reset}
   -w, --web                   Força pesquisa web (tool web_search)
   complex -g <objetivo>       Objetivo de alto nível; usa /complex_flow
 
+${colors.bright}Modo Agent (Agente Inteligente):${colors.reset}
+  agent <objetivo>            Exemplo: fazai agent "configurar servidor de email relay"
+                              Executa agente inteligente com fluxo iterativo
+
 ${colors.bright}Modo MCPS (Planejamento Passo a Passo):${colors.reset}
   mcps <tarefa>               Exemplo: fazai mcps atualizar o sistema
   mcps --stream <tarefa>      Executa MCPS com saída em tempo real
@@ -578,6 +709,7 @@ ${colors.bright}Exemplos de Uso:${colors.reset}
   fazai cria um usuario com nome teste com a senha teste321 no grupo printers
   fazai instale os modulos mod_security do apache
   fazai altere a porta do ssh de 22 para 31052
+  fazai agent "configurar servidor de email relay com antispam"
   fazai mcps atualizar sistema
   fazai config                 # Configurar provedores de IA
   fazai cache                  # Verificar status do cache
@@ -1075,6 +1207,19 @@ ${colors.bright}Para mais informações:${colors.reset}
       process.exit(1);
     }
 
+    process.exit(0);
+  }
+
+  // Verificar se é o subcomando agent
+  if (args[0] === 'agent') {
+    if (args.length < 2) {
+      printError('Objetivo é obrigatório para o comando agent');
+      console.log(`${colors.fg.cyan}Uso: fazai agent "seu objetivo aqui"${colors.reset}`);
+      process.exit(1);
+    }
+    
+    const objective = args.slice(1).join(' ');
+    await runAgent(objective);
     process.exit(0);
   }
 
