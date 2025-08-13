@@ -687,7 +687,7 @@ async function main() {
   
   if (args[0] === 'ajuda' || args[0] === 'help' || args[0] === '--help') {
     console.log(`
-${colors.bright}${colors.fg.cyan}FazAI v1.42.2${colors.reset}
+${colors.bright}${colors.fg.cyan}FazAI v2.0.0${colors.reset}
 
 ${colors.bright}Compatível com:${colors.reset}
   • Debian/Ubuntu
@@ -749,14 +749,14 @@ ${colors.bright}Modo Agent (Agente Inteligente):${colors.reset}
                               Executa agente inteligente com fluxo iterativo
 
 ${colors.bright}Modo Relay (Sistema SMTP):${colors.reset}
-  relay analyze               Analisa configuração atual do relay
-  relay configure             Configura relay automaticamente
-  relay monitor               Monitora logs em tempo real
-  relay stats                 Mostra estatísticas do relay
-  relay spamexperts           Integra com SpamExperts
-  relay zimbra                Integra com Zimbra
-  relay blacklist <ip>        Adiciona IP à blacklist
-  relay restart               Reinicia o relay
+  relay analyze               Analisa configuração atual do relay SMTP
+  relay configure             Configura relay automaticamente com IA
+  relay monitor               Monitora logs em tempo real e detecta ataques
+  relay stats                 Mostra estatísticas completas do sistema
+  relay spamexperts           Integra com SpamExperts (whitelist/blacklist)
+  relay zimbra                Integra com Zimbra (usuários/domínios)
+  relay blacklist <ip>        Adiciona IP malicioso à blacklist
+  relay restart               Reinicia o relay com novas configurações
 
 ${colors.bright}Modo MCPS (Planejamento Passo a Passo):${colors.reset}
   mcps <tarefa>               Exemplo: fazai mcps atualizar o sistema
@@ -784,6 +784,9 @@ ${colors.bright}Exemplos de Uso:${colors.reset}
   fazai instale os modulos mod_security do apache
   fazai altere a porta do ssh de 22 para 31052
   fazai agent "configurar servidor de email relay com antispam"
+  fazai relay analyze                    # Analisa configuração do relay
+  fazai relay configure                  # Configura automaticamente
+  fazai relay monitor                    # Monitora em tempo real
   fazai mcps atualizar sistema
   fazai config                 # Configurar provedores de IA
   fazai cache                  # Verificar status do cache
@@ -875,7 +878,7 @@ ${colors.bright}Para mais informações:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log('FazAI v1.42.2');
+    console.log('FazAI v2.0.0');
     process.exit(0);
   }
 

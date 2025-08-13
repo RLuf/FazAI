@@ -32,7 +32,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Variáveis de configuração
-VERSION="1.42.2"
+VERSION="2.0.0"
 LOG_FILE="/var/log/fazai_install.log"
 RETRY_COUNT=3
 INSTALL_STATE_FILE="/var/lib/fazai/install.state"
@@ -641,7 +641,7 @@ const fs = require('fs');
 const args = process.argv.slice(2);
 
 if (args.includes('--version')) {
-  console.log('FazAI v1.42.2');
+  console.log('FazAI v2.0.0');
   process.exit(0);
 }
 
@@ -671,7 +671,7 @@ if (args.includes('--status')) {
   process.exit(0);
 }
 
-console.log('FazAI CLI v1.42.2 - Use --help para mais informações');
+console.log('FazAI CLI v2.0.0 - Use --help para mais informações');
 EOF
     chmod +x "bin/fazai"
   fi
@@ -882,7 +882,7 @@ EOF
     cat > "/opt/fazai/tools/fazai-tui.sh" << 'EOF'
 #!/bin/bash
 # FazAI Dashboard TUI - Versão Básica
-echo "FazAI Dashboard TUI v1.42.2"
+echo "FazAI Dashboard TUI v2.0.0"
 echo "
   if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
     copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"
@@ -1173,7 +1173,7 @@ install_node_dependencies() {
     cat > "package.json" << 'EOF'
 {
   "name": "fazai",
-  "version": "1.42.2",
+  "version": "2.0.0",
   "description": "FazAI - Orquestrador Inteligente de Automação",
   "main": "main.js",
   "dependencies": {
@@ -1300,7 +1300,7 @@ install_tui() {
 const fs = require('fs');
 const path = require('path');
 
-console.log('FazAI - Interface de Configuração TUI v1.42.2');
+console.log('FazAI - Interface de Configuração TUI v2.0.0');
 console.log('=========================================');
 console.log('');
 console.log('Funcionalidades disponíveis:');
@@ -1950,8 +1950,16 @@ done
 # Inicia instalação principal
 main_install
 
-log "SUCCESS" "Instalação do FazAI concluída com sucesso!"
-echo -e "\n${GREEN}🎉 FazAI está pronto para uso!${NC}"
-echo -e "Execute ${CYAN}fazai-config${NC} para configurar suas API keys."
+log "SUCCESS" "Instalação do FazAI v2.0 concluída com sucesso!"
+echo -e "\n${GREEN}🎉 FazAI v2.0 - Sistema de Fluxo Inteligente está pronto!${NC}"
+echo -e "${CYAN}Novos recursos disponíveis:${NC}"
+echo -e "  🤖 ${YELLOW}fazai agent${NC} - Agente inteligente cognitivo"
+echo -e "  📊 ${YELLOW}fazai relay${NC} - Sistema de relay SMTP inteligente"
+echo -e "  🔧 ${YELLOW}fazai-config${NC} - Configurar API keys"
+echo -e "  📚 ${YELLOW}fazai manual${NC} - Manual completo"
+echo -e "\n${GREEN}Exemplos de uso:${NC}"
+echo -e "  fazai agent \"configurar servidor de email relay com antispam\""
+echo -e "  fazai relay analyze"
+echo -e "  fazai relay configure"
 
 exit 0

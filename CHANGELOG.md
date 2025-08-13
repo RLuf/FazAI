@@ -1,5 +1,105 @@
 # Changelog
 
+## [v2.0.0] - 13/08/2025
+
+### 🚀 MAJOR RELEASE - Transformação em Sistema de Fluxo Inteligente
+
+#### 🤖 **Agente Inteligente Cognitivo**
+- **Sistema de Agente Persistente**: Transformação completa do FazAI de orquestrador simples para agente cognitivo e persistente
+- **Worker Gemma (C++)**: Processo residente com modelo libgemma.a para raciocínio local e rápido
+- **Protocolo ND-JSON**: Sistema de comunicação estruturado com 9 tipos de ação (plan, ask, research, shell, toolSpec, observe, commitKB, done)
+- **Streaming em Tempo Real**: Server-Sent Events (SSE) para tokens e ações em tempo real
+- **Base de Conhecimento**: Sistema de aprendizado contínuo com Qdrant para persistência de conhecimento
+- **Geração Dinâmica de Ferramentas**: Criação e execução de ferramentas sob demanda
+
+#### 🔄 **Arquitetura de Fluxo Inteligente**
+- **IPC via Socket Unix**: Comunicação eficiente entre worker C++ e daemon Node.js
+- **Módulos Core Modulares**: Prompt, retrieval, research, shell, tools, KB integrados
+- **Handlers Especializados**: Processamento de ações ND-JSON com controle granular
+- **CLI Inteligente**: Subcomando `agent` com streaming SSE e controle de interrupção
+- **Configuração Estruturada**: Arquivo `etc/fazai/agent.conf` para configuração avançada
+
+#### 📊 **Integração com Relay SMTP**
+- **Módulo de Integração**: `relay_integration.js` para automação completa do sistema de relay
+- **Análise Inteligente**: Configuração automática baseada em IA e recomendações
+- **Monitoramento Avançado**: Detecção de padrões de ataque e análise de logs em tempo real
+- **Integração Enterprise**: SpamExperts e Zimbra com sincronização automática
+- **Resposta Automática**: Sistema de resposta inteligente a ataques com blacklist dinâmica
+- **CLI Especializado**: Comandos `fazai relay analyze`, `configure`, `monitor`, `stats`
+
+#### 🛠️ **Ferramentas e Automação**
+- **Script de Build**: `worker/build.sh` para compilação automatizada do worker C++
+- **CMake Integration**: Configuração completa para build do worker com systemd
+- **Provider Node.js**: Cliente para comunicação com worker via socket Unix
+- **Documentação Abrangente**: 3 arquivos de documentação completa (FLUXO_INTELIGENTE.md, README_FLUXO_INTELIGENTE.md, TRANSFORMACAO_RESUMO.md)
+
+#### 🎯 **Comandos e Funcionalidades**
+```bash
+# Agente Inteligente
+fazai agent "configurar servidor de email relay com antispam e antivirus"
+fazai agent "otimizar performance do sistema e detectar gargalos"
+
+# Relay SMTP
+fazai relay analyze                    # Análise de configuração
+fazai relay configure                  # Configuração automática
+fazai relay monitor                    # Monitoramento em tempo real
+fazai relay stats                      # Estatísticas completas
+fazai relay spamexperts                # Integração SpamExperts
+fazai relay zimbra                     # Integração Zimbra
+fazai relay blacklist 192.168.1.100    # Blacklist dinâmica
+fazai relay restart                    # Reinicialização
+
+# Build do Worker
+cd worker && ./build.sh                # Compilação automatizada
+```
+
+#### 📈 **Benefícios Alcançados**
+- **Autonomia Real**: Agente mantém raciocínio contínuo até concluir objetivos
+- **Transparência Total**: Streaming em tempo real de tokens e ações
+- **Flexibilidade Extrema**: Geração dinâmica de ferramentas conforme necessário
+- **Eficiência Operacional**: Uma ação por iteração para controle total
+- **Segurança Robusta**: Validações, auditoria e execução segura
+- **Aprendizado Contínuo**: Base de conhecimento persistente
+
+#### 🔧 **Arquivos Criados/Modificados**
+- **Core System**: `worker/src/*` (worker.hpp, worker.cpp, ipc.hpp, ipc.cpp, main.cpp)
+- **Node.js Integration**: `opt/fazai/lib/providers/gemma-worker.js`, `opt/fazai/lib/handlers/agent.js`
+- **Core Modules**: `opt/fazai/lib/core/*` (prompt, retrieval, shell, research, tools, kb)
+- **CLI & Config**: `bin/fazai`, `etc/fazai/agent.conf`
+- **Build & Docs**: `worker/build.sh`, `worker/CMakeLists.txt`, documentação completa
+
+#### 🎮 **Exemplos de Uso Avançado**
+```bash
+# Configuração completa automática
+fazai agent "configurar sistema de relay SMTP com proteção máxima, integrar com SpamExperts e Zimbra, e configurar monitoramento inteligente"
+
+# Resposta automática a ataques
+fazai agent "detectar ataque de spam em massa e implementar contramedidas automáticas"
+
+# Otimização inteligente
+fazai agent "otimizar performance do relay SMTP e reduzir latência de processamento"
+```
+
+### Technical Details
+- **Compatibilidade**: Mantém total compatibilidade com sistema existente
+- **Performance**: Worker C++ residente para latência mínima
+- **Segurança**: Validação de comandos e execução isolada
+- **Escalabilidade**: Arquitetura modular para extensões futuras
+- **Documentação**: 3 arquivos de documentação abrangente criados
+
+### Breaking Changes
+- **Nova Arquitetura**: Sistema completamente reestruturado com agente inteligente
+- **Novos Comandos**: Subcomandos `agent` e `relay` adicionados ao CLI
+- **Configuração**: Novo arquivo `etc/fazai/agent.conf` para configuração do agente
+
+### Notes
+- Esta versão representa um salto evolutivo significativo no FazAI
+- Transformação de orquestrador simples para sistema de inteligência artificial operacional
+- Preparado para integração com sistemas enterprise (SpamExperts, Zimbra)
+- Base sólida para expansões futuras com IA e automação avançada
+
+---
+
 ## [v1.42.3] - 10/08/2025
 
 ### Added
