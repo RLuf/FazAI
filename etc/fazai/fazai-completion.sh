@@ -51,6 +51,11 @@ _fazai_completions()
             COMPREPLY=( $(compgen -W "analyze configure monitor stats spamexperts zimbra blacklist restart" -- ${cur}) )
             return 0
             ;;
+        docler)
+            # Sugere comandos do DOCLER
+            COMPREPLY=( $(compgen -W "start stop status admin" -- ${cur}) )
+            return 0
+            ;;
         config)
             # Sugere opções de configuração
             COMPREPLY=( $(compgen -W "show edit reset backup restore test" -- ${cur}) )
@@ -182,6 +187,7 @@ _fazai_show_completion_help()
     echo "  Configuração: config, cache, cache-clear"
     echo "  IA:          mcps <tarefa>, agent <objetivo>, -q/--question, -s/--stream, -w/--web"
     echo "  Relay:       relay analyze, relay configure, relay monitor, relay stats"
+    echo "  DOCLER:      docler, docler admin, docler start, docler status"
     echo "  Segurança:   suricata_setup, modsecurity_setup, crowdsec_setup, spamexperts, cloudflare"
     echo ""
     echo "Exemplos:"
