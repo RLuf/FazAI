@@ -1,0 +1,3 @@
+/workspace/worker/build/CMakeFiles/fazai-gemma-worker.dir
+/workspace/worker/build/CMakeFiles/edit_cache.dir
+/workspace/worker/build/CMakeFiles/rebuild_cache.dir
