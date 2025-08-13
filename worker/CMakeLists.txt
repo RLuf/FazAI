@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Ajuste o caminho da libgemma se necessário
-set(GEMMA_LIB_PATH "${CMAKE_SOURCE_DIR}/root/gemma.cpp/build/libgemma.a")
+set(GEMMA_LIB_PATH "${CMAKE_SOURCE_DIR}/lib/libgemma.a")
 
 add_executable(fazai-gemma-worker
     src/main.cpp
