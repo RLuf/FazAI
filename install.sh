@@ -108,14 +108,11 @@ log() {
       ;;
   esac
 }
-# Consulta ajuda da IA em caso de erro (placeholder desativado)
+# Consulta ajuda da IA em caso de erro (simplificada)
 ai_help() {
   local prompt="$1"
-  if [ -f "$AI_HELPER" ]; then
-    node "$AI_HELPER" "$prompt" 2>/dev/null | tee -a "$LOG_FILE"
-  else
-    log "WARNING" "ai_helper não encontrado"
-  fi
+  log "INFO" "Erro detectado: $prompt"
+  log "INFO" "Verifique os logs em $LOG_FILE para mais detalhes"
 }
 
 
@@ -688,25 +685,7 @@ EOF
   fi
   chmod 755 /opt/fazai/lib/main.js
 
-  # Copia genaiscript.js se existir
-  if [ -f "opt/fazai/lib/genaiscript.js" ]; then
-    if ! copy_with_verification "opt/fazai/lib/genaiscript.js" "/opt/fazai/lib/" "Genaiscript"; then
-      copy_errors=$((copy_errors+1))
-    else
-      chmod 755 /opt/fazai/lib/genaiscript.js
-      log "SUCCESS" "Genaiscript copiado"
-    fi
-  fi
   
-  # Copia fazai_helper.js se existir
-  if [ -f "opt/fazai/lib/fazai_helper.js" ]; then
-    if ! copy_with_verification "opt/fazai/lib/fazai_helper.js" "/opt/fazai/lib/" "FazAI Helper"; then
-      copy_errors=$((copy_errors+1))
-    else
-      chmod 755 /opt/fazai/lib/fazai_helper.js
-      log "SUCCESS" "FazAI Helper copiado"
-    fi
-  fi
   
   # Copia módulos e integrações adicionais necessários
   for f in \
@@ -1706,8 +1685,6 @@ validate_installation() {
   # Verifica arquivos essenciais
   local essential_files=(
     "/opt/fazai/lib/main.js"
-    "/opt/fazai/lib/genaiscript.js"
-    "/opt/fazai/lib/fazai_helper.js"
     "/opt/fazai/bin/fazai"
     "/etc/fazai/fazai.conf"
     "/etc/fazai/complex_tasks.conf.default"
