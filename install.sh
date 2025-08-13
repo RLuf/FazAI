@@ -802,6 +802,25 @@ EOF
       log "SUCCESS" "Módulo nativo copiado"
     fi
   fi
+  
+  # Compila módulo system_mod.c se existir
+  if [ -f "opt/fazai/lib/mods/system_mod.c" ]; then
+    log "INFO" "Compilando módulo system_mod.c..."
+    mkdir -p /opt/fazai/lib/mods/
+    cp -r opt/fazai/lib/mods/* /opt/fazai/lib/mods/ 2>/dev/null || true
+    
+    cd /opt/fazai/lib/mods/
+    if [ -f "compile_system_mod.sh" ]; then
+      chmod +x compile_system_mod.sh
+      ./compile_system_mod.sh
+      log "SUCCESS" "Módulo system_mod.c compilado com sucesso"
+    else
+      # Compilação manual se o script não existir
+      log "WARNING" "Script de compilação não encontrado, tentando compilação manual..."
+      gcc -shared -fPIC -o system_mod.so system_mod.c -lclamav -lcurl -ljson-c -lpthread 2>/dev/null || log "WARNING" "Falha na compilação do system_mod.c (dependências podem estar faltando)"
+    fi
+    cd - > /dev/null
+  fi
 
   # Copia fazai-config.js se existir
   if [ -f "opt/fazai/tools/fazai-config.js" ]; then

@@ -1,0 +1,123 @@
+# FazAI - Lista de RBLs (Real-time Blackhole Lists)
+# Formato: domínio,descrição,nível_risco,códigos_resposta
+# Códigos de resposta: 127.0.0.x onde x indica o tipo de listagem
+
+# Spamhaus - ZEN (Combined)
+zen.spamhaus.org,Spamhaus ZEN (Combined),9,127.0.0.2-127.0.0.11
+
+# SpamCop
+bl.spamcop.net,SpamCop Blocklist,8,127.0.0.2
+
+# SORBS (Spam and Open Relay Blocking System)
+dnsbl.sorbs.net,SORBS Combined,7,127.0.0.2-127.0.0.10
+zombie.dnsbl.sorbs.net,SORBS Zombie,8,127.0.0.2
+http.dnsbl.sorbs.net,SORBS HTTP,7,127.0.0.2
+socks.dnsbl.sorbs.net,SORBS SOCKS,7,127.0.0.2
+misc.dnsbl.sorbs.net,SORBS Misc,6,127.0.0.2
+smtp.dnsbl.sorbs.net,SORBS SMTP,8,127.0.0.2
+web.dnsbl.sorbs.net,SORBS Web,7,127.0.0.2
+zombie.dnsbl.sorbs.net,SORBS Zombie,8,127.0.0.2
+
+# Barracuda
+b.barracudacentral.org,Barracuda Reputation Blocklist,8,127.0.0.2
+
+# JustSpam
+dnsbl.justspam.org,JustSpam,7,127.0.0.2
+
+# Manitu
+ix.dnsbl.manitu.net,Manitu,6,127.0.0.2
+
+# UCEPROTECT
+dnsbl-1.uceprotect.net,UCEPROTECT Level 1,7,127.0.0.2
+dnsbl-2.uceprotect.net,UCEPROTECT Level 2,8,127.0.0.2
+dnsbl-3.uceprotect.net,UCEPROTECT Level 3,9,127.0.0.2
+
+# SpamRATS
+dyna.spamrats.com,SpamRATS Dynamic,7,127.0.0.2
+auth.spamrats.com,SpamRATS Auth,8,127.0.0.2
+multi.surbl.org,SpamRATS Multi,7,127.0.0.2
+
+# URIBL
+black.uribl.com,URIBL Black,8,127.0.0.2
+grey.uribl.com,URIBL Grey,6,127.0.0.2
+multi.uribl.com,URIBL Multi,7,127.0.0.2
+red.uribl.com,URIBL Red,9,127.0.0.2
+white.uribl.com,URIBL White,5,127.0.0.2
+
+# SURBL
+multi.surbl.org,SURBL Multi,7,127.0.0.2
+
+# CBL (Composite Blocking List)
+cbl.abuseat.org,CBL Composite,8,127.0.0.2
+
+# NJABL
+dnsbl.njabl.org,NJABL,7,127.0.0.2
+dnsbl.njabl.censurfridns.dk,NJABL Censur,7,127.0.0.2
+
+# DSBL
+list.dsbl.org,DSBL,7,127.0.0.2
+unconfirmed.dsbl.org,DSBL Unconfirmed,6,127.0.0.2
+
+# Spamhaus SBL (Spamhaus Block List)
+sbl.spamhaus.org,Spamhaus SBL,9,127.0.0.2
+
+# Spamhaus XBL (Exploits Block List)
+xbl.spamhaus.org,Spamhaus XBL,8,127.0.0.2
+
+# Spamhaus PBL (Policy Block List)
+pbl.spamhaus.org,Spamhaus PBL,7,127.0.0.2
+
+# DUL (Dial-up User List)
+dul.dnsbl.sorbs.net,SORBS DUL,6,127.0.0.2
+
+# Lashback
+ubl.unsubscore.com,Lashback UBL,8,127.0.0.2
+
+# Backscatterer
+ips.backscatterer.org,Backscatterer,7,127.0.0.2
+
+# SpamCannibal
+bl.spamcannibal.org,SpamCannibal,8,127.0.0.2
+
+# SpamStopsHere
+bl.spamstopshere.net,SpamStopsHere,7,127.0.0.2
+
+# Invaluement
+dnsbl.invaluement.com,Invaluement,7,127.0.0.2
+
+# Spamhaus DROP (Don't Route Or Peer)
+dnsbl.spamhaus.org,Spamhaus DROP,9,127.0.0.2
+
+# Return Path
+bogons.cymru.com,Team Cymru Bogons,8,127.0.0.2
+
+# OpenBL
+dnsbl.openbl.org,OpenBL,7,127.0.0.2
+
+# Emerging Threats
+dnsbl.emergingthreats.net,Emerging Threats,8,127.0.0.2
+
+# CleanTalk
+access.redhawk.org,CleanTalk,7,127.0.0.2
+
+# SpamEatingMonkey
+bl.spameatingmonkey.net,SpamEatingMonkey,7,127.0.0.2
+
+# MailSpike
+bl.mailspike.net,MailSpike,7,127.0.0.2
+
+# SpamRATS
+dyna.spamrats.com,SpamRATS Dynamic,7,127.0.0.2
+
+# Spamhaus ZEN (Individual Lists)
+sbl.spamhaus.org,Spamhaus SBL,9,127.0.0.2
+xbl.spamhaus.org,Spamhaus XBL,8,127.0.0.2
+pbl.spamhaus.org,Spamhaus PBL,7,127.0.0.2
+
+# Composite Lists
+zen.spamhaus.org,Spamhaus ZEN (Combined),9,127.0.0.2-127.0.0.11
+bl.spamcop.net,SpamCop,8,127.0.0.2
+dnsbl.sorbs.net,SORBS Combined,7,127.0.0.2-127.0.0.10
+b.barracudacentral.org,Barracuda,8,127.0.0.2
+dnsbl.justspam.org,JustSpam,7,127.0.0.2
+ix.dnsbl.manitu.net,Manitu,6,127.0.0.2
