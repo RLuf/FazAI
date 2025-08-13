@@ -124,8 +124,19 @@
             margin-bottom: 2rem;
             position: relative;
             background: linear-gradient(135deg, rgba(0,255,136,0.1) 0%, rgba(0,136,255,0.1) 50%, rgba(255,0,136,0.1) 100%);
-            animation: faceGlow 4s infinite;
+            animation: faceGlow 4s infinite, faceBreathing 3s ease-in-out infinite;
             overflow: hidden;
+        }
+
+        @keyframes faceBreathing {
+            0%, 100% { 
+                transform: scale(1) rotate(0deg); 
+                border-width: 2px;
+            }
+            50% { 
+                transform: scale(1.05) rotate(1deg); 
+                border-width: 3px;
+            }
         }
 
         .docler-face::before {
@@ -493,7 +504,13 @@
         <!-- Sidebar esquerda - Face DOCLER -->
         <aside class="docler-face-panel">
             <div class="docler-face floating" id="doclerFace">
-                <div class="face-expression" id="faceExpression">🤖</div>
+                <div class="face-expression" id="faceExpression">
+                    <div class="face-eyes">
+                        <div class="eye left-eye"></div>
+                        <div class="eye right-eye"></div>
+                    </div>
+                    <div class="face-mouth" id="faceMouth"></div>
+                </div>
             </div>
             <div class="docler-mood" id="doclerMood">DOCLER está observando...</div>
             <div class="docler-stats">
