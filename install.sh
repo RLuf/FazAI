@@ -749,6 +749,15 @@ EOF
     fi
   fi
   
+  # Copia complex_tasks.conf.example se existir
+  if [ -f "etc/fazai/complex_tasks.conf.example" ]; then
+    if ! copy_with_verification "etc/fazai/complex_tasks.conf.example" "/etc/fazai/complex_tasks.conf.default" "Configuração de tarefas complexas"; then
+      copy_errors=$((copy_errors+1))
+    else
+      log "SUCCESS" "Configuração de tarefas complexas copiada"
+    fi
+  fi
+  
   if ! copy_with_verification "bin/fazai" "/opt/fazai/bin/" "CLI"; then
     copy_errors=$((copy_errors+1))
   fi
@@ -769,6 +778,15 @@ EOF
       copy_errors=$((copy_errors+1))
     fi
     if ! copy_with_verification "bin/tools/system-check.sh" "/opt/fazai/tools/" "System Check Script"; then
+      copy_errors=$((copy_errors+1))
+    fi
+    if ! copy_with_verification "bin/tools/test-all-tools.sh" "/opt/fazai/tools/" "Test All Tools Script"; then
+      copy_errors=$((copy_errors+1))
+    fi
+    if ! copy_with_verification "bin/tools/version-bump.sh" "/opt/fazai/tools/" "Version Bump Script"; then
+      copy_errors=$((copy_errors+1))
+    fi
+    if ! copy_with_verification "bin/tools/install-llamacpp.sh" "/opt/fazai/tools/" "LLaMA Install Script"; then
       copy_errors=$((copy_errors+1))
     fi
     
@@ -807,7 +825,24 @@ EOF
     "opt/fazai/tools/suricata_setup.js" \
     "opt/fazai/tools/crowdsec_setup.js" \
     "opt/fazai/tools/monit_setup.js" \
-    "opt/fazai/tools/rag_ingest.js"; do
+    "opt/fazai/tools/rag_ingest.js" \
+    "opt/fazai/tools/download_gemma2.sh" \
+    "opt/fazai/tools/install_python_deps.sh" \
+    "opt/fazai/tools/fazai_tui.js" \
+    "opt/fazai/tools/alerts.js" \
+    "opt/fazai/tools/blacklist_check.js" \
+    "opt/fazai/tools/email_relay.js" \
+    "opt/fazai/tools/geoip_lookup.js" \
+    "opt/fazai/tools/http_fetch.js" \
+    "opt/fazai/tools/ports_monitor.js" \
+    "opt/fazai/tools/system_info.js" \
+    "opt/fazai/tools/test_complex_tasks.js" \
+    "opt/fazai/tools/weather.js" \
+    "opt/fazai/tools/crowdsec.js" \
+    "opt/fazai/tools/modsecurity.js" \
+    "opt/fazai/tools/spamexperts.js" \
+    "opt/fazai/tools/web_search.js" \
+    "opt/fazai/tools/cloudflare.js"; do
     if [ -f "$t" ]; then
       if ! copy_with_verification "$t" "/opt/fazai/tools/" "Tool $(basename $t)"; then
         copy_errors=$((copy_errors+1))
@@ -1653,6 +1688,7 @@ validate_installation() {
     "/opt/fazai/lib/main.js"
     "/opt/fazai/bin/fazai"
     "/etc/fazai/fazai.conf"
+    "/etc/fazai/complex_tasks.conf.default"
     "/etc/systemd/system/fazai.service"
     "/usr/local/bin/fazai"
     "/opt/fazai/tools/fazai_web_frontend.html"
@@ -1765,6 +1801,7 @@ show_installation_summary() {
   echo -e "${BLUE}Localização dos arquivos:${NC}"
   echo "  • Binários: /opt/fazai"
   echo "  • Configuração: /etc/fazai/fazai.conf"
+  echo "  • Configuração de tarefas complexas: /etc/fazai/complex_tasks.conf.default"
   echo "  • Logs: /var/log/fazai"
   echo "  • Dados: /var/lib/fazai"
   echo ""
