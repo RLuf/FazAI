@@ -48,7 +48,7 @@ enabled = true
 # Caminho do binário (pré-compilado) gemma_oneshot
 endpoint = /opt/fazai/bin/gemma_oneshot
 # Caminho dos pesos (preferir formato single-file com tokenizer embutido)
-weights = /opt/fazai/models/gemma/gemma2-2b-it-sfp-single.sbs
+weights = /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
 # Se estiver usando pesos multi-arquivo, informe tokenizer; caso single-file, deixe vazio
 tokenizer = 
 # Model ID aceito pelo gemma.cpp (ex.: gemma2-2b-it, 2b-it)
@@ -88,6 +88,23 @@ enabled = false
 url = http://127.0.0.1:6333
 collection = linux_networking_tech
 dim = 1024
+
+###############################################################################
+# OPNsense MCP
+###############################################################################
+
+[opnsense]
+# Habilita integração com OPNsense via MCP
+enabled = false
+# Host/IP do firewall OPNsense
+host = 127.0.0.1
+port = 443
+use_ssl = true
+# Credenciais/Chaves (preencha com sua chave .MCP_OPNSENSE.key)
+api_key = 
+api_secret = 
+verifySSL = false
+timeout = 30000
 
 ###############################################################################
 # INTEGRAÇÕES EXTERNAS (CLOUDFLARE / SPAMEXPERTS)
@@ -142,30 +159,7 @@ temperature = 0.3
 max_tokens = 2000
 
 ###############################################################################
-# CONFIGURAÇÃO DO REQUESTY
-###############################################################################
-
-[requesty]
-# Chave de API do Requesty
-# Obtenha em: https://requesty.ai/
-api_key = sua_chave_requesty_aqui
-
-# Endpoint da API
-endpoint = https://router.requesty.ai/v1
-
-# Modelo padrão a ser utilizado
-# Formato: provedor/modelo
-default_model = openai/gpt-4o
-
-# Lista de modelos alternativos que podem ser utilizados
-# Separe múltiplos modelos com vírgulas
-models = openai/gpt-4-turbo, anthropic/claude-3-opus, google/gemini-pro
-
-# Temperatura para geração (0.0 a 1.0)
-temperature = 0.2
-
-# Máximo de tokens na resposta
-max_tokens = 2000
+# (Requesty removido)
 
 ###############################################################################
 # CONFIGURAÇÃO DA OPENAI

@@ -1802,6 +1802,11 @@ class FazAIDaemon extends EventEmitter {
     } catch (e) {
       this.log(`WS interativo indisponível: ${e.message}`, 'warn');
     }
+    try {
+      setupAgentWs(server);
+    } catch (e) {
+      this.log(`WS agente indisponível: ${e.message}`, 'warn');
+    }
     server.listen(PORT, '0.0.0.0', () => this.log(`Servidor ouvindo na porta ${PORT} (0.0.0.0)`));
   }
 
@@ -1882,6 +1887,246 @@ function setupInteractiveWs(httpServer) {
 
     ws.on('close', () => { try { pty.kill(); } catch (_) {} });
     ws.on('error', () => { try { pty.kill(); } catch (_) {} });
+  });
+}
+
+// WebSocket Agente: loop pensar -> agir -> observar
+function setupAgentWs(httpServer) {
+  let WebSocketServer;
+  try {
+    WebSocketServer = require('ws').Server;
+  } catch (e) {
+    logger.warn('Dependência WS ausente; modo agente desabilitado');
+    return;
+  }
+
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws/agent' });
+  logger.info('WebSocket de agente habilitado em /ws/agent');
+
+  // Utilitário: parse JSON robusto (aceita blocos com ```json ... ```)
+  const safeParseJson = (text) => {
+    try {
+      if (typeof text !== 'string') return null;
+      let s = text.trim();
+      if (s.startsWith('```')) {
+        s = s.replace(/^```[a-zA-Z0-9_-]*\s*\n/, '');
+        s = s.replace(/\n```\s*$/, '');
+      }
+      // Tenta extrair o primeiro objeto JSON
+      const start = s.indexOf('{');
+      const end = s.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+        s = s.substring(start, end + 1);
+      }
+      return JSON.parse(s);
+    } catch (_) { return null; }
+  };
+
+  // Decide próxima ação via LLM (sempre 1 ação por iteração)
+  async function agentDecide(context) {
+    const availableToolNames = Object.keys(loadedTools);
+    const systemPrompt = [
+      'Você é um agente de automação Linux do FazAI.',
+      'Siga o ciclo: pensar -> agir -> observar, UMA ação por iteração.',
+      'Ambiente: root, bash -lc no diretório ${CWD}.',
+      'Ferramentas disponíveis:',
+      `- shell: executar um único comando bash (não interativo, preferir flags -y).`,
+      `- tool:<nome>: executar uma ferramenta carregada (${availableToolNames.join(', ')}).`,
+      `- file_read: ler um arquivo local (params: {"path":"/abs"}).`,
+      `- file_write: escrever um arquivo local (params: {"path":"/abs","content":"..."}).`,
+      `- ask_user: solicitar informação ao usuário e aguardar.`,
+      '',
+      'Responda APENAS em JSON com o seguinte formato:',
+      '{"action":"shell|tool|file_read|file_write|ask_user|stop",',
+      ' "command":"<linha única>",',
+      ' "tool":"<nome da tool>", "params":{...},',
+      ' "confirm":true|false,',
+      ' "rationale":"explicação breve"}',
+      '',
+      'Regras:',
+      '- Nunca devolva markdown nem explicações fora do JSON.',
+      '- Para ações potencialmente destrutivas, defina confirm=true.',
+      '- Quando precisar de dados do usuário, use action=ask_user e pare.',
+      '- Se o objetivo foi alcançado, use action=stop.'
+    ].join('\n');
+
+    const userContent = [
+      `Objetivo: ${context.goal || '(não informado)'}`,
+      `CWD: ${context.cwd}`,
+      `Histórico (resumo curto): ${context.history.slice(-6).map(h=>`[${h.role}] ${String(h.content).slice(0,200)}`).join(' | ')}`,
+      'Decida a próxima ação.'
+    ].join('\n');
+
+    const provider = process.env.DEFAULT_PROVIDER || AI_CONFIG.default_provider;
+    const providerConfig = AI_CONFIG.providers[provider];
+    const headers = {
+      'Content-Type': 'application/json',
+      ...providerConfig.headers
+    };
+    if (providerConfig.api_key) headers.Authorization = `Bearer ${providerConfig.api_key}`;
+
+    const payload = {
+      model: providerConfig.default_model,
+      messages: [
+        { role: 'system', content: systemPrompt.replace('${CWD}', context.cwd) },
+        { role: 'user', content: userContent }
+      ],
+      max_tokens: providerConfig.max_tokens
+    };
+
+    const endpoint = `${providerConfig.endpoint}/chat/completions`;
+    const resp = await axios.post(endpoint, payload, { headers });
+    const content = resp.data.choices[0].message.content;
+    const json = safeParseJson(content);
+    if (!json || !json.action) {
+      return { action: 'ask_user', rationale: 'Resposta inválida do modelo. Descreva melhor o objetivo.' };
+    }
+    return json;
+  }
+
+  // Executa uma ação decidida pelo agente
+  async function executeAgentAction(ws, ctx, decision) {
+    const send = (type, payload) => { try { ws.send(JSON.stringify({ type, ...payload })); } catch (_) {} };
+    switch (decision.action) {
+      case 'stop':
+        send('done', { success: true, message: 'Objetivo concluído' });
+        return { done: true };
+      case 'ask_user':
+        ctx.waiting = 'user_input';
+        send('ask', { prompt: decision.prompt || 'Forneça mais detalhes para prosseguir.' });
+        return { done: false };
+      case 'file_read': {
+        try {
+          const p = String(decision.params?.path || '');
+          const content = fs.readFileSync(p, 'utf8');
+          ctx.history.push({ role: 'tool', content: `file_read:${p} bytes=${content.length}` });
+          send('result', { action: 'file_read', path: p, length: content.length, preview: content.slice(0, 1000) });
+        } catch (e) {
+          send('error', { message: `file_read falhou: ${e.message}` });
+        }
+        return { done: false };
+      }
+      case 'file_write': {
+        try {
+          const p = String(decision.params?.path || '');
+          const c = String(decision.params?.content || '');
+          fs.writeFileSync(p, c);
+          ctx.history.push({ role: 'tool', content: `file_write:${p} bytes=${c.length}` });
+          send('result', { action: 'file_write', path: p, length: c.length });
+        } catch (e) {
+          send('error', { message: `file_write falhou: ${e.message}` });
+        }
+        return { done: false };
+      }
+      case 'tool': {
+        const name = String(decision.tool || '').trim();
+        const params = decision.params || {};
+        const tool = loadedTools[name];
+        if (!tool) { send('error', { message: `Tool não encontrada: ${name}` }); return { done: false }; }
+        send('step_start', { kind: 'tool', tool: name, params });
+        try {
+          let out;
+          if (typeof tool.run === 'function') out = await tool.run(params);
+          else if (typeof tool.execute === 'function') out = await tool.execute('', params);
+          else if (name === 'web_search' && typeof tool.search === 'function') out = await tool.search(params.query || '');
+          else out = await tool(params);
+          ctx.history.push({ role: 'tool', content: `tool:${name} -> ${JSON.stringify(out).slice(0,2000)}` });
+          send('step_end', { kind: 'tool', tool: name, ok: true });
+          send('result', { action: 'tool', tool: name, output: out });
+        } catch (e) {
+          send('step_end', { kind: 'tool', tool: name, ok: false });
+          send('error', { message: `Tool ${name} falhou: ${e.message}` });
+        }
+        return { done: false };
+      }
+      case 'shell': {
+        const cmd = String(decision.command || '').trim();
+        if (!cmd) { send('error', { message: 'Comando vazio' }); return { done: false }; }
+        if (decision.confirm) {
+          ctx.waiting = 'confirm';
+          ctx.pending = { type: 'shell', cmd };
+          send('confirm_needed', { command: cmd });
+          return { done: false };
+        }
+        return await new Promise((resolve) => {
+          send('step_start', { kind: 'shell', command: cmd });
+          const child = spawn('bash', ['-lc', cmd], { cwd: ctx.cwd });
+          child.stdout.on('data', (d) => send('stdout', { chunk: d.toString() }));
+          child.stderr.on('data', (d) => send('stderr', { chunk: d.toString() }));
+          child.on('error', (e) => send('error', { message: e.message }));
+          child.on('close', (code) => {
+            ctx.history.push({ role: 'tool', content: `shell:${cmd} -> code=${code}` });
+            send('step_end', { kind: 'shell', code });
+            resolve({ done: false });
+          });
+        });
+      }
+      default:
+        send('error', { message: `Ação desconhecida: ${decision.action}` });
+        return { done: false };
+    }
+  }
+
+  wss.on('connection', (ws) => {
+    const ctx = { goal: '', cwd: process.env.HOME, history: [], waiting: null, pending: null, steps: 0, maxSteps: 20 };
+    const send = (type, payload) => { try { ws.send(JSON.stringify({ type, ...payload })); } catch (_) {} };
+
+    send('state', { status: 'ready', message: 'Agente pronto. Envie seu objetivo.' });
+
+    const loop = async () => {
+      if (ctx.waiting) return; // aguardando usuário
+      if (ctx.steps >= ctx.maxSteps) { send('done', { success: false, message: 'Limite de passos atingido' }); return; }
+      ctx.steps++;
+      try {
+        const decision = await agentDecide(ctx);
+        send('thought', { rationale: decision.rationale || '' });
+        const result = await executeAgentAction(ws, ctx, decision);
+        if (result.done) return; // concluído
+        // Se não estiver esperando input, continua a iterar automaticamente
+        if (!ctx.waiting) setTimeout(loop, 10);
+      } catch (e) {
+        send('error', { message: e.message });
+      }
+    };
+
+    ws.on('message', async (msg) => {
+      let m;
+      try { m = JSON.parse(msg.toString()); } catch (_) { m = { type: 'user', text: msg.toString() }; }
+      if (m.type === 'start') {
+        ctx.goal = String(m.goal || '').trim();
+        ctx.cwd = m.cwd && typeof m.cwd === 'string' ? m.cwd : ctx.cwd;
+        ctx.history.push({ role: 'user', content: `Objetivo inicial: ${ctx.goal}` });
+        send('state', { status: 'running', goal: ctx.goal, cwd: ctx.cwd });
+        setTimeout(loop, 10);
+      } else if (m.type === 'user') {
+        const text = String(m.text || '').trim();
+        if (!text) return;
+        if (ctx.waiting === 'confirm') {
+          const ok = /^y(es)?|sim|s$/i.test(text);
+          const pending = ctx.pending; ctx.pending = null; ctx.waiting = null;
+          if (pending && pending.type === 'shell') {
+            if (!ok) { send('result', { action: 'confirm', accepted: false }); setTimeout(loop, 10); return; }
+            // Executa comando aprovado
+            await executeAgentAction(ws, ctx, { action: 'shell', command: pending.cmd, confirm: false });
+            setTimeout(loop, 10);
+            return;
+          }
+        } else if (ctx.waiting === 'user_input') {
+          ctx.history.push({ role: 'user', content: text });
+          ctx.waiting = null;
+          setTimeout(loop, 10);
+          return;
+        } else {
+          // Novo contexto/instrução adicional
+          ctx.history.push({ role: 'user', content: text });
+          setTimeout(loop, 10);
+          return;
+        }
+      }
+    });
+
+    ws.on('close', () => {});
+    ws.on('error', () => {});
   });
 }
 

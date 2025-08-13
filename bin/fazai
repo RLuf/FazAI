@@ -805,21 +805,60 @@ ${colors.bright}Para mais informações:${colors.reset}
           process.exit(0);
         });
       } else if (args[0] === 'interactive') {
+        // Novo modo: agente. Use --pty para o shell interativo antigo
+        const usePty = args.includes('--pty');
         const WebSocket = require('ws');
-        const wsUrl = (process.env.FAZAI_WS_URL || API_URL.replace('http', 'ws')) + '/ws/interactive';
-        printInfo(`Conectando WS: ${wsUrl}`);
+        if (usePty) {
+          const wsUrl = (process.env.FAZAI_WS_URL || API_URL.replace('http', 'ws')) + '/ws/interactive';
+          printInfo(`Conectando WS PTY: ${wsUrl}`);
+          const ws = new WebSocket(wsUrl);
+          ws.on('open', () => {
+            printInfo('Sessão PTY aberta. Ctrl+C para sair.');
+            if (process.stdin.setRawMode) process.stdin.setRawMode(true);
+            process.stdin.resume();
+            process.stdin.on('data', (chunk) => {
+              if (chunk.length === 1 && chunk[0] === 3) { try { ws.close(); } catch(_) {}; process.exit(0); }
+              ws.send(JSON.stringify({ type: 'stdin', data: chunk.toString('utf8') }));
+            });
+          });
+          ws.on('message', (msg) => {
+            try { const m = JSON.parse(msg.toString()); if (m.type === 'stdout' && m.data) process.stdout.write(m.data); } catch(_) {}
+          });
+          ws.on('close', () => { printInfo('Sessão encerrada'); process.exit(0); });
+          ws.on('error', (e) => { printError(`WS erro: ${e.message}`); process.exit(1); });
+          return;
+        }
+        // Agente
+        const wsUrl = (process.env.FAZAI_WS_URL || API_URL.replace('http', 'ws')) + '/ws/agent';
+        printInfo(`Conectando WS Agente: ${wsUrl}`);
         const ws = new WebSocket(wsUrl);
+        const goal = args.slice(1).join(' ').trim();
         ws.on('open', () => {
-          printInfo('Sessão interativa aberta. Ctrl+C para sair.');
-          if (process.stdin.setRawMode) process.stdin.setRawMode(true);
-          process.stdin.resume();
-          process.stdin.on('data', (chunk) => {
-            if (chunk.length === 1 && chunk[0] === 3) { try { ws.close(); } catch(_) {}; process.exit(0); }
-            ws.send(JSON.stringify({ type: 'stdin', data: chunk.toString('utf8') }));
+          printInfo('Agente iniciado. Digite para enviar instruções. Ctrl+C para sair.');
+          ws.send(JSON.stringify({ type: 'start', goal }));
+          const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+          rl.on('line', (line) => {
+            if (line.trim().toLowerCase() === 'exit') { try { ws.close(); } catch(_) {}; process.exit(0); }
+            ws.send(JSON.stringify({ type: 'user', text: line }));
           });
         });
         ws.on('message', (msg) => {
-          try { const m = JSON.parse(msg.toString()); if (m.type === 'stdout' && m.data) process.stdout.write(m.data); } catch(_) {}
+          try {
+            const m = JSON.parse(msg.toString());
+            switch (m.type) {
+              case 'state': printInfo(`${m.message || ''} ${m.goal?`goal=${m.goal}`:''}`.trim()); break;
+              case 'thought': console.log(`${colors.fg.cyan}Pensamento:${colors.reset} ${m.rationale||''}`); break;
+              case 'ask': console.log(`${colors.fg.yellow}Pergunta:${colors.reset} ${m.prompt}`); break;
+              case 'confirm_needed': console.log(`${colors.fg.yellow}Confirmar:${colors.reset} ${m.command} (digite: sim/não)`); break;
+              case 'step_start': console.log(`${colors.fg.cyan}Executando:${colors.reset} ${m.kind==='shell'?m.command:`tool ${m.tool}`}`); break;
+              case 'stdout': process.stdout.write(m.chunk); break;
+              case 'stderr': process.stderr.write(`${colors.fg.yellow}${m.chunk}${colors.reset}`); break;
+              case 'step_end': console.log(`${colors.fg.cyan}Fim:${colors.reset} ${m.kind} ${m.code!==undefined?('code='+m.code):''}`); break;
+              case 'result': console.log(`${colors.fg.green}Resultado:${colors.reset} ${typeof m.output==='string'?m.output:JSON.stringify(m.output,null,2)}`); break;
+              case 'error': printError(m.message); break;
+              case 'done': printSuccess(m.message||'Concluído'); process.exit(0);
+            }
+          } catch(_) {}
         });
         ws.on('close', () => { printInfo('Sessão encerrada'); process.exit(0); });
         ws.on('error', (e) => { printError(`WS erro: ${e.message}`); process.exit(1); });

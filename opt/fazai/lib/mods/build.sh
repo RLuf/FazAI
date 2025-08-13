@@ -78,7 +78,7 @@ test_module() {
     
     # Testa se consegue carregar o módulo
     node -e "
-        const ffi = require('ffi-napi-v22');
+        const ffi = require('ffi-napi');
         try {
             const lib = ffi.Library('./$module_file', {});
             console.log('✓ Módulo carregado com sucesso');
@@ -87,7 +87,7 @@ test_module() {
             process.exit(1);
         }
     " 2>/dev/null || {
-        print_warning "Não foi possível testar o módulo (ffi-napi-v22 não encontrado)"
+        print_warning "Não foi possível testar o módulo (ffi-napi não encontrado)"
         return 0
     }
     

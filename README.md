@@ -35,8 +35,8 @@ Consulte o [CHANGELOG](CHANGELOG.md) para histórico completo de alterações.
 git clone https://github.com/RLuf/FazAI.git
 cd FazAI
 
-# Instalar
-sudo ./install.sh
+# Instalar (use --clean para sobrescrever binários existentes)
+sudo ./install.sh --clean
 # O instalador detecta seu próprio caminho, permitindo
 # executá-lo de qualquer diretório. Exemplo:
 # sudo /caminho/para/install.sh
@@ -220,6 +220,68 @@ O FazAI implementa um sistema de fallback robusto que garante alta disponibilida
 4. **Cache Inteligente**: Reduz latência e custos para comandos repetidos
 
 ### Telemetria e Observabilidade
+### Llama.cpp (opcional, para uso com Ollama/llama server/execução local)
+
+Para compilar e instalar o llama.cpp com CMake e dependências adequadas (incluindo libcurl dev):
+
+```
+bash bin/tools/install-llamacpp.sh
+```
+
+O script irá:
+- Instalar build tools/CMake e libcurl-dev (apt/dnf)
+- Clonar/puxar `ggerganov/llama.cpp`
+- Compilar com CMake em `build/`
+- Instalar binários (se permitido) e baixar um modelo de exemplo opcional
+
+Caso já esteja compilando manualmente, basta garantir que o `cmake`, `gcc/g++` e `libcurl-dev` estão presentes.
+
+### Modo Interativo
+
+O modo interativo abre um PTY remoto via WebSocket no daemon (semelhante a um terminal). Útil para tarefas que exigem entrada do usuário.
+
+```
+fazai interactive
+```
+
+Requer dependências `ws` e `node-pty` instaladas no `/opt/fazai` (o instalador cuida disso). Se não estiverem presentes, o daemon segue funcionando sem o WS interativo.
+
+### Flags do CLI
+
+- `-s, --stream`: saída em tempo real via SSE
+- `-q, --question`: pergunta direta (IA) sem executar comandos
+- `-w, --web`: força pesquisa web (tool web_search) e retorna um link relevante
+
+Exemplos:
+
+```
+fazai -s "ls -la /; sleep 1; echo fim"
+fazai -q "o que é kernel?"
+fazai -w "kernel linux"
+fazai -s -q "pesquise por kernel e retorne um link relevante"
+```
+
+### OPNsense MCP (Model Context Protocol)
+
+Para habilitar a integração com OPNsense, adicione a seção abaixo em `/etc/fazai/fazai.conf` e preencha os campos. Coloque o conteúdo da chave em `api_key` (ou aponte para um arquivo próprio, se preferir):
+
+```
+[opnsense]
+enabled = true
+host = firewall.exemplo.com
+port = 443
+use_ssl = true
+username = root
+password = 
+api_key = (conteúdo da sua .MCP_OPNSENSE.key)
+```
+
+Após ajustar, reinicie o serviço:
+
+```
+sudo systemctl restart fazai
+```
+
 
 - Agentes remotos: envio periódico para `POST /ingest`
 - Endpoint Prometheus: `GET /metrics` (integração fácil com Grafana)

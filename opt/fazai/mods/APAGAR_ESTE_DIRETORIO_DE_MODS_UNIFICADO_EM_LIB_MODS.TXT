@@ -1,0 +1,4 @@
+movi os mods e headers daqui para opt/fazai/lib/mods
+la tem um script build.sh e um README que vc pode automatizar para compilar na instalaçao ou ja deixar compilado build-in se possivel.
+ajuste o install.sh 
+

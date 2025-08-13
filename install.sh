@@ -688,6 +688,25 @@ EOF
   fi
   chmod 755 /opt/fazai/lib/main.js
 
+  # Copia módulos e integrações adicionais necessários
+  for f in \
+    "opt/fazai/lib/mcp_opnsense.js" \
+    "opt/fazai/lib/complex_tasks.js" \
+    "opt/fazai/tools/fazai_web_frontend.html" \
+    "opt/fazai/tools/web_search.js" \
+    "opt/fazai/tools/suricata_setup.js" \
+    "opt/fazai/tools/modsecurity_setup.js" \
+    "opt/fazai/tools/crowdsec_setup.js" \
+    "opt/fazai/tools/spamexperts.js" \
+    "opt/fazai/tools/cloudflare.js" \
+    ; do
+    if [ -f "$f" ]; then
+      if ! copy_with_verification "$f" "/opt/fazai/$(dirname ${f#opt/fazai/})/" "$(basename $f)"; then
+        copy_errors=$((copy_errors+1))
+      fi
+    fi
+  done
+
   # DeepSeek helper removido (no-op)
   
   if ! copy_with_verification "etc/fazai/fazai.conf.example" "/etc/fazai/fazai.conf.default" "Configuração padrão"; then

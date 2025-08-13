@@ -1,0 +1,38 @@
+
+#Fluxo de trabalho otimozado para solucoes complexas
+
+1. Entrada → Modo
+Entrada da ordme ele escolhe um modo que define como pensar e que ferramentas pode usar. Baseados em seu conhecimento local ou pesquisa na web. 
+Chama a ferramenta ex: fazai construa um servidor proxy otimizado e capture na rede todos ips jogando para um arquivo no proxy chamado ip_lan crie um uma diretriz que libera acesso a todos sites somentes com estes ip, bloqueando por conteudo os seguintes conteudos: pornografia, redes sociais e jogos.
+
+2. Contexto do projeto
+A extensão injeta contexto no fazai usando um MCP de contextos que eh o context7 https://context7.com/  (arquivos, trechos relevantes) no prompt do modelo pra responder com base no teu repo, não no ar. 
+
+3. Raciocina → Decide ação
+O LLM devolve texto e/ou pede uma ação (ex.: ler/editar arquivo, rodar comando, abrir navegador). Uma iteração = no máx. uma ação, pra manter controle. 
+
+4. A extensão executa a tool (file/terminal/browser) dentro do fazai em ela interativa, captura o resultado (logs, diffs, screenshot) e devolve como novo contexto pro modelo. Loop: pensar → agir → observar → repetir até entregar. 
+
+4. Valida/Auto-corrige
+Se falha (teste, build, erro de runtime), o agente entra em depuração e itera até passar, sob confirmação tua quando for destrutivo. 
+
+5. Extensão por MCP
+Precisa de poder extra? Conecta MCP servers (via stdio/HTTP). As ferramentas MCP aparecem pro agente como comandos adicionais plugáveis. 
+
+6. Providers de IA
+Chama modelos via provedor (padrão OpenRouter/Kilo) ou perfil custom. Resposta volta pro passo 3.
+
+
+Ele Interpreta a entrada (prompt, contexto, estado do sistema).
+
+-Analisa objetivo → quebra em subtarefas.
+
+-Decide ferramenta ou comando pra cada subtarefa (pode ser código, API, shell).
+
+-Executa, captura a saída e insere no contexto.
+
+-Reavalia se precisa continuar ou já concluiu.
+
+-Repete até o resultado final estar coerente com o objetivo inicial.
+
+Ou seja, ele usa o modelo como cérebro de decisão + execução, e não como “respondedor de perguntas” estático.
