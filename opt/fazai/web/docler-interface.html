@@ -114,18 +114,34 @@
         }
 
         .docler-face {
-            width: 200px;
-            height: 200px;
-            border: 3px solid var(--docler-primary);
+            width: 180px;
+            height: 180px;
+            border: 2px solid var(--docler-primary);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 4rem;
             margin-bottom: 2rem;
             position: relative;
-            background: radial-gradient(circle, rgba(0,255,136,0.1) 0%, transparent 70%);
+            background: linear-gradient(135deg, rgba(0,255,136,0.1) 0%, rgba(0,136,255,0.1) 50%, rgba(255,0,136,0.1) 100%);
             animation: faceGlow 4s infinite;
+            overflow: hidden;
+        }
+
+        .docler-face::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: faceShine 6s infinite;
+        }
+
+        @keyframes faceShine {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
         }
 
         @keyframes faceGlow {
@@ -134,8 +150,95 @@
         }
 
         .face-expression {
-            font-size: 4rem;
+            width: 100%;
+            height: 100%;
+            transition: all 0.5s ease;
+            position: relative;
+            z-index: 2;
+        }
+
+        .face-eyes {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 60%;
+            margin: 0 auto;
+            margin-top: 25%;
+        }
+
+        .eye {
+            width: 20px;
+            height: 20px;
+            background: var(--docler-primary);
+            border-radius: 50%;
+            position: relative;
+            animation: eyeBlink 4s infinite;
+        }
+
+        .eye::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 8px;
+            height: 8px;
+            background: #000;
+            border-radius: 50%;
+            animation: eyeLook 3s infinite;
+        }
+
+        @keyframes eyeBlink {
+            0%, 90%, 100% { transform: scaleY(1); }
+            95% { transform: scaleY(0.1); }
+        }
+
+        @keyframes eyeLook {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(2px, -1px); }
+            50% { transform: translate(-1px, 1px); }
+            75% { transform: translate(1px, 0); }
+        }
+
+        .face-mouth {
+            width: 40px;
+            height: 20px;
+            border: 2px solid var(--docler-primary);
+            border-top: none;
+            border-radius: 0 0 40px 40px;
+            margin: 20px auto 0;
             transition: all 0.3s ease;
+        }
+
+        .face-mouth.happy {
+            border-radius: 0 0 40px 40px;
+            height: 15px;
+        }
+
+        .face-mouth.thinking {
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+        }
+
+        .face-mouth.focused {
+            border-radius: 0 0 20px 20px;
+            height: 10px;
+        }
+
+        .face-mouth.surprised {
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+        }
+
+        .face-mouth.determined {
+            border-radius: 0 0 10px 10px;
+            height: 5px;
+        }
+
+        .face-mouth.satisfied {
+            border-radius: 0 0 30px 30px;
+            height: 12px;
         }
 
         .docler-mood {
