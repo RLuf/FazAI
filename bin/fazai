@@ -53,6 +53,70 @@ if (!fs.existsSync(mainJsPath)) {
   process.exit(1);
 }
 
+// Função para executar comandos do relay
+async function runRelayCommand(command, args = []) {
+  try {
+    const endpoint = `/relay/${command}`;
+    let response;
+    
+    switch (command) {
+      case 'analyze':
+        response = await axios.post(`${API_URL}${endpoint}`);
+        break;
+      case 'configure':
+        response = await axios.post(`${API_URL}${endpoint}`, {});
+        break;
+      case 'monitor':
+        response = await axios.get(`${API_URL}${endpoint}`);
+        break;
+      case 'stats':
+        response = await axios.get(`${API_URL}${endpoint}`);
+        break;
+      case 'spamexperts':
+        response = await axios.post(`${API_URL}${endpoint}`, {});
+        break;
+      case 'zimbra':
+        response = await axios.post(`${API_URL}${endpoint}`, {});
+        break;
+      case 'blacklist':
+        if (args.length === 0) {
+          printError('IP é obrigatório para o comando blacklist');
+          process.exit(1);
+        }
+        response = await axios.post(`${API_URL}${endpoint}`, { ip: args[0] });
+        break;
+      case 'restart':
+        response = await axios.post(`${API_URL}${endpoint}`);
+        break;
+      default:
+        printError(`Comando relay desconhecido: ${command}`);
+        process.exit(1);
+    }
+    
+    if (response.data.ok) {
+      console.log('\x1b[32m✓ Sucesso:\x1b[0m', response.data.message || 'Comando executado');
+      if (response.data.config) {
+        console.log('\x1b[36mConfiguração:\x1b[0m', JSON.stringify(response.data.config, null, 2));
+      }
+      if (response.data.stats) {
+        console.log('\x1b[36mEstatísticas:\x1b[0m', JSON.stringify(response.data.stats, null, 2));
+      }
+      if (response.data.recommendations) {
+        console.log('\x1b[33mRecomendações:\x1b[0m');
+        response.data.recommendations.forEach(rec => {
+          console.log(`  • ${rec}`);
+        });
+      }
+    } else {
+      console.error('\x1b[31m❌ Erro:\x1b[0m', response.data.error);
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error('\x1b[31m❌ Erro ao executar comando relay:\x1b[0m', error.message);
+    process.exit(1);
+  }
+}
+
 // Função para executar agente inteligente
 async function runAgent(objective) {
   try {
@@ -684,6 +748,16 @@ ${colors.bright}Modo Agent (Agente Inteligente):${colors.reset}
   agent <objetivo>            Exemplo: fazai agent "configurar servidor de email relay"
                               Executa agente inteligente com fluxo iterativo
 
+${colors.bright}Modo Relay (Sistema SMTP):${colors.reset}
+  relay analyze               Analisa configuração atual do relay
+  relay configure             Configura relay automaticamente
+  relay monitor               Monitora logs em tempo real
+  relay stats                 Mostra estatísticas do relay
+  relay spamexperts           Integra com SpamExperts
+  relay zimbra                Integra com Zimbra
+  relay blacklist <ip>        Adiciona IP à blacklist
+  relay restart               Reinicia o relay
+
 ${colors.bright}Modo MCPS (Planejamento Passo a Passo):${colors.reset}
   mcps <tarefa>               Exemplo: fazai mcps atualizar o sistema
   mcps --stream <tarefa>      Executa MCPS com saída em tempo real
@@ -1220,6 +1294,20 @@ ${colors.bright}Para mais informações:${colors.reset}
     
     const objective = args.slice(1).join(' ');
     await runAgent(objective);
+    process.exit(0);
+  }
+
+  // Verificar se é o subcomando relay
+  if (args[0] === 'relay') {
+    if (args.length < 2) {
+      printError('Comando é obrigatório para o subcomando relay');
+      console.log(`${colors.fg.cyan}Uso: fazai relay <comando> [args...]${colors.reset}`);
+      process.exit(1);
+    }
+    
+    const command = args[1];
+    const commandArgs = args.slice(2);
+    await runRelayCommand(command, commandArgs);
     process.exit(0);
   }
 
