@@ -1,8 +1,8 @@
 # Changelog
 
-## [v2.0.0] - 13/08/2025
+## [v2.0.0] - 15/01/2025
 
-### 🚀 MAJOR RELEASE - Transformação em Sistema de Fluxo Inteligente
+### 🚀 MAJOR RELEASE - Transformação Revolucionária com Interface DOCLER
 
 #### 🤖 **Agente Inteligente Cognitivo**
 - **Sistema de Agente Persistente**: Transformação completa do FazAI de orquestrador simples para agente cognitivo e persistente
@@ -33,6 +33,14 @@
 - **Provider Node.js**: Cliente para comunicação com worker via socket Unix
 - **Documentação Abrangente**: 3 arquivos de documentação completa (FLUXO_INTELIGENTE.md, README_FLUXO_INTELIGENTE.md, TRANSFORMACAO_RESUMO.md)
 
+#### 🌟 **Interface DOCLER - Oráculo Druídico Digital**
+- **Interface Cliente Futurista**: Face animada que respira, pisca e reage em tempo real
+- **Temas Dinâmicos**: Cyberpunk, Matrix, Cósmico, Druídico com mudança instantânea
+- **Painel Administrativo**: Dashboard completo com métricas e controle total
+- **Servidor Web Node.js**: Express + WebSocket para comunicação em tempo real
+- **CLI Integration**: Comandos `fazai docler` para controle completo
+- **Responsividade**: Funciona perfeitamente em desktop, tablet e mobile
+
 #### 🎯 **Comandos e Funcionalidades**
 ```bash
 # Agente Inteligente
@@ -48,6 +56,13 @@ fazai relay spamexperts                # Integração SpamExperts
 fazai relay zimbra                     # Integração Zimbra
 fazai relay blacklist 192.168.1.100    # Blacklist dinâmica
 fazai relay restart                    # Reinicialização
+
+# Interface DOCLER
+fazai docler                           # Abre interface cliente
+fazai docler admin                     # Abre painel administrativo
+fazai docler start                     # Inicia servidor web
+fazai docler stop                      # Para servidor web
+fazai docler status                    # Verifica status
 
 # Build do Worker
 cd worker && ./build.sh                # Compilação automatizada
@@ -67,6 +82,8 @@ cd worker && ./build.sh                # Compilação automatizada
 - **Core Modules**: `opt/fazai/lib/core/*` (prompt, retrieval, shell, research, tools, kb)
 - **CLI & Config**: `bin/fazai`, `etc/fazai/agent.conf`
 - **Build & Docs**: `worker/build.sh`, `worker/CMakeLists.txt`, documentação completa
+- **Interface DOCLER**: `opt/fazai/web/*` (docler-interface.html, docler-admin.html, docler-server.js)
+- **Web Integration**: `opt/fazai/web/package.json`, `opt/fazai/web/install-docler.sh`
 
 #### 🎮 **Exemplos de Uso Avançado**
 ```bash
@@ -78,6 +95,11 @@ fazai agent "detectar ataque de spam em massa e implementar contramedidas autom�
 
 # Otimização inteligente
 fazai agent "otimizar performance do relay SMTP e reduzir latência de processamento"
+
+# Interface DOCLER
+fazai docler start                     # Iniciar servidor web
+fazai docler                           # Abrir interface cliente
+fazai docler admin                     # Abrir painel administrativo
 ```
 
 ### Technical Details
