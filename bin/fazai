@@ -541,6 +541,7 @@ ${colors.bright}Comandos de Visualização:${colors.reset}
   html <tipo> [graf]          Gera gráfico HTML (tipo: memoria, disco, processos)
   tui                         Abre o dashboard TUI (ncurses)
   interactive                 Abre sessão interativa (WebSocket PTY)
+  complex -g <objetivo> [--web] Executa fluxo complexo multi-etapas
 
 ${colors.bright}Comandos de Configuração:${colors.reset}
   config                      Abre ferramenta de configuração interativa
@@ -550,6 +551,7 @@ ${colors.bright}Comandos de Configuração:${colors.reset}
 ${colors.bright}Comandos de Pesquisa:${colors.reset}
   -q, --question              Pergunta direta (IA)
   -w, --web                   Força pesquisa web (tool web_search)
+  complex -g <objetivo>       Objetivo de alto nível; usa /complex_flow
 
 ${colors.bright}Modo MCPS (Planejamento Passo a Passo):${colors.reset}
   mcps <tarefa>               Exemplo: fazai mcps atualizar o sistema
@@ -560,12 +562,12 @@ ${colors.bright}Provedores de IA Suportados:${colors.reset}
   • OpenAI                    - GPT-4, GPT-3.5-turbo
   • Anthropic (Claude)        - Claude 3 Opus, Sonnet, Haiku
   • Google Gemini             - Gemini Pro, Pro Vision
-  • Requesty                  - Gateway para múltiplos provedores
+  • OpenRouter                - Gateway multi-modelos
   • Ollama                    - Modelos locais (llama3.2, mixtral, etc.)
 
 ${colors.bright}Sistema de Fallback:${colors.reset}
   O FazAI automaticamente tenta o próximo provedor em caso de falha:
-  Gemma (local) → Llama server → OpenRouter → Requesty → OpenAI → Anthropic → Gemini → Ollama
+  Gemma (local) → Llama server → OpenRouter → OpenAI → Anthropic → Gemini → Ollama
 
 ${colors.bright}Exemplo de instalação Fedora:${colors.reset}
   sudo dnf install -y nodejs npm python3 python3-pip gcc dialog
@@ -579,6 +581,11 @@ ${colors.bright}Exemplos de Uso:${colors.reset}
   fazai mcps atualizar sistema
   fazai config                 # Configurar provedores de IA
   fazai cache                  # Verificar status do cache
+  suricata_setup               # Instala/configura Suricata
+  modsecurity_setup            # Instala/configura ModSecurity
+  crowdsec_setup               # Instala/configura CrowdSec
+  spamexperts                  # Ações em SpamExperts
+  cloudflare                   # Ações na API Cloudflare
 
 ${colors.bright}Para mais informações:${colors.reset}
   • Documentação: README.md, USAGE.md
@@ -738,7 +745,7 @@ ${colors.bright}Para mais informações:${colors.reset}
     'tui': 'fazai_tui.sh'        // Adiciona comando tui para dashboard TUI
   };
   
-  if (basicCommands[args[0]] || args[0] === 'interactive') {
+  if (basicCommands[args[0]] || args[0] === 'interactive' || args[0] === 'doctor' || args[0] === 'complex') {
     try {
       // Se o comando for 'html', executa o script com parâmetros
       if (args[0] === 'html') {
@@ -816,6 +823,48 @@ ${colors.bright}Para mais informações:${colors.reset}
         });
         ws.on('close', () => { printInfo('Sessão encerrada'); process.exit(0); });
         ws.on('error', (e) => { printError(`WS erro: ${e.message}`); process.exit(1); });
+        return;
+      } else if (args[0] === 'complex') {
+        // Encaminha um objetivo de alto nível para o daemon executar /complex_flow
+        const axios = require('axios');
+        const goalIdx = args.indexOf('-g') !== -1 ? args.indexOf('-g') : args.indexOf('--goal');
+        const allowWeb = args.includes('-w') || args.includes('--web');
+        const goal = goalIdx !== -1 ? args.slice(goalIdx + 1).join(' ') : (rest.join(' ') || question || promptText || '').trim();
+        if (!goal) { printError('Uso: fazai complex -g "objetivo" [--web]'); process.exit(2); }
+        printInfo(`Executando fluxo complexo: ${goal}${allowWeb?' (web on)':''}`);
+        try {
+          const res = await axios.post(`${API_URL}/complex_flow`, { goal, allow_web: allowWeb });
+          console.log(JSON.stringify(res.data, null, 2));
+          process.exit(0);
+        } catch (e) {
+          printError(`Falha complex_flow: ${e.message}`);
+          process.exit(1);
+        }
+      } else if (args[0] === 'opnsense') {
+        // Faz chamada ao endpoint MCP OPNsense
+        const axios = require('axios');
+        const cmd = args[1] || 'get_system_info';
+        const payload = { command: cmd };
+        printInfo(`Executando OPNsense MCP: ${cmd}`);
+        try {
+          const res = await axios.post(`${API_URL}/opnsense`, payload);
+          console.log(JSON.stringify(res.data, null, 2));
+          process.exit(0);
+        } catch (e) {
+          printError(`Falha OPNsense: ${e.message}`);
+          process.exit(1);
+        }
+      } else if (args[0] === 'doctor') {
+        const axios = require('axios');
+        const fs = require('fs');
+        let ok = true;
+        try { const h = await axios.get(`${API_URL}/health`, { timeout: 3000 }); console.log(`[health] ${h.status}`); } catch (e) { ok=false; console.log(`[health] FAIL ${e.message}`); }
+        try { const s = await axios.get(`${API_URL}/status`, { timeout: 3000 }); console.log(`[status] version=${s.data?.version}`); } catch (e) { ok=false; console.log(`[status] FAIL ${e.message}`); }
+        const must = ['/opt/fazai/lib/main.js','/opt/fazai/lib/mcp_opnsense.js','/opt/fazai/lib/complex_tasks.js','/opt/fazai/tools/web_search.js','/opt/fazai/tools/fazai_web_frontend.html'];
+        must.forEach(p=>console.log(`[file] ${p} ${fs.existsSync(p)?'OK':'MISS'}`));
+        const sec = ['/opt/fazai/tools/suricata_setup.js','/opt/fazai/tools/modsecurity_setup.js','/opt/fazai/tools/crowdsec_setup.js','/opt/fazai/tools/spamexperts.js','/opt/fazai/tools/cloudflare.js'];
+        sec.forEach(p=>console.log(`[tool] ${p} ${fs.existsSync(p)?'OK':'MISS'}`));
+        process.exit(ok?0:1);
       } else {
         // Para outros comandos básicos
         const { exec } = require('child_process');

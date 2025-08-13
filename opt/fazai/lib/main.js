@@ -24,7 +24,12 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { exec, spawn } = require('child_process');
-const ffi = require('ffi-napi-v22');
+let ffi = null;
+try {
+  ffi = require('ffi-napi-v22');
+} catch (e) {
+  // ffi opcional: módulos .so serão ignorados se ausente
+}
 const axios = require('axios');
 const winston = require('winston');
 const EventEmitter = require('events');
@@ -32,7 +37,8 @@ const crypto = require('crypto');
 
 // Importar módulos de tarefas complexas e MCP
 const { ComplexTasksManager } = require('./complex_tasks');
-const { MCPOPNsense } = require('./mods/mcp_opnsense');
+// Corrige caminho do MCP OPNsense (arquivo está em lib/mcp_opnsense.js)
+const { MCPOPNsense } = require('./mcp_opnsense');
 
 // Sistema de cache simples em memória
 class CacheManager {
@@ -336,6 +342,10 @@ function loadNativeModules() {
   logger.info('Carregando módulos nativos');
 
   try {
+    if (!ffi) {
+      logger.warn('ffi-napi-v22 não disponível; ignorando módulos nativos (.so)');
+      return;
+    }
     const files = fs.readdirSync(MODS_DIR);
 
     files.forEach(file => {
@@ -1461,6 +1471,56 @@ app.post('/ingest', (req, res) => {
   } catch (e) {
     logger.error(`Erro em /ingest: ${e.message}`);
     res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * Fluxo de atividades complexas (agente aplica soluções)
+ */
+app.post('/complex_flow', async (req, res) => {
+  const { goal, allow_web } = req.body || {};
+  if (!goal || typeof goal !== 'string') {
+    return res.status(400).json({ success: false, error: 'Campo "goal" obrigatório' });
+  }
+  try {
+    const seed = await queryAI(goal, process.env.HOME);
+    const steps = [];
+    if (!complexTasksManager) initializeComplexModules();
+    if (goal.toLowerCase().includes('gráfico') || goal.toLowerCase().includes('chart')) {
+      const ch = await complexTasksManager.executeTask('generate_chart', { type: 'line', title: 'Indicadores', xLabel: 't', yLabel: 'v' });
+      steps.push({ step: 'generate_chart', result: ch });
+    }
+    if (goal.toLowerCase().includes('relatório') || goal.toLowerCase().includes('report')) {
+      const rep = await complexTasksManager.executeTask('generate_report', { type: 'security', outputFormat: 'pdf' });
+      steps.push({ step: 'generate_report', result: rep });
+    }
+    if (goal.toLowerCase().includes('opnsense') && mcpOPNsense) {
+      const info = await mcpOPNsense.executeMCPCommand('get_system_info', {});
+      steps.push({ step: 'opnsense.get_system_info', result: info });
+    }
+    if (allow_web) {
+      try { const webSearch = require('/opt/fazai/tools/web_search.js'); const sr = await webSearch.search(goal); steps.push({ step: 'web_search', result: sr }); } catch (_) {}
+    }
+    return res.json({ success: true, goal, plan_seed: seed.interpretation || '', steps });
+  } catch (e) {
+    logger.error(`Erro em /complex_flow: ${e.message}`);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Endpoint MCP OPNsense
+app.post('/opnsense', async (req, res) => {
+  try {
+    if (!mcpOPNsense) {
+      return res.status(500).json({ success: false, error: 'MCP OPNsense não inicializado. Verifique a seção [opnsense] em /etc/fazai/fazai.conf.' });
+    }
+    const { command, params } = req.body || {};
+    if (!command) return res.status(400).json({ success: false, error: 'Campo "command" obrigatório' });
+    const out = await mcpOPNsense.executeMCPCommand(String(command), params || {});
+    return res.json({ success: true, command, result: out });
+  } catch (e) {
+    logger.error(`Erro em /opnsense: ${e.message}`);
+    return res.status(500).json({ success: false, error: e.message });
   }
 });
 

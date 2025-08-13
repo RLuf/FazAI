@@ -16,6 +16,7 @@
   - Documentação inline para cada comando
   - Exemplos de uso para comandos complexos
   - Referência rápida para flags e opções
+ - **Fluxo de Atividades Complexas**: Endpoint `/complex_flow` no daemon e comando `fazai complex` para orquestrar tarefas multi-etapas. Completion atualizado.
 
 ### Technical Details
 - **Documentação**: Manual completo criado em `MANUAL_COMPLETO.md` com 200+ páginas
@@ -34,6 +35,9 @@ fazai --completion-help         # Ajuda específica do bash completion
 fazai system-check              # Verificação completa do sistema
 fazai version-bump -a           # Bump automático de versão
 fazai sync-changes              # Sincronização de alterações
+
+# Fluxo complexo (planejamento + execução)
+fazai complex -g "gerar gráfico de indicadores e publicar na web" --web
 ```
 
 ### Notes

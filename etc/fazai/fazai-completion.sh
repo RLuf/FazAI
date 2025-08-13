@@ -11,8 +11,8 @@ _fazai_completions()
     local system_commands="ajuda help --help -d --debug versao version -v check-deps verificar-deps manual"
     local service_commands="start stop restart status reload"
     local log_commands="logs limpar-logs clear-logs web"
-    local system_info_commands="kernel sistema memoria disco processos rede data uptime"
-    local visualization_commands="html tui interactive web"
+    local system_info_commands="kernel sistema memoria disco processos rede data uptime opnsense"
+    local visualization_commands="html tui interactive web complex"
     local config_commands="config cache cache-clear"
     local ai_commands="mcps"
     local flags="-q --question -s --stream -w --web -d --debug --help --completion-help"
@@ -71,7 +71,7 @@ _fazai_completions()
             COMPREPLY=()
             return 0
             ;;
-        web|tui|config|cache-clear|reload)
+        web|tui|config|cache-clear|reload|interactive|complex)
             # Comandos simples não precisam de argumentos adicionais
             COMPREPLY=()
             return 0
@@ -168,9 +168,10 @@ _fazai_show_completion_help()
     echo "  Serviço:     start, stop, restart, status, reload"
     echo "  Logs:        logs [n], limpar-logs, clear-logs, web"
     echo "  Sistema:     kernel, sistema, memoria, disco, processos, rede, data, uptime"
-    echo "  Visualização: html <tipo> [graf], tui, interactive"
+    echo "  Visualização: html <tipo> [graf], tui, interactive, complex -g <objetivo> [--web]"
     echo "  Configuração: config, cache, cache-clear"
-    echo "  IA:          mcps <tarefa>"
+    echo "  IA:          mcps <tarefa>, -q/--question, -s/--stream, -w/--web"
+    echo "  Segurança:   suricata_setup, modsecurity_setup, crowdsec_setup, spamexperts, cloudflare"
     echo ""
     echo "Exemplos:"
     echo "  fazai html memoria bar"
