@@ -688,6 +688,26 @@ EOF
   fi
   chmod 755 /opt/fazai/lib/main.js
 
+  # Copia genaiscript.js se existir
+  if [ -f "opt/fazai/lib/genaiscript.js" ]; then
+    if ! copy_with_verification "opt/fazai/lib/genaiscript.js" "/opt/fazai/lib/" "Genaiscript"; then
+      copy_errors=$((copy_errors+1))
+    else
+      chmod 755 /opt/fazai/lib/genaiscript.js
+      log "SUCCESS" "Genaiscript copiado"
+    fi
+  fi
+  
+  # Copia fazai_helper.js se existir
+  if [ -f "opt/fazai/lib/fazai_helper.js" ]; then
+    if ! copy_with_verification "opt/fazai/lib/fazai_helper.js" "/opt/fazai/lib/" "FazAI Helper"; then
+      copy_errors=$((copy_errors+1))
+    else
+      chmod 755 /opt/fazai/lib/fazai_helper.js
+      log "SUCCESS" "FazAI Helper copiado"
+    fi
+  fi
+  
   # Copia módulos e integrações adicionais necessários
   for f in \
     "opt/fazai/lib/mcp_opnsense.js" \
@@ -1686,6 +1706,8 @@ validate_installation() {
   # Verifica arquivos essenciais
   local essential_files=(
     "/opt/fazai/lib/main.js"
+    "/opt/fazai/lib/genaiscript.js"
+    "/opt/fazai/lib/fazai_helper.js"
     "/opt/fazai/bin/fazai"
     "/etc/fazai/fazai.conf"
     "/etc/fazai/complex_tasks.conf.default"
