@@ -1,0 +1,1509 @@
+# FazAI Agent “Codex de Infra” com libgemma
+
+Este README reúne em um único lugar toda a arquitetura, instruções e código para montar o agente operac ional do FazAI usando a libgemma.a, com streaming de tokens, contexto dinâmico, pesquisa, síntese de ferramentas e base de conhecimento.
+
+---
+
+## 1. Worker Gemma Persistente (C++)
+
+### CMakeLists.txt
+```cmake
+cmake_minimum_required(VERSION 3.16)
+project(fazai_gemma_worker)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+add_executable(fazai-gemma-worker
+  src/main.cpp
+  src/worker.cpp
+  src/worker.hpp
+  src/ipc.cpp
+  src/ipc.hpp
+  src/json.hpp
+)
+
+# Ajuste estes caminhos para onde você compilou a gemma.cpp
+target_include_directories(fazai-gemma-worker PRIVATE /opt/gemma/include)
+target_link_libraries(fazai-gemma-worker PRIVATE /opt/gemma/lib/libgemma.a pthread)
+
+install(TARGETS fazai-gemma-worker RUNTIME DESTINATION /opt/fazai/bin)
+src/main.cpp
+cpp
+#include "worker.hpp"
+#include "ipc.hpp"
+#include "json.hpp"
+#include <filesystem>
+#include <atomic>
+
+using json = nlohmann::json;
+static std::atomic<bool> shutting_down{false};
+
+int main(){
+  std::filesystem::create_directories("/run/fazai");
+  std::filesystem::permissions("/run/fazai", std::filesystem::perms::all);
+
+  const char* model_path = getenv("FAZAI_GEMMA_MODEL");
+  if (!model_path) model_path = "/opt/fazai/models/gemma2-2b-it-sfp.bin";
+
+  GemmaEngine engine(model_path);
+  IpcServer server("/run/fazai/gemma.sock");
+  server.on_request([&](const json& req, IpcConn& conn){
+    std::string t = req.value("type","");
+    if (t=="create_session") {
+      std::string sid = engine.create_session(req.value("params",json::object()));
+      conn.send(json{{"ok",true},{"session_id",sid}});
+    }
+    else if (t=="generate") {
+      std::string sid = req.at("session_id"), prm = req.at("prompt");
+      engine.generate_stream(sid, prm, [&](const std::string& token){
+        conn.send_stream(json{{"type","token"},{"text",token}});
+        return !shutting_down.load();
+      });
+      conn.send_stream(json{{"type","stop"}}, true);
+    }
+    else if (t=="abort") {
+      engine.abort(req.at("session_id"));
+      conn.send(json{{"ok",true}});
+    }
+    else if (t=="close_session") {
+      engine.close_session(req.at("session_id"));
+      conn.send(json{{"ok",true}});
+    }
+    else conn.send(json{{"ok",false},{"error","unknown_type"}});
+  });
+
+  server.run([&](){ return !shutting_down.load(); });
+  return 0;
+}
+src/worker.hpp
+cpp
+#pragma once
+#include <functional>
+#include <string>
+#include <unordered_map>
+#include <atomic>
+#include "json.hpp"
+
+struct GenParams { float temperature=0.2f, top_p=0.9f; int max_tokens=512; };
+struct SessionState { std::atomic<bool> abort{false}; GenParams params; /* TODO: add KV cache handles */ };
+
+class GemmaEngine {
+public:
+  explicit GemmaEngine(const std::string& model_path);
+  std::string create_session(const nlohmann::json& params);
+  void generate_stream(const std::string& sid, const std::string& prompt,
+                       std::function<bool(const std::string&)> on_token);
+  void abort(const std::string& sid);
+  void close_session(const std::string& sid);
+private:
+  std::unordered_map<std::string, SessionState> sessions_;
+  // TODO: global model/tokenizer handles
+};
+src/worker.cpp
+cpp
+#include "worker.hpp"
+#include <random>
+
+GemmaEngine::GemmaEngine(const std::string& model_path) {
+  // TODO: carregar modelo/tokenizer da libgemma.a
+}
+
+std::string GemmaEngine::create_session(const nlohmann::json& params){
+  std::string sid = std::to_string(std::random_device{}());
+  sessions_.emplace(sid, SessionState{});
+  // TODO: aplicar params à sessão
+  return sid;
+}
+
+void GemmaEngine::generate_stream(const std::string& sid, const std::string& prompt,
+                                  std::function<bool(const std::string&)> on_token){
+  auto it = sessions_.find(sid);
+  if(it==sessions_.end()) return;
+  auto& s = it->second;
+  // TODO: tokenizar prompt, primar KV, loop decode -> on_token(piece)
+  std::string fake="{\"type\":\"plan\",\"steps\":[\"inventário\",\"mta\"]}\n";
+  for(char c:fake) if(!on_token(std::string(1,c))||s.abort.load()) break;
+}
+
+void GemmaEngine::abort(const std::string& sid){
+  auto it = sessions_.find(sid);
+  if(it!=sessions_.end()) it->second.abort.store(true);
+}
+
+void GemmaEngine::close_session(const std::string& sid){
+  sessions_.erase(sid);
+}
+2. Provider Node.js (daemon)
+providers/gemma-worker.js
+js
+import net from "net";
+import { EventEmitter } from "events";
+
+const SOCK = process.env.FAZAI_GEMMA_SOCK || "/run/fazai/gemma.sock";
+
+function sendJson(sock, obj){ sock.write(JSON.stringify(obj)+"\n"); }
+
+export async function createSession(params={}){
+  const sock = net.createConnection(SOCK);
+  await once(sock,"connect");
+  sendJson(sock,{type:"create_session",params});
+  const resp = await readJson(sock);
+  sock.end();
+  if(!resp.ok) throw new Error("createSession failed");
+  return resp.session_id;
+}
+
+export function generateStream(session_id,prompt){
+  const ee=new EventEmitter(), sock=net.createConnection(SOCK,()=>sendJson(sock,{type:"generate",session_id,prompt,stream:true}));
+  let buf="";
+  sock.on("data",c=>{ buf+=c; let i; while((i=buf.indexOf("\n"))>=0){ const l=buf.slice(0,i).trim(); buf=buf.slice(i+1); if(!l) continue; try{ee.emit("event",JSON.parse(l));}catch{ee.emit("event",{type:"token",text:l});} }});
+  sock.on("end",()=>ee.emit("end"));
+  ee.abort=()=>sendJson(sock,{type:"abort",session_id});
+  ee.close=()=>sock.end();
+  return ee;
+}
+
+function once(sock,ev){ return new Promise((res,rej)=>sock.once(ev,res).once("error",rej)); }
+function readJson(sock){ return new Promise((res,rej)=>{ let buf=""; const onData=c=>{ buf+=c; const i=buf.indexOf("\n"); if(i>=0){ sock.off("data",onData); try{res(JSON.parse(buf.slice(0,i)));}catch(e){rej(e);} } }; sock.on("data",onData).once("error",rej); }); }
+3. Handlers do Agente (SSE)
+handlers/agent.js
+js
+import express from "express";
+import { createSession, generateStream } from "../providers/gemma-worker.js";
+import { buildPrompt } from "../core/prompt/agent_prompt.js";
+import { searchContext } from "../core/retrieval.js";
+import { runShellStream } from "../core/shell.js";
+import { doResearch } from "../core/research.js";
+import { codegenAndLoad, useTool } from "../core/tools_codegen.js";
+import { kbCommit } from "../core/kb.js";
+
+export function mountAgent(app){
+  app.post("/agent/sessions", async (req,res)=>{
+    const sid = await createSession(req.body.params||{});
+    res.json({ok:true,session_id:sid});
+  });
+
+  app.post("/agent/generate", async (req,res)=>{
+    res.setHeader("Content-Type","text/event-stream");
+    res.flushHeaders();
+    const {session_id,objective,history=[]}=req.body;
+    const ctx = await searchContext(objective,history);
+    const prompt = await buildPrompt({objective,ctx,history});
+    const stream = generateStream(session_id,prompt);
+    let buf="", actionIssued=false;
+    const send = o=>res.write(`data: ${JSON.stringify(o)}\n\n`);
+    stream.on("event",async evt=>{
+      if(evt.type==="token"){
+        buf+=evt.text; send({type:"token",text:evt.text});
+        const li=buf.lastIndexOf("\n");
+        if(li>=0){
+          const lines=buf.slice(0,li).split("\n");
+          buf=buf.slice(li+1);
+          for(const l of lines) try{ await handleAction(JSON.parse(l)); }catch{}
+        }
+      }
+      else if(evt.type==="stop"){ if(!actionIssued) send({type:"done"}); res.end(); }
+    }).on("error",e=>{send({type:"error",message:String(e)});res.end();});
+
+    async function handleAction(obj){
+      if(!obj?.type) return;
+      actionIssued=true;
+      switch(obj.type){
+        case "plan": send({type:"plan",steps:obj.steps}); break;
+        case "ask": send({type:"ask",question:obj.question,options:obj.options}); break;
+        case "research":
+          send({type:"action",action:"research",queries:obj.queries});
+          const docs=await doResearch(obj.queries,obj.maxDocs||5);
+          send({type:"research_result",docs}); break;
+        case "shell":
+          send({type:"action",action:"shell",command:obj.command});
+          await runShellStream(obj.command,(c,s)=>send({type:"exec_log",stream:s,chunk:c}));
+          send({type:"observe",note:"shell_done"}); send({type:"done"}); break;
+        case "tool_spec":
+          send({type:"action",action:"tool_spec",name:obj.name});
+          await codegenAndLoad(obj); send({type:"observe",note:"tool_generated"}); send({type:"done"}); break;
+        case "use_tool":
+          send({type:"action",action:"use_tool",name:obj.name,args:obj.args});
+          await useTool(obj.name,obj.args,(c,s)=>send({type:"exec_log",stream:s,chunk:c}));
+          send({type:"observe",note:"tool_done"}); send({type:"done"}); break;
+        case "commit_kb":
+          await kbCommit(obj); send({type:"observe",note:"kb_committed"}); break;
+        case "observe": send({type:"observe",note:obj.summary}); break;
+        case "done": send({type:"done",result:obj.result}); break;
+      }
+    }
+  });
+
+  app.post("/agent/abort",async(req,res)=>res.json({ok:true}));
+}
+4. CLI “agent” (fazai)
+/usr/local/bin/fazai
+bash
+#!/usr/bin/env node
+import fetch from "node-fetch";
+import readline from "readline";
+
+const BASE = process.env.FAZAI_API_URL||"http://localhost:3120";
+
+async function* sse(url,body){
+  const res = await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","Accept":"text/event-stream"},body:JSON.stringify(body)});
+  const reader=res.body.getReader(); let buf="";
+  while(true){
+    const {value,done}=await reader.read(); if(done) return;
+    buf+=Buffer.from(value).toString("utf8");
+    let idx; while((idx=buf.indexOf("\n\n"))>=0){
+      const evt=buf.slice(0,idx).trim(); buf=buf.slice(idx+2);
+      if(evt.startsWith("data:")) yield JSON.parse(evt.slice(5).trim());
+    }
+  }
+}
+
+async function runAgent(obj){
+  const sess=await fetch(`${BASE}/agent/sessions`,{method:"POST"}).then(r=>r.json());
+  const sid=sess.session_id;
+  process.on("SIGINT",()=>{ fetch(`${BASE}/agent/abort`,{method:"POST",body:JSON.stringify({session_id:sid})}); process.exit(130); });
+  for await(const evt of sse(`${BASE}/agent/generate`,{session_id:sid,objective:obj})){
+    switch(evt.type){
+      case "token": process.stdout.write(evt.text); break;
+      case "plan": console.log(`\n>> plano: ${evt.steps.join(" -> ")}`); break;
+      case "action": console.log(`\n>> ação: ${evt.action} ${evt.command||evt.name||""}`); break;
+      case "exec_log": process.stdout.write(evt.chunk); break;
+      case "observe": console.log(`\n== observação: ${evt.note}`); break;
+      case "ask":
+        const ans=await new Promise(r=>readline.createInterface({input:process.stdin,output:process.stdout}).question(`${evt.question} > `,r));
+        await fetch(`${BASE}/agent/generate`,{method:"POST",body:JSON.stringify({session_id:sid,objective:obj,history:[{answer:ans}]})});
+        break;
+      case "done": console.log("\n? iteração concluída"); return;
+      case "error": console.error(`\n! erro: ${evt.message}`); return;
+    }
+  }
+}
+
+const [,,cmd,...rest]=process.argv;
+if(cmd==="agent") runAgent(rest.join(" "));
+else console.log("uso: fazai agent \"seu objetivo\"");
+5. Prompt ND-JSON
+core/prompt/agent_prompt.js
+js
+export async function buildPrompt({objective,ctx,history}){
+  const rules = `
+Você é um agente operacional. Responda APENAS em JSON por linha, tipos: plan, ask, research, shell, tool_spec, use_tool, observe, commit_kb, done.
+Regras:
+- UMA ação por iteração.
+- Se precisar criar ferramenta, emita tool_spec antes de use_tool.
+- Ambiguidade ? research ou ask.
+- Shell ? comando completo em linha única.
+- Observe sempre após executar.
+- Conclua com done.
+`.trim();
+  return [
+    rules,
+    "Contexto:", ...ctx.map(x=>`- ${x}`),
+    "Histórico:", JSON.stringify(history||[]),
+    "Objetivo:", objective,
+    "Saída: JSON por linha."
+  ].join("\n");
+}
+6. Pesquisa Online
+core/research.js
+js
+export async function doResearch(queries=[],maxDocs=5){
+  // TODO: implementar com OpenRouter/OpenAI ou HTTP fetch real
+  return queries.slice(0,maxDocs).map((q,i)=>({
+    title:`ref${i+1} sobre ${q}`, url:`https://context7.com/search?q=${encodeURIComponent(q)}`, snippet:"…"
+  }));
+}
+7. Síntese Dinâmica de Ferramentas
+core/tools_codegen.js
+js
+import fs from "fs/promises", path from "path", {spawn} from "child_process";
+
+async function generateCodeFromSpec(spec){
+  // TODO: chamar modelo local/fallback para gerar código real
+  return `#!/usr/bin/env node
+import { execSync } from "child_process";
+const args = JSON.parse(process.argv[2]||"{}");
+console.log("executando ${spec.name}", args);
+process.exit(0);`;
+}
+
+export async function codegenAndLoad(spec){
+  const dir = `/opt/fazai/tools/_generated/${Date.now()}_${spec.name}`;
+  await fs.mkdir(dir,{recursive:true});
+  const file = path.join(dir,`${spec.name}.mjs`);
+  const code = await generateCodeFromSpec(spec);
+  await fs.writeFile(file,code,{mode:0o755});
+  // TODO: registrar a tool no MCP interno
+  return {dir,file};
+}
+
+export async function useTool(name,args,onLog){
+  const gen = (await fs.readdir("/opt/fazai/tools/_generated")).sort().pop();
+  const file = `/opt/fazai/tools/_generated/${gen}/${name}.mjs`;
+  await new Promise((res,rej)=>{
+    const p=spawn("node",[file,JSON.stringify(args||{})],{stdio:["ignore","pipe","pipe"]});
+    p.stdout.on("data",d=>onLog?.(d.toString(),"stdout"));
+    p.stderr.on("data",d=>onLog?.(d.toString(),"stderr"));
+    p.on("close",code=>code===0?res():rej(new Error(`exit ${code}`)));
+  });
+}
+8. Base de Conhecimento (Qdrant)
+core/kb.js
+js
+import { QdrantClient } from "@qdrant/js-client-rest";
+const client=new QdrantClient({url:process.env.QDRANT_URL||"http://localhost:6333"});
+const COLL="fazai_kb";
+
+export async function kbCommit(obj){
+  const payload={title:obj.title,tags:obj.tags||[],snippet:obj.snippet||"",status:obj.status||"unverified",source:obj.source||"local",ts:Date.now()};
+  const vector=await embed(`${payload.title}\n${payload.tags.join(",")}\n${payload.snippet}`);
+  await client.upsert(COLL,{points:[{id:`${payload.ts}`,vector,payload}]});
+}
+
+async function embed(text){
+  // TODO: usar backend de embeddings real (OpenAI/Python/local)
+  return Array(384).fill(0.0);
+}
+9. Executor Shell com Stream
+core/shell.js
+js
+import { spawn } from "child_process";
+
+export async function runShellStream(cmd,onData){
+  const p=spawn("bash",["-lc",cmd],{env:process.env});
+  p.stdout.on("data",d=>onData?.(d.toString(),"stdout"));
+  p.stderr.on("data",d=>onData?.(d.toString(),"stderr"));
+  await new Promise((res,rej)=>p.on("close",c=>c===0?res():rej(new Error(`exit ${c}`))));
+}
+10. Configuração final
+/etc/fazai/fazai.conf
+ini
+[ai_provider]
+provider = gemma-worker
+
+[gemma_worker]
+socket = /run/fazai/gemma.sock
+model = /opt/fazai/models/gemma2-2b-it-sfp.bin
+threads = auto
+temperature = 0.2
+top_p = 0.9
+repeat_penalty = 1.1
+
+[agent]
+stream = sse
+max_iterations = 32
+action_per_iteration = 1
+fallback_enabled = true
+11. Registro das rotas no daemon
+No seu main.js:
+js
+import express from "express";
+import bodyParser from "body-parser";
+import { mountAgent } from "./handlers/agent.js";
+
+const app = express();
+app.use(bodyParser.json({limit:"5mb"}));
+mountAgent(app);
+// … outras rotas …
+app.listen(process.env.FAZAI_PORT||3120,()=>console.log("FazAI rodando"));
+?? Como usar
+1. Ajuste os TODOs e compile o worker C++ (cmake && build && install).
+2. Habilite o serviço systemd (systemctl enable --now fazai-gemma-worker).
+3. Copie os módulos Node.js (providers, handlers e core/) para o repositório do FazAI.
+4. Atualize o CLI em /usr/local/bin/fazai e dê permissão de execução.
+5. Reinicie o daemon (systemctl restart fazai) ou node main.js.
+6. Rode no shell:
+
+
+# FazAI Agent “Codex de Infra” com libgemma
+
+Este README reúne em um único lugar toda a arquitetura, instruções e código para montar o agente operac ional do FazAI usando a libgemma.a, com streaming de tokens, contexto dinâmico, pesquisa, síntese de ferramentas e base de conhecimento.
+
+
+
+
+
+## 1. Worker Gemma Persistente (C++)
+
+### CMakeLists.txt
+```cmake
+cmake_minimum_required(VERSION 3.16)
+project(fazai_gemma_worker)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+add_executable(fazai-gemma-worker
+  src/main.cpp
+  src/worker.cpp
+  src/worker.hpp
+  src/ipc.cpp
+  src/ipc.hpp
+  src/json.hpp
+)
+
+# Ajuste estes caminhos para onde você compilou a gemma.cpp
+target_include_directories(fazai-gemma-worker PRIVATE /opt/gemma/include)
+target_link_libraries(fazai-gemma-worker PRIVATE /opt/gemma/lib/libgemma.a pthread)
+
+install(TARGETS fazai-gemma-worker RUNTIME DESTINATION /opt/fazai/bin)
+
+
+
+Visão geral do agente FazAI e detalhamentos de funcionalidades com um exemplo de execução para parametros
+O agente opera como um orquestrador cognitivo persistente: ele mantém sessões com KVcache do modelo, recupera contexto vivo (Qdrant, Context7, estado do sistema), planeja em turnos, emite ações estruturadas (JSON por linha), executa uma ação por iteração, observa resultados (logs/diffs), aprende (KB) e repete — tudo com streaming em tempo real no shell.
+Componentes
+* CLI (fazai): inicia/retoma sessões de agente, abre um stream SSE, imprime tokens/ações/logs/observações em tempo real, e encaminha respostas do usuário quando solicitado.
+* Daemon (main.js): orquestra o ciclo Pensar ? Agir ? Observar. Monta contexto, chama o provedor do modelo, interpreta o protocolo NDJSON, executa ações (shell/geração de tool/pesquisa), injeta observações e fecha a iteração.
+* Provider do modelo (gemmaworker.js): cliente Node que conversa com um worker residente via socket Unix, expondo createSession/generateStream/abort/destroySession com streaming de tokens.
+* Worker Gemma (C++ com libgemma.a): processo residente que carrega o modelo uma vez, gerencia múltiplas sessões com KVcache e fornece geração em fluxo, com cancelamento assíncrono.
+* Recuperação de contexto: consulta Qdrant (memória operacional/KB), Context7 (documentos/trechos) e estado recente (logs/diffs/telemetria).
+* Pesquisa e fallback: quando o contexto local não basta, o agente emite “research”; se ficar empacado, um “árbitro” externo pode decidir/patchar.
+* Síntese dinâmica de ferramentas: a cada necessidade, o agente emite um ToolSpec; o daemon gera código na hora, carrega dinamicamente e executa.
+* Base de conhecimento (KB/Qdrant): decisões, patches e soluções verificadas são registradas (com metadados) para reuso futuro.
+Fluxo ponta a ponta no shell
+1. Disparo:
+o Comando: fazai agent "cria um servidor de email somente relay com antispam e antivirus..."
+o Efeito: o CLI cria/retoma uma sessão no daemon e abre um stream SSE.
+2. Preparação de contexto:
+o Recuperação: daemon busca topk no Qdrant (soluções/decisões), puxa trechos do Context7 e coleta estado atual (serviços/portas/logs).
+o Prompt: constrói um prompt com regras do protocolo (NDJSON; uma ação por iteração), objetivo e contexto.
+3. Geração em sessão persistente:
+o Provider: envia o prompt ao worker via socket; recebe tokens conforme gerados (streaming).
+o CLI: imprime tokens “ao vivo”, como um coder.
+4. Detecção de ação (NDJSON):
+o Parser: o daemon detecta linhas JSON completas dentro do stream de tokens.
+o Ação: Plan/Ask/Research/Shell/ToolSpec/UseTool/Observe/CommitKB/Done.
+5. Execução controlada (uma ação):
+o Shell: executa o comando como root, streamando stdout/stderr.
+o ToolSpec ? UseTool: gera código conforme spec, grava em _generated/, carrega e executa; streama logs.
+o Research: consulta fontes online e retorna resumo/links.
+o Ask: pausa para perguntar no CLI (ou aplica defaults).
+o CommitKB: registra a solução/decisão no Qdrant.
+6. Observação e iteração:
+o Observe: o daemon envia um resumo/diff do que mudou.
+o Done: encerra a iteração (não a sessão), permitindo próxima rodada até alcançar o objetivo.
+7. Autonomia com telemetria:
+o Ingestão: eventos/telemetria entram como contexto adicional.
+o Decisão: o agente pode continuar sem intervenção se a política permitir.
+Sessão do modelo e streaming
+* Inicialização única: o worker carrega pesos/tokenizer da libgemma.a uma vez e fica residente.
+* Sessões: cada objetivo MCPS tem um session_id com KVcache próprio, reduzindo latência entre turnos.
+* Geração por token: callback por token envia pedaços de texto para o provider; o daemon transmite via SSE para o CLI.
+* Cancelamento: um sinal de abort interrompe a decodificação no worker e fecha a rodada no daemon/CLI.
+* Parâmetros: temperatura, top_p, repeat_penalty, max_tokens são configuráveis por sessão.
+Recuperação de contexto e construção do prompt
+* Fontes de contexto:
+o Qdrant: memória operacional (decisões, patches, configs validadas, status verified/unverified, tags).
+o Context7: trechos documentais técnicos (configurações, melhores práticas, snippets).
+o Estado: inventário, serviços ativos, portas, erros recentes, diffs de arquivos.
+* Montagem do prompt:
+o Regras do protocolo: responder somente NDJSON; uma ação por iteração; shell em linha única; emitir ToolSpec antes de UseTool; usar Research/Ask em caso de ambiguidade; observar e concluir com Done.
+o Blocos: regras; contexto sintetizado (bullets curtos/pragmáticos); histórico mínimo da sessão; objetivo textual; instrução “saída: JSON por linha”.
+* Efeito prático: o modelo emite ação estruturada cedo (após um curto Plan), acelerando o laço Pensar ? Agir ? Observar.
+Protocolo de ações (NDJSON) e executores
+* Plan:
+o Uso: organizar os próximos passos.
+o Executor: apenas exibe no CLI; não executa nada.
+* Ask:
+o Uso: ambiguidade (ex.: relayhost, domínios, faixas IP).
+o Executor: pergunta no CLI; resposta entra como histórico na próxima chamada.
+* Research:
+o Uso: lacuna de conhecimento local; versões/distro específicas.
+o Executor: busca e resume; devolve docs (title/url/snippet) e injeta no contexto da próxima rodada.
+* Shell:
+o Uso: ações diretas (instalar pacotes, editar arquivos, systemctl, firewall).
+o Executor: spawn “bash -lc” como root, com streaming de stdout/stderr e código de saída; injeta resultado para Observe.
+* ToolSpec:
+o Uso: quando uma capacidade repetível é necessária (configurar Postfix relay, integrar rspamd, etc.).
+o Executor: codegen dinâmico:
+* Geração: usa LLM local; se falhar nos testes diffs/logs, tenta patch; se persistir, aciona fallback (árbitro).
+* Hotload: salva em /opt/fazai/tools/_generated/<sessão>/<toolName>.mjs; registra para UseTool.
+* Idempotência: o spec exige comportamento idempotente e logging de diffs.
+* UseTool:
+o Uso: invocar a ferramenta recémgerada/carregada.
+o Executor: executa a tool em Node (ou via MCP), streama logs, injeta observações.
+* Observe:
+o Uso: resumir o que foi feito e qual próximo passo técnico.
+o Executor: exibe e fecha a iteração.
+* CommitKB:
+o Uso: cristalizar uma solução/decisão como conhecimento reutilizável.
+o Executor: gera embedding, upsert no Qdrant com metadados (tags, os, versions, source, status).
+* Done:
+o Uso: objetivo atingido ou rodada concluída em estado terminal.
+o Executor: encerra a iteração (podendo manter a sessão para ações subsequentes).
+Memória operacional e base de conhecimento
+* Estrutura: cada item contém título, tags, snippet, status (verified/unverified), source (local/web/fallback), timestamp, e opcionalmente diffs e resultados de teste (ex.: GTUBE/EICAR para email).
+* Ingestão: CommitKB é acionado pelo modelo ou pelo daemon após sucesso validado.
+* Recuperação: topk por similaridade textual do objetivo e do estado atual; o agente prioriza itens “verified” e recentes.
+* Efeito: com o tempo, o agente fica mais rápido e determinístico em ambientes semelhantes.
+Concurrency, confiabilidade e observabilidade
+* Sessões e fila:
+o Sessões paralelas: cada objetivo tem session_id e KVcache próprio.
+o Fila por modelo: se necessário, um pool regula concorrência para evitar saturação de CPU.
+* Tempo de vida e limites:
+o Iterações: limite de iterações por objetivo (ex.: 32) para evitar loops infinitos.
+o Timeouts: por ação (shell, research, codegen) e por geração do modelo.
+* Abort/recuperação:
+o Abort: CtrlC no CLI envia abort; worker interrompe geração; daemon limpa a rodada.
+o Recuperação: se uma ação falhar, logs entram no contexto e o agente propõe correção ou research.
+* Métricas e logs:
+o Métricas: tokens/s, TTLB (tempo até primeiro token), sessões ativas, ações executadas, taxa de sucesso/falha, origem da solução (local/fallback).
+o Logs: stream no CLI + arquivos persistentes (execuções, diffs, erros); úteis para auditoria e melhoria contínua.
+Configuração, implantação e extensibilidade
+* Config chave:
+o [ai_provider]: provider = gemmaworker.
+o [gemma_worker]: socket, caminho do modelo, threads, temperature/top_p/repeat_penalty.
+o [agent]: stream = sse, max_iterations, action_per_iteration, fallback_enabled.
+* Implantação:
+o Worker: binário C++ linkado à libgemma.a, iniciado por systemd; usa socket Unix em /run/fazai/gemma.sock.
+o Daemon: expõe /agent/sessions, /agent/generate (SSE), /agent/abort; integra retrieval/research/codegen/KB.
+o CLI: subcomando “agent” conectado às rotas SSE, com render de tokens/ações/logs.
+* Extensões:
+o UI Web: espelhar SSE em WebSocket; dashboards por sessão (plan/actions/logs/observe), replays e controles (abort, next turn).
+o Rede de agentes: MCP/HTTP entre servidores para orquestração distribuída.
+o Política de fallback: roteamento adaptativo por tipo de tarefa (planejamento vs. código vs. diagnóstico).
+
+
+Diagramas e fluxo técnico completo
+Abaixo estão os diagramas e o funcionamento detalhado do agente “Codex de Infra” com sessão persistente (libgemma), streaming em tempo real e síntese dinâmica de ferramentas.
+Arquitetura do sistema
+mermaid
+graph TD
+  U[Usuário no shell] --> C[CLI fazai]
+  C -->|SSE| D[Daemon FazAI (main.js)]
+  D -->|provider| P[Provider Gemma (gemma-worker.js)]
+  P -->|UDS JSON| W[Worker Gemma (C++ libgemma)]
+  W -->|tokens stream| P
+  D -->|shell exec root| SH[Executor Shell]
+  D -->|codegen dinâmico| TG[Tools Codegen + Hot-load MCP]
+  D -->|pesquisa| R[Research Engine]
+  D -->|retrieval| Q[Qdrant (KB/memória)]
+  D -->|context| C7[Context7]
+  D -->|telemetria| ST[Estado do sistema/logs]
+
+  Q -.-> D
+  C7 -.-> D
+  ST -.-> D
+  R -.->|web| NET[Internet]
+* Ponto de verdade: Worker Gemma mantém sessões com KVcache e stream de tokens.
+* Orquestração: Daemon decide e executa 1 ação por iteração (shell, pesquisa, tool codegen/uso).
+* Memória viva: Qdrant guarda decisões, patches, diffs, verificados/ambíguos.
+Sequência completa de uma iteração
+mermaid
+sequenceDiagram
+  participant U as Usuário
+  participant CLI as CLI (fazai)
+  participant D as Daemon (main.js)
+  participant Prov as Provider (gemma-worker.js)
+  participant W as Worker (libgemma)
+  participant SH as Shell
+  participant Q as Qdrant
+  participant C7 as Context7
+  participant R as Research
+
+  U->>CLI: fazai agent "objetivo"
+  CLI->>D: POST /agent/sessions (cria sessão)
+  CLI->>D: POST /agent/generate (SSE aberto)
+  D->>Q: top-k contexto
+  D->>C7: trechos relevantes
+  D->>D: compõe prompt ND-JSON (regras + contexto + objetivo)
+  D->>Prov: generateStream(session_id, prompt)
+  Prov->>W: generate(stream)
+  W-->>Prov: tokens
+  Prov-->>D: tokens
+  D-->>CLI: data: {"type":"token","text":"..."} (SSE)
+
+  alt linha ND-JSON completa detectada
+    D->>D: parse objeto JSON (plan/ask/research/shell/tool_spec/use_tool/...)
+    opt ask
+      D-->>CLI: data: {"type":"ask",...}
+      CLI->>D: resposta do usuário
+    end
+    opt research
+      D->>R: consultas online
+      R-->>D: docs resumidos (title/url/snippet)
+      D-->>CLI: data: {"type":"research_result",...}
+    end
+    opt shell
+      D-->>CLI: data: {"type":"action","action":"shell",...}
+      D->>SH: executa comando root (stream)
+      SH-->>D: stdout/stderr
+      D-->>CLI: data: {"type":"exec_log",...}
+      D-->>CLI: data: {"type":"observe","note":"shell_done"}
+    end
+    opt tool_spec ? use_tool
+      D-->>CLI: data: {"type":"action","action":"tool_spec"}
+      D->>D: codegen dinâmico (local?fallback se falhar)
+      D-->>CLI: data: {"type":"observe","note":"tool_generated"}
+      D-->>CLI: data: {"type":"action","action":"use_tool"}
+      D->>D: executa tool gerada (stream logs)
+      D-->>CLI: data: {"type":"exec_log",...}
+      D-->>CLI: data: {"type":"observe","note":"tool_done"}
+    end
+    D-->>CLI: data: {"type":"done"}
+  end
+* SSE contínuo: tokens, ações, logs e observações aparecem em tempo real.
+* Abort: CtrlC no CLI envia abort; worker interrompe geração e a iteração encerra limpo.
+Decisão de ação no protocolo NDJSON
+mermaid
+flowchart TD
+  A[Recebe prompt+contexto] --> B{Modelo emite JSON?}
+  B -- Não --> A
+  B -- Sim --> C{type}
+  C -->|plan| P[Exibe plano e segue geração]
+  C -->|ask| ASK[Pergunta ao usuário / aplica defaults]
+  C -->|research| RS[Executa busca online e injeta docs]
+  C -->|shell| SH[Executa comando root (stream logs)]
+  C -->|tool_spec| TS[Codegen dinâmico + hot-load MCP]
+  C -->|use_tool| UT[Executa tool gerada (stream logs)]
+  C -->|commit_kb| KB[Upsert no Qdrant com metadados]
+  C -->|observe| OB[Emite resumo/diff/estado]
+  C -->|done| DN[Fecha iteração]
+  OB --> A
+  RS --> A
+  SH --> OB
+  TS --> OB
+  UT --> OB
+  ASK --> A
+* Uma ação por iteração: garante controle fino, logs claros e loops curtos.
+* Ambiguidade: ask ou research; evita “chutes”.
+Máquina de estados da sessão
+mermaid
+stateDiagram-v2
+  [*] --> Init
+  Init --> Active: create_session
+  Active --> Generating: /agent/generate
+  Generating --> WaitingAction: tokens fluindo
+  WaitingAction --> Executing: shell/tool/research
+  Executing --> Observing: logs ? observe
+  Observing --> Done: emissão done
+  Done --> Active: próxima iteração
+  Generating --> Aborted: abort
+  Executing --> Aborted: abort
+  Aborted --> Active
+  Active --> Closed: close_session
+  Closed --> [*]
+* Persistência: KVcache vive entre iterações.
+* Recuperação: abort volta a Active sem derrubar a sessão.
+Dados e contratos essenciais
+* SSE de saída do daemon:
+o token: {"type":"token","text":"..."}
+o plan: {"type":"plan","steps":[...]}
+o action: {"type":"action","action":"shell|tool_spec|use_tool|research",...}
+o exec_log: {"type":"exec_log","stream":"stdout|stderr","chunk":"..."}
+o observe: {"type":"observe","note":"..."}
+o ask: {"type":"ask","question":"...","options":null|[...]}
+o research_result: {"type":"research_result","docs":[{title,url,snippet}]}
+o done: {"type":"done","result":""}
+o error: {"type":"error","message":""}
+* NDJSON do modelo (entrada/saída entre tokens):
+o plan: {"type":"plan","steps":[...]}
+o ask: {"type":"ask","question":"...","options":null}
+o research: {"type":"research","queries":[...],"maxDocs":5}
+o shell: {"type":"shell","command":"...", "timeoutSec":900}
+o tool_spec: {"type":"tool_spec","name":"...","language":"node","description":"...","inputs":{...},"tests":[...],"policy":"idempotente; logging diffs"}
+o use_tool: {"type":"use_tool","name":"...","args":{...}}
+o observe: {"type":"observe","summary":"..."}
+o commit_kb: {"type":"commit_kb","title":"...","tags":[...],"snippet":"...","status":"verified"}
+o done: {"type":"done","result":"..."}
+Lacunas a implementar para ficar funcional
+* Worker libgemma (C++):
+o Tokenização/priming: conectar tokenizer e inserir prompt no cache.
+o Decodificação: loop de geração por token com callback; suportar stop/abort.
+o Sessões: mapa session_id ? KVcache e parâmetros; limpeza segura.
+o Parâmetros: threads, temp, top_p, repeat_penalty; leitura de env/conf.
+o UDS protocolo: framing por linha; eventos token/stop em NDJSON.
+* Provider Node (gemmaworker.js):
+o Reconexão/retentativas: lidar com socket ocupado/falha transitória.
+o Backpressure: buffers para evitar travamento sob alto throughput.
+* Daemon:
+o Retrieval unificado: searchContext juntar Qdrant + Context7 + estado com pesos e dedup.
+o Parser NDJSON robusto: tolerância a tokens parciais; timeouts de ação.
+o Research real: integrar provedores (OpenRouter/OpenAI/HTTP) e sumarização.
+o Codegen real: prompt de geração com verificação (diff/teste); fallback “árbitro” quando falhar.
+o MCP hotload: registrar a tool gerada no bus de ferramentas em runtime.
+o KB embeddings: usar embedder real (OpenAI/Python/local) e coleções/indices no Qdrant.
+o Métricas: tokens/s, TTLB, erros por tipo, origem de solução (local/web/fallback).
+* CLI:
+o Entrada interativa (ask): persistir respostas no history até próxima rodada.
+o UX: cores sutis para token/action/log; suporte a replay de sessão.
+* Sistema:
+o systemd do worker: garantir start/stop ordenado; diretório /run/fazai com permissão.
+o Configuração: chaves novas no /etc/fazai/fazai.conf ([gemma_worker], [agent]).
+o Logs: rotação e separação por sessão/execução.
+Caminho de execução e decisão (com fallback)
+mermaid
+flowchart LR
+  S[Start iteração] --> CTX[Build contexto (Qdrant+Context7+estado)]
+  CTX --> PROMPT[Prompt ND-JSON]
+  PROMPT --> GEN[Generate stream (libgemma)]
+  GEN -->|plan| PLAN
+  GEN -->|ask| ASK
+  GEN -->|research| RES
+  GEN -->|shell| SHELL
+  GEN -->|tool_spec| SPEC
+  GEN -->|use_tool| USE
+  GEN -->|commit_kb| KB
+  GEN -->|observe| OBS
+  GEN -->|done| DONE
+
+  SHELL --> OBS
+  SPEC --> USE
+  USE --> OBS
+  RES --> CTX
+  ASK --> CTX
+  OBS --> DEC{Objetivo atingido?}
+  DEC -- Não --> S
+  DEC -- Sim --> DONE
+
+  GEN -->|travou 2x| ARB[Árbitro (fallback)]
+  ARB --> PATCH[Patch de estratégia]
+  PATCH --> CTX
+* Fallback “árbitro”: só entra após estagnação detectada; decide próxima estratégia ou patch de codegen.
+Validação operacional
+* Casos de teste de email relay:
+o Instalação/serviços: Postfix, rspamd, ClamAV ativos (systemctl).
+o Portas: 25/587/465/11332/3310 conforme stack.
+o Políticas: DNSBLs, milter, TLS, mynetworks.
+o EICAR/GTUBE: vírus/spam bloqueados; quarantine/reject adequados.
+o Logs: envio/recepção com códigos SMTP esperados.
+o KB: commit_kb com snippet final e status “verified”.
+* Métricas a observar:
+o Tempo até primeiro token.
+o Tokens/s durante geração.
+o Taxa de sucesso por ação.
+o Número de iterações por objetivo.
+o Uso de fallback (freq/razão).
+Passos de implantação
+1. Worker (libgemma):
+o Compilar e instalar: CMake; apontar include/lib corretos da sua build.
+o Completar TODOs de integração: tokenizer/decodificação/abort.
+o Habilitar systemd: serviço em /etc/systemd/system; socket em /run/fazai/gemma.sock.
+2. Daemon e provider:
+o Adicionar provider gemmaworker.js.
+o Montar handlers /agent (SSE).
+o Implementar retrieval, research, codegen, kb.
+3. CLI:
+o Atualizar subcomando “agent” com SSE e ask.
+4. Config:
+o /etc/fazai/fazai.conf: provider = gemmaworker; parametros do worker e agent.
+5. Teste:
+o fazai agent "cria um servidor de email relayonly com antispam e antivirus..."
+o Acompanhar tokens/ações/logs/observações.
+o Validar com GTUBE/EICAR e commit_kb.
+Destaques importantes
+* Sessão persistente: fundamental para reduzir latência e manter raciocínio multiturn com KVcache.
+* Contrato NDJSON: elimina ambiguidade; permite parsing determinístico e execução segura por etapa.
+* Uma ação por iteração: traz controle, auditabilidade e correção rápida em caso de erro.
+* Síntese dinâmica: o agente projeta a própria ferramenta quando necessário; nada de toolbox fixa.
+* Memória viva: Qdrant armazena decisões/soluções com metadados; o agente fica melhor a cada execução.
+* Pesquisa e fallback: destrava impasses com fontes externas e árbitro, mantendo rastreabilidade da origem.
+
+
+O FazAI é um sistema inteligente de automação e orquestração que atua como um “piloto” operacional para servidores e serviços. Ele não se limita a responder perguntas: ele analisa, decide, executa e aprende — tudo em ciclos iterativos, com saída em tempo real no terminal, integrando conhecimento local e pesquisa externa.
+?? O que é
+Um agente persistente que mantém um raciocínio contínuo sobre um objetivo até concluí-lo. Ele combina:
+* Modelo local (via libgemma.a) para raciocínio rápido e contextual.
+* Recuperação de contexto em fontes como Qdrant (memória operacional) e Context7 (documentos técnicos).
+* Acesso à internet para pesquisa de soluções quando necessário.
+* Síntese dinâmica de ferramentas: gera o código que precisa, carrega e executa sob demanda.
+* Execução como root para aplicar mudanças diretamente na máquina.
+?? Como funciona
+1. Você descreve o que quer Ex.: “FazAI cria um servidor de email relayonly com antispam, antivírus e políticas inteligentes para mensagens suspeitas”.
+2. O agente lê o estado real Verifica serviços, portas, configurações existentes, histórico e conhecimento prévio armazenado.
+3. Recupera contexto útil Busca trechos relevantes no Qdrant e Context7; se faltar informação, faz pesquisa online.
+4. Planeja e decide a primeira ação O raciocínio é transmitido ao vivo pelo terminal: você vê tokens, plano, escolha da ação.
+5. Executa de forma controlada Pode ser um comando shell, a geração de uma nova ferramenta, ou a execução de uma tool já gerada — sempre com logs em tempo real.
+6. Observa e registra resultados Analisa a saída, detecta sucesso ou falha, e decide o próximo passo. Soluções validadas são gravadas na base de conhecimento para reaproveitamento futuro.
+7. Repete o ciclo Continua até que o objetivo esteja cumprido ou um bloqueio/ambiguidade demande sua confirmação.
+?? Funcionalidades principais
+* Sessões persistentes: mantém o estado entre iterações, com uso de KVcache para reduzir latência.
+* Streaming em tempo real: tokens, ações, logs e observações aparecem ao vivo no terminal.
+* Uma ação por iteração: facilita controle, auditoria e correção de curso.
+* Ferramentas sob demanda: nada é préfixo; o próprio agente cria o que precisa.
+* Pesquisa inteligente: combina contexto interno e resultados externos para decisões mais precisas.
+* Base de conhecimento própria: cada solução confirmada vira referência para cenários futuros.
+* Execução direta: interage com serviços, instala pacotes, ajusta configurações e valida resultados.
+?? Aplicações
+O FazAI pode ser usado para:
+* Configuração e manutenção de serviços: email, web, proxy, firewall, IDS, backup.
+* Diagnóstico e correção: identificar problemas e aplicar patches.
+* Automação de políticas: segurança, controle de acesso, filtragem de conteúdo.
+* Orquestração multiservidor: atuar como “control tower” para vários nós.
+* Aprendizado contínuo: sistemas que ficam mais eficientes à medida que resolvem mais tarefas.
+?? Diferenciais
+* Autonomia real: não depende de um conjunto prémontado de scripts.
+* Transparência: você vê cada decisão, ação e resultado em tempo real.
+* Evolução: cada execução alimenta uma memória que melhora a próxima.
+* Flexibilidade: adaptável a diferentes ambientes e objetivos.
+
+
+
+Cenário: Configurar servidor de email relayonly com antispam, antivírus e políticas inteligentes
+1 – Você dá a ordem
+No shell:
+bash
+fazai agent "cria um servidor de email somente relay com antispam, antivirus, blacklists online e inteligência para lidar com mensagens suspeitas"
+O FazAI reconhece seu objetivo, cria uma sessão persistente no modelo local e abre o streaming no seu terminal.
+2 – Análise inicial e planejamento
+Na sua tela, começam a surgir tokens em tempo real:
+>> plano: inventário -> instalar MTA -> configurar antispam -> configurar antivírus -> aplicar políticas -> validar
+Enquanto escreve, o FazAI já está consultando:
+* Qdrant: decisões e configs anteriores sobre email
+* Context7: artigos e trechos sobre Postfix, rspamd, ClamAV
+* Estado do sistema: pacotes instalados, portas, hostname, IP
+3 – Primeira ação
+O agente emite um JSON:
+json
+{"type":"shell","command":"dnf -y install postfix rspamd clamav clamav-update clamav-milter"}
+O daemon executa como root e você vê o log da instalação rolando no terminal, stdout e stderr ao vivo.
+4 – Observação e próxima decisão
+Após a execução:
+== observação: Postfix 3.x e rspamd instalados; clamd sem socket; próximo passo: habilitar freshclam e clamav-milter
+Tudo isso já entra no contexto da próxima iteração.
+5 – Geração dinâmica de ferramenta
+O FazAI detecta que não há script pronto para configurar o relay e emite:
+json
+{"type":"tool_spec","name":"mail_relay_setup", ...}
+Em segundos:
+* Gera o código da nova ferramenta usando o próprio modelo.
+* Salva e carrega no MCP.
+* Executa (use_tool) com parâmetros inferidos do ambiente (domínio, rede interna).
+6 – Integração antispam e antivírus
+O fluxo continua:
+* Configura rspamd como milter do Postfix, adiciona DNSBLs.
+* Integra clamav-milter para escanear anexos.
+* Define a política inteligente: baixo score ? permitir, médio ? quarentena com alerta, alto ou vírus ? rejeitar/bounce.
+7 – Testes automáticos
+O agente dispara GTUBE (spam de teste) e EICAR (vírus simulado):
+* Monitora logs de rejeição/quarentena.
+* Ajusta thresholds se necessário.
+* Você acompanha tudo no terminal.
+8 – Conclusão e registro no conhecimento
+Ao finalizar:
+? iteração concluída
+== observação: Servidor relay-only com rspamd/clamav ativo, políticas aplicadas, testes GTUBE/EICAR OK.
+E o FazAI grava no Qdrant:
+* Título, tags, parâmetros aplicados.
+* Fonte: local/verificado.
+* Resultado: “verified”.
+?? O que você viu nessa demo:
+* Streaming de raciocínio, plano, ações e logs em tempo real.
+* Contexto vivo (local + internet) a cada iteração.
+* Geração de ferramentas sob demanda.
+* Execução direta e validação automática.
+* Aprendizado contínuo: a solução agora está no KB.
+Demonstração: sistema de segurança com Suricata, antivírus, GeoIP dinâmico e wrappers de bloqueio
+A proposta: o FazAI instala e orquestra um sistema que observa tráfego nas portas 80/443, cruza assinaturas e reputação global, e, ao detectar ameaça, bloqueia o IP automaticamente e notifica o administrador.
+Cenário no terminal (fluxo em tempo real)
+1) Você dispara
+bash
+fazai agent "instalar um sistema de segurança com suricata + antivirus, GeoIP dinâmico e wrappers: observar 80/443, comparar assinaturas bases online, e se positivo, bloquear IP e avisar o admin"
+2) Análise e plano
+* token ? “Inventariando interface, portas e pacotes…”
+* plan
+json
+{"type":"plan","steps":["inventário","instalar pacotes","suricata inline","geoip dinâmico","wrapper de bloqueio","antivírus (extração)","testes","registro no KB"]}
+3) Perguntas mínimas (parametrização)
+* ask
+json
+{"type":"ask","question":"Qual interface observar (ex.: eth0) e e-mail do admin para alertas?"}
+Você responde: eth0, admin@exemplo.com
+4) Instalação base
+* shell
+json
+{"type":"shell","command":"dnf -y install suricata suricata-update jq nftables ipset geoipupdate clamav clamav-update clamav-scanner"}
+* observe ? “Suricata/ClamAV/GeoIP instalados; nftables ativo.”
+5) Suricata em modo inline focado em 80/443
+* research
+json
+{"type":"research","queries":["suricata AF_PACKET inline fedora 80 443 best practice","suricata-update ET Open rules"],"maxDocs":3}
+* tool_spec (gera configuração inline + service override)
+json
+{
+  "type":"tool_spec",
+  "name":"suricata_inline_setup",
+  "language":"node",
+  "description":"Configura Suricata AF_PACKET inline na interface escolhida, com captura otimizada e regras para 80/443; ativa suricata-update",
+  "inputs":{"iface":"string","ports":"string"},
+  "tests":["suricata -T","systemctl status suricata"],
+  "policy":"idempotente; logs e diffs"
+}
+* use_tool
+json
+{"type":"use_tool","name":"suricata_inline_setup","args":{"iface":"eth0","ports":"80,443"}}
+* observe ? “AF_PACKET up; eve.json ativo; regras ET Open + community atualizadas.”
+6) GeoIP dinâmico e reputação global
+* tool_spec (atualização de GeoIP/blacklists ? ipset/nftables)
+json
+{
+  "type":"tool_spec",
+  "name":"geoip_dynamic_firewall",
+  "language":"node",
+  "description":"Cria conjuntos nftables/ipset para GeoIP e blocklists (FireHOL/Spamhaus/ET compromised), agenda atualização e aplica cadeias drop",
+  "inputs":{"countries_block":"array","sources":"array"},
+  "tests":["nft list ruleset | grep dyn_blacklist","ipset list | head"]
+}
+* use_tool
+json
+{"type":"use_tool","name":"geoip_dynamic_firewall","args":{"countries_block":[],"sources":["firehol_level1","spamhaus_drop","et_compromised"]}}
+* observe ? “Conjuntos dyn_blacklist atualizados; cron a cada 30min; cadeias hook prerouting com drop por set.”
+7) Wrapper de bloqueio reativo (Suricata ? firewall ? alerta)
+* tool_spec (tailer do eve.json com decisão e ação)
+json
+{
+  "type":"tool_spec",
+  "name":"suricata_block_wrapper",
+  "language":"node",
+  "description":"Lê eve.json, aplica política: se alert severo/signature match/JA3 suspeito, resolve IP origem, consulta reputação (OTX/AbuseIPDB), cruza GeoIP e adiciona ao dyn_blacklist; envia alerta ao admin",
+  "inputs":{"admin_email":"string","severity_min":"number","hold_minutes":"number"},
+  "tests":["injetar alerta simulado no eve.json","verificar ip no set","e-mail de teste enviado"]
+}
+* use_tool
+json
+{"type":"use_tool","name":"suricata_block_wrapper","args":{"admin_email":"admin@exemplo.com","severity_min":2,"hold_minutes":1440}}
+* observe ? “Wrapper rodando como serviço; notificações via e-mail; bloqueio imediato em dyn_blacklist.”
+8) Antivírus com extração de arquivos
+* tool_spec (file-store + clamd)
+json
+{
+  "type":"tool_spec",
+  "name":"suricata_filestore_clamav",
+  "language":"node",
+  "description":"Ativa filestore no Suricata para HTTP; watcher escaneia arquivos extraídos com clamd; positivos geram bloqueio e alerta",
+  "inputs":{"store_dir":"string"},
+  "tests":["EICAR via HTTP","positivo gera block + alerta"]
+}
+* use_tool
+json
+{"type":"use_tool","name":"suricata_filestore_clamav","args":{"store_dir":"/var/lib/suricata/files"}}
+* observe ? “Filestore on; clamdscan watcher ativo; EICAR aciona bloqueio + alerta.”
+9) Testes automáticos
+* shell
+json
+{"type":"shell","command":"curl -I http://eicar.org/download/eicar.com.txt || true"}
+* observe ? “Evento de vírus detectado ? IP bloqueado; e-mail enviado.”
+10) Registro no conhecimento
+* commit_kb
+json
+{"type":"commit_kb","title":"Proteção 80/443 com Suricata + block reativo + GeoIP + AV","tags":["suricata","nftables","geoip","clamav","inline"],"snippet":"AF_PACKET inline; dyn_blacklist; wrapper de bloqueio; filestore+clamd; testes EICAR","status":"verified"}
+* done
+json
+{"type":"done","result":"Sistema ativo e monitorado; bloqueio e alertas funcionais"}
+O que o FazAI entrega ao final
+* Inspeção e reação em 80/443: Suricata em AF_PACKET inline, com regras atualizadas e foco em tráfego web.
+* Bloqueio dinâmico: conjuntos nftables/ipset com atualização periódica de blocklists globais e GeoIP.
+* Decision wrapper: processo observador do eve.json que cruza severidade/assinaturas/JA3 com reputação e aplica bloqueio + notifica.
+* Antivírus em fluxo: extração de arquivos HTTP e escaneamento com ClamAV; positivos acionam a mesma política de bloqueio/alerta.
+* Pesquisa e ajuste contínuos: consulta bases online para afinar regras e assinaturas quando necessário.
+* Memória operacional: solução registrada no KB, pronta para ser reutilizada e aprimorada.
+Notas técnicas essenciais
+* Modo Suricata: AF_PACKET inline reduz latência e dispensa rerroteamento via NFQUEUE; adequado para 80/443. Em HTTPS, a detecção foca metadados (SNI, JA3/JA3S, comportamentos).
+* nftables/ipset: conjuntos nomeados (ex.: dyn_blacklist, geoip_block) com hooks em prerouting/input; atualizados por jobs agendados. Bloqueio é imediato; aging via timeout ou “hold_minutes”.
+* Reputação/GeoIP: blocklists FireHOL/Spamhaus/ET; MaxMind GeoLite2 via geoipupdate; reputação opcional com OTX/AbuseIPDB para aumentar confiança antes do bloqueio.
+* Filestore/ClamAV: Suricata filestore para HTTP; watcher invoca clamdscan; positivos disparam o mesmo pipeline de bloqueio + alerta.
+* Observabilidade: logs do Suricata (eve.json), contadores de nftables, histórico de bloqueios e alertas; tudo disponível para painel posterior.
+* Segurança operacional: execução como root sob seu controle; depois é simples endurecer (limitar escopos, confirmar ações destrutivas, whitelists).
+Próximo passo sugerido
+* Rodar exatamente esse comando no seu ambiente e acompanhar o stream. Se algum ponto travar (interface, regras, permissões), o FazAI aciona pesquisa e/ou te pergunta, e segue até concluir. Quando quiser, repetimos a mesma abordagem para IDS em camada lateral, proxy com ICAP, ou proteção de APIs.
+
+
+Visão e escopo
+O FazAI será o “piloto” único para administrar e monitorar OPNsense e servidores Linux em larga escala. Um cérebro central orquestra agentes distribuídos, toma decisões em ciclos curtos (pensar ? agir ? observar), e oferece interfaces unificadas para operação, automação e auditoria. Nada de scripts rígidos: o sistema é dinâmico, aprende com o uso e gera ferramentas sob demanda quando necessário.
+Arquitetura do sistema
+mermaid
+graph TD
+  U[Operador] -->|Web/TUI/CLI| UI[Interface FazAI]
+  UI --> API[FazAI API/Daemon]
+  API --> CTRL[Plano de controle (orquestração)]
+  CTRL --> PROV[Provider de IA (sessão persistente)]
+  CTRL --> RAG[Contexto (Qdrant/Context7/KB)]
+  CTRL --> EVT[Bus de eventos/telemetria]
+  CTRL --> PLAY[Playbooks/Workflows]
+  CTRL --> SEC[Segredos/RBAC/Auditoria]
+
+  CTRL -->|HTTPS/API| OPN[OPNsense (REST/configd)]
+  CTRL -->|SSH/Agent| LNX[Linux Nodes]
+  OPN --> TEL_OPN[Logs/Suricata/Estatísticas]
+  LNX --> TEL_LNX[Logs/Métricas/Serviços]
+  TEL_OPN --> EVT
+  TEL_LNX --> EVT
+  RAG -. feedback .-> CTRL
+* Plano de controle: orquestra ações, coordena sessões de IA, impõe “uma ação por iteração” e valida resultados.
+* Plano de dados (telemetria): coleta métricas, logs e alertas (stream) para dashboards e decisões do agente.
+* Conectividade dual: OPNsense via API nativa; Linux via SSH e/ou agente leve.
+Agentes e conectividade
+OPNsense (sem instalação local)
+* Autenticação: chave/segredo de API com perfis específicos; TLS mTLS opcional.
+* Ações típicas:
+o Firewall: aliases, regras, NAT, schedules, apply/reload.
+o IDS/IPS: Suricata (regras, políticas, drop/alert), atualizações.
+o DNS/Resolver: Unbound/dnsmasq, overrides, DNSBL.
+o VPN: WireGuard/OpenVPN peers e ACLs.
+o Sistema: interfaces, gateways, rotas, serviços, backups, config.xml..
+* Execução: chamadas REST/configd idempotentes; “dry-run” quando suportado; delta-diffs do config.
+Linux (com agente leve ou SSH)
+* Modo agente (recomendado):
+o Funções: inventário (CPU/RAM/distro), métricas, logs, execução de ações, coleta de resultados.
+o Canal: WebSocket/SSE outbound (sem portas abertas), com assinatura de mensagens e fila local.
+* Modo SSH (fallback/rápido):
+o Ações: systemd, pacotes, firewall (nftables/iptables), serviços (Nginx/Postfix/Suricata), arquivos e permissões.
+o Segurança: chaves dedicadas; restrições por “forced commands” (quando decidirmos endurecer).
+Modelo de dados de inventário
+* Organização ? Site/Região ? Cluster/Grupo ? Nó/Dispositivo ? Serviços ? Agentes.
+* Metadados-chave: SO/versão, papéis (edge, core, mail, proxy), etiquetas (zona, compliance), chaves/API.
+Monitoramento e telemetria
+Coleta e normalização
+* OPNsense: métricas do sistema, status dos serviços, Suricata (eve.json via API/log pull), firewall hits, filas de NAT.
+* Linux: CPU, memória, disco, rede (RX/TX/pps), status systemd, filas de mail/proxy, IDS/IPS locais.
+* Logs estruturados: normalização (JSON), correlação por sessão/ação, enriquecimento (GeoIP/reputação) quando aplicável.
+Dashboards essenciais
+* Visão geral (fleet):
+o Saúde: up/down, alertas críticos.
+o Segurança: eventos por severidade, top origens/destinos, blocos recentes.
+o Mudanças: últimas ações aplicadas, status e rollbacks.
+* Nível OPNsense:
+o Firewall: top regras acionadas, drops/accepts por intervalo, aliases dinâmicos.
+o IDS/IPS: alertas por assinatura/política, taxa de drops, atualização de regras.
+o Sistema: carga, estado das interfaces, rotas/gateways.
+* Nível Linux:
+o Serviços: uptime e status, erros recentes, portas expostas.
+o Desempenho: CPU, memória, I/O, rede, p95.
+o Segurança: Suricata/Auditd falhas, tentativas SSH, listas de bloqueio.
+Linha do tempo operacional
+* Eventos: cada ação do FazAI, com tokens, comando aplicado, diffs de config, logs e resultado.
+* Replays: reproduz stream de uma sessão para auditoria/treinamento.
+Interfaces de administração
+Web (SPA) e TUI/CLI sincronizados
+* Lista de nós: filtros por org/site/papel/saúde; ações em massa.
+* Detalhe do nó:
+o Aba Visão Geral: saúde, últimas ações, alertas.
+o Aba Segurança: Suricata/Firewall/DNSBL (OPNsense); IDS/Firewall (Linux).
+o Aba Configuração: visual diffs (antes/depois), histórico de versões.
+o Aba Sessões de IA: transcrições, plano, ações, logs e observações.
+* Compositor de políticas:
+o Firewall/IPS: regras, prioridades, grupos, “what-if” (simulação).
+o Atualizações: janelas de manutenção, canary, ordem de implantação.
+* Playbooks: fluxo gráfico (drag-and-drop) para automações e correções.
+UX de execução em tempo real
+* Painel de sessão: tokens do modelo (stream), ação decidida, logs STDOUT/STDERR, observação e botão “aprovar/abortar”.
+* Confirmações inteligentes: ações destrutivas pedem toque; políticas podem autoaprovar sob critérios.
+Automação, workflows e conhecimento
+Ciclo de ação seguro
+* Planejar: o FazAI propõe plano (curto).
+* Simular: para OPNsense, valida config; para Linux, “lint/check” de arquivos/reglas.
+* Executar: uma ação por iteração, logs em tempo real.
+* Observar: diffs/estados; decide próximo passo.
+* Rollback: snapshots de config (OPNsense) e backup de arquivos/RC (Linux).
+Geração dinâmica de ferramentas
+* Quando necessário: o FazAI emite ToolSpec (contrato), gera o código, carrega, executa e valida.
+* Reutilização: soluções validadas vão para o KB; recomposição rápida no futuro.
+Base de conhecimento (KB)
+* Estrutura: título, tags, SO/versão, serviço, snippet, status (verified), fonte (local/web).
+* Uso: RAG prioriza “verified” e contexto similar; acelera novas execuções.
+* Curadoria: promoção de ferramentas geradas a “estáveis” conforme decisão do operador.
+Playbooks e eventos
+* Disparadores: alerta (Suricata), anomalia (métrica), alteração de estado.
+* Ações: bloquear IP/ASN, ajustar regra, abrir incidente, notificar, criar exceção temporária, executar teste.
+Segurança, RBAC e multitenancy
+* Identidades e acesso:
+o RBAC granular: organização/site/nó/serviço/ação; perfis (viewer, operator, approver, admin).
+o SSO: integração futura (IdP).
+* Segredos: cofre isolado (chaves API OPNsense, SSH, webhooks).
+* Auditoria: trilhas completas por sessão/ação, com diffs e logs.
+* Isolamento multitenant: segregação lógica por org; limites e quotas (execuções, nós, throughput).
+Plano de implantação
+MVP (foco em funcionamento)
+* Conectar OPNsense: cadastro de instâncias (URL, key/secret); operações base (regras firewall, apply/reload, Suricata update).
+* Conectar Linux: SSH com chave; inventário e execução de comandos básicos; coleta de métricas/logs essenciais.
+* Sessão de IA: streaming em tempo real, contrato JSON, uma ação por iteração.
+* Dashboards básicos: saúde do fleet, eventos de segurança, últimas mudanças.
+* KB inicial: registrar soluções aplicadas e resultados.
+Fase 2 (fortalecer operação)
+* Agente Linux dedicado: canal outbound com SSE/WebSocket, buffer offline.
+* Playbooks: orquestração com aprovações; canary e rollout progressivo.
+* Simulação/“whatif”: preflight para regras firewall/IPS.
+* UI avançada: compositores, replays, filtros ricos.
+Fase 3 (escala e inteligência)
+* Autonomia assistida: o FazAI pode executar correções sob políticas préacordadas.
+* Roteador de modelos: fallback/arbitragem quando a solução local empacar.
+* Anomalia/Previsão: heurísticas e alertas proativos.
+Fluxos exemplares
+Mudança de regra no OPNsense (simular ? aplicar ? validar)
+mermaid
+sequenceDiagram
+  participant UI as UI/CLI
+  participant API as FazAI API
+  participant OPN as OPNsense
+  UI->>API: Propor regra (bloquear /24 suspeito)
+  API->>OPN: POST /firewall/alias + POST /firewall/rule (dry-run)
+  OPN-->>API: Validação OK
+  API->>OPN: Apply (configd action)
+  OPN-->>API: Resultado + logs
+  API-->>UI: Diff + status + métricas de hits
+Resposta automática a alerta Suricata (OPNsense ? bloqueio ? notificação)
+mermaid
+sequenceDiagram
+  participant OPN as OPNsense (Suricata)
+  participant EVT as Bus eventos
+  participant API as FazAI
+  participant LNX as Linux/Firewall
+  OPN-->>EVT: Alert(severity=high, src=IP)
+  EVT->>API: Enriquecer (GeoIP/Reputação)
+  API->>OPN: Add alias/Rule drop IP
+  API->>LNX: (Opcional) Propagar bloqueio no edge
+  API-->>Admin: Notificação (email/webhook)
+  API-->>KB: Registrar decisão (verified)
+O que torna o FazAI diferente
+* Operação em tempo real: você vê o sistema pensar, decidir e agir no seu terminal (e no painel).
+* Sem caixa de ferramentas fixa: quando precisa, ele cria a própria ferramenta, executa e aprende com o resultado.
+* Unificação de mundos: OPNsense e Linux sob o mesmo comando — com segurança, rastreabilidade e autonomia crescente.
+* Aprendizado acumulado: cada mudança bem-sucedida vira conhecimento reutilizável, acelerando operações futuras.
+Se quiser, eu já preparo rascunhos da UI (wireframes) para:
+* Painel “Fleet Overview”
+* Detalhe de OPNsense (Firewall/Suricata)
+* Sessão ao vivo (stream)
+* Compositor de políticas (firewall/IDS/updates)
+E, em paralelo, um roteiro de testes reais (mudança de regra, alerta IPS, rollout de atualização) para provar o ciclo completo em produção-controlada.
+
+
+
+
+INTERFACE CLIENTE-SERVIDOR
+
+Arquitetura cliente-servidor
+mermaid
+graph TD
+  UI[UI Web / CLI / TUI] --> API[FazAI API (Control Plane)]
+  API --> KB[Qdrant / Context7 / Config]
+  API <-->|mTLS WS/SSE| AG[Agentes Linux (Outbound)]
+  API <-->|HTTPS/mTLS| OPN[OPNsense (REST/configd)]
+  API --> EVT[Bus de eventos]
+  AG --> TEL[Telemetria (métricas/logs)]
+  OPN --> TEL
+  TEL --> API
+* Ponto único: API do FazAI é o plano de controle. Tudo passa por ela: comandos, sessões de IA, telemetria e auditoria.
+* Clientes: agentes Linux outbound e conectores OPNsense via REST; ambos falam com o mesmo contrato de mensagens.
+Conectividade e protocolos
+* Canal agentes Linux (recomendado):
+o Transporte: WebSocket sobre HTTP/2 com mTLS; fallback SSE para redes restritivas.
+o Padrões: RPC leve (comandos) + streams (logs/telemetria).
+o Direção: outbound do agente para a API (não exige portas abertas).
+* Conector OPNsense:
+o Transporte: HTTPS REST/configd nativos do OPNsense com API key/secret; opcional mTLS.
+o Execução: chamadas idempotentes; “dry-run” quando disponível; diffs de config.
+* Sessões de IA (terminal e web):
+o Streaming: SSE para o CLI/UI (tokens, ações, logs, observações).
+o Controle: uma ação por iteração; abort assíncrono.
+* Serialização:
+o Mensagens: JSON com versões (v, kind) e IDs correlacionados.
+o Compressão: permessage-deflate no WS; gzip nas rotas REST.
+Segurança e onboarding
+* Identidade do nó:
+o Âncoras: machine-id/TPM/UUID + hostname + fingerprint do agente.
+o Certificados: CSR no primeiro contato; CA interna assina e devolve mTLS (renovação automática).
+o Tags: org, site, papel (edge, mail, web), zona (DMZ/core), compliance.
+* Autorização:
+o RBAC: papéis por organização/site/nó/ação (viewer, operator, approver, admin).
+o Tokens: JWT de curta duração para UI/CLI; mTLS para agentes.
+o Segredos: cofre central (chaves OPNsense, credenciais SSH, webhooks) com rotação.
+* Onboarding (enrollment):
+o Passo 1: gerar bootstrap token no FazAI UI/CLI.
+o Passo 2: instalar agente “fazai-agent” no Linux, apontando para a API, envia CSR + inventário.
+o Passo 3: aprovação no painel; políticas e perfis aplicados; canal WS estabelecido.
+APIs e modelo de dados
+* Northbound (UI/CLI ? API):
+o /agent/sessions: criar/retomar sessão de IA.
+o /agent/generate (SSE): stream de tokens/ações/logs/observações.
+o /nodes: CRUD de nós, rótulos, credenciais, capacidade.
+o /actions: disparo de comandos/playbooks (assíncrono).
+o /telemetry/queries: gráficos e séries.
+o /policy: regras (firewall/IPS/atualizações), simulação, aprovação.
+* Southbound (Agente ? API, WS):
+o hello: handshake com versão/capacidades.
+o heartbeat: liveness + carga.
+o telemetry.push: métricas/logs/alerts (batch).
+o command.exec: requisição da API; resposta stream de stdout/stderr + exit code.
+o file.diff/apply: patch de config com pré-validação.
+o tool.codegen/run: gerar e executar ferramentas sob demanda.
+* Esquema de mensagens (exemplo):
+json
+{
+  "v": 1,
+  "kind": "command.exec",
+  "id": "act_7f3a",
+  "node": "srv-ops-01",
+  "corr": "sess_f1c2", 
+  "spec": { "shell": "dnf -y install suricata", "timeout": 900 }
+}
+* Entidades principais:
+o Node: identidade, capacidades, agente, estado.
+o Session: turnos de IA, histórico, KV-cache lógico.
+o Action: comando/playbook com estado (queued, running, done, failed).
+o Event: telemetria e logs com correlação.
+o Policy/Playbook: automações, critérios e aprovações.
+o Credential/Secret: materiais sensíveis com rotação.
+Agente no cliente (Linux) e conector OPNsense
+* Agente Linux (serviço):
+o Módulos: inventário, exec, arquivos/diff, serviços, firewall, IDS/IPS, coleta (métricas/logs).
+o Fila local: buffer em disco (storeandforward) para telemetria/ações offline.
+o Resiliência: reconexão exponencial, backoff, deduplicação por action_id.
+o Segurança: mTLS, escopo de permissões (endurecer depois), sandbox opcional futura.
+* Conector OPNsense (server-side):
+o Operações: aliases, rules/NAT, Suricata (rulesets/policies), system (backup/config).
+o Validação: parse de diffs; rollback via backup automático.
+o Modelo idempotente: “aplicar estado desejado” e confirmar com leitura.
+* Anúncio de capacidades:
+o Hello: { os, distro, versions, modules, limits } para roteamento de ações.
+o Feature flags: habilitam/parametrizam codegen e execuções específicas.
+Confiabilidade, observabilidade e escala
+* Confiabilidade:
+o Idempotência: action_id + idempotency_key; replays não duplicam efeitos.
+o Retentativas: exponencial com jitter; circuit breaker por tipo/host.
+o Backpressure: créditos no WS; limites por nó/organização; priorização de filas.
+o Timeouts: por ação e sessão; limites de iterações.
+* Observabilidade:
+o Métricas: tempo até primeiro token, tokens/s, taxa de sucesso por ação, latência WS, buffers, uso de CPU/RAM dos agentes.
+o Logs estruturados: JSON com corr e session_id; níveis por componente.
+o Traços: spans por ação (planejar, executar, observar, commit_kb).
+o Auditoria: trilha completa (quem, quando, o quê, antes/depois, resultado).
+* Escala e topologia:
+o Multiregião ativo/ativo: API com replicação; agentes conectam ao ponto mais próximo.
+o Shard por organização: isolamento lógico; cotas de throughput e armazenamento.
+o Armazenamento:
+* Config/estado: banco relacional.
+* Telemetria: timeseries/columnar.
+* KB: Qdrant (vetorial).
+o Fila/eventos: broker leve para fanout de telemetria e notificações.
+Fluxos essenciais (exemplos)
+mermaid
+sequenceDiagram
+  participant A as Agente Linux
+  participant API as FazAI API
+  participant UI as UI/CLI
+  UI->>API: Criar sessão de IA / Disparar ação
+  API->>A: command.exec (id: act_123)
+  A-->>API: stream stdout/stderr + exit_code
+  API-->>UI: SSE tokens/ação/logs/observe
+  API->>API: Registrar diffs + auditoria + métricas
+mermaid
+sequenceDiagram
+  participant UI as UI/CLI
+  participant API as FazAI API
+  participant O as OPNsense
+  UI->>API: Nova regra IPS (simular)
+  API->>O: configd dry-run
+  O-->>API: OK + diff
+  UI->>API: Aprovar
+  API->>O: Apply
+  O-->>API: Resultado + logs
+  API-->>UI: Status + validação pós-aplicação
+Passo a passo de implantação (resumo)
+* Servidor (FazAI API):
+o Configurar: endpoints /agent, /nodes, /actions, /telemetry, /policy; SSE/WS habilitados; CA interna para mTLS.
+o Persistência: banco (estado), timeseries (telemetria), Qdrant (KB).
+* Clientes Linux:
+o Instalar agente: binário/serviço com bootstrap token; estabelece WS mTLS outbound.
+o Aprovar: no painel, aplicar rótulos e políticas.
+o Operar: disparar ações, abrir sessões de IA, acompanhar stream.
+* OPNsense:
+o Cadastrar instâncias: URL + key/secret (ou mTLS); validar acesso.
+o Executar: simulação/aplicação de mudanças, coleta de métricas e alertas.
+* UI/CLI:
+o Usar sessão ao vivo: ver tokens/ações/logs.
+o Playbooks/Políticas: compor, simular, aprovar e aplicar.
+o Dashboards: saúde, segurança, mudanças e auditoria.
+Com esses blocos, conectar um sistema clienteservidor ao FazAI fica direto: há um ponto único de controle, canais outbound seguros para os clientes, contratos estáveis de mensagens, e toda a inteligência (planejamento, execução e aprendizagem) centralizada — transparente e auditável.
+
+Cronograma de Implementação – FazAI
+?? Semana 1 – Núcleo funcional (MVP mínimo viável)
+Objetivo: Colocar de pé o pipeline básico: sessão persistente, geração em fluxo, execução de shell e stream no CLI.
+Etapas
+1. Worker C++ com libgemma
+o Compilar fazai-gemma-worker com a sua libgemma.a
+o Implementar:
+* Tokenização do prompt
+* Priming do KVcache
+* Loop de decodificação token a token
+* Callback de streaming para envio ao provider
+* Cancelamento assíncrono (abort)
+o Testar isolado: receber um prompt e devolver tokens
+2. Provider Node (gemma-worker.js)
+o Conectar via socket Unix ao worker
+o Implementar createSession, generateStream, abort
+o Teste: sessão única, stream contínuo de tokens
+3. Rotas no daemon (/agent)
+o /agent/sessions – criar/retomar sessão
+o /agent/generate (SSE) – enviar prompt, repassar tokens
+o /agent/abort – cancelar geração
+4. CLI (subcomando agent)
+o Abrir SSE
+o Mostrar tokens, ações, logs e observações em tempo real
+o CtrlC envia abort
+?? Atenção
+* Framing do socket: linha = JSON ou token puro
+* Parsing de NDJSON no SSE: lidar com tokens parciais
+* Execução como root: caminhos e permissões corretos
+?? Semana 2 – Ferramentas dinâmicas e pesquisa
+Objetivo: Agente gerar suas próprias ferramentas e consultar fontes externas quando faltar contexto.
+Etapas
+1. Implementar ToolSpec ? Codegen (tools_codegen.js)
+o Receber contrato ToolSpec do modelo
+o Gerar código com modelo local
+o Se falhar, tentar patch; fallback para árbitro externo
+o Salvar em _generated/ e carregar no MCP
+2. Implementar useTool
+o Executar a ferramenta gerada
+o Streamar stdout/stderr
+3. Pesquisa online (research.js)
+o Consultar fontes externas
+o Resumir e injetar resultados no contexto
+4. Commit de conhecimento (kb.js)
+o Upsert no Qdrant
+o Estrutura: título, tags, snippet, status, fonte
+?? Atenção
+* Codegen: garantir que código gerado seja válido e seguro
+* Pesquisa: tratamento de falhas de rede ou formatos inesperados
+* KB: schema no Qdrant + embeddings (placeholder ou real)
+?? Semana 3 – Agentes e conectores
+Objetivo: Integrar clientes Linux e OPNsense ao sistema central.
+Etapas
+1. Agente Linux
+o Serviço persistente com canal outbound (WS/mTLS)
+o Módulos: inventário, execução, métricas/logs, firewall, IDS
+o Buffer offline para telemetria e comandos
+2. Conector OPNsense
+o API REST/configd com key/secret
+o Simulação e aplicação de regras
+o Coleta de métricas de firewall, Suricata e sistema
+3. Onboarding
+o Bootstrap token e CSR
+o Aprovação via painel/admin
+o Aplicação de tags e políticas
+?? Atenção
+* Segurança: mTLS, escopos e isolamento multitenant
+* Idempotência: action_id único e reexecutável
+* Normalização da telemetria
+?? Semana 4 – Interface e observabilidade
+Objetivo: Criar visibilidade e controle central para operadores.
+Etapas
+1. Painel web (SPA)
+o Lista e filtros de nós
+o Sessões ao vivo (stream)
+o Dashboards: saúde, segurança, alterações
+2. Playbooks e políticas
+o Composição visual
+o Simulação e aprovação
+o Execução controlada
+3. Auditoria e métricas
+o Trilhas completas por ação/sessão
+o Tokens/s, tempo até primeiro token
+o Replays e diffs
+?? Atenção
+* SSE/WebSocket: estabilidade e reconexão
+* Logs estruturados: JSON com session_id e corr
+* RBAC: papéis por organização/site/nó
+?? Itens pendentes / ToDo
+* [ ] Ligar libgemma.a no worker (tokenizer, KVcache, loop de geração)
+* [ ] Implementar fallback de codegen (patch/árbitro)
+* [ ] Substituir embeddings placeholder por reais no KB
+* [ ] Construir agente Linux com WS outbound seguro
+* [ ] Criar conector OPNsense com dry-run/apply e coleta
+* [ ] UI web: painel de sessões e dashboards
+* [ ] Auditoria completa e replay
+
+
+
+
+
+Segue o “roteiro de sessão” em Markdown que você pode colar direto no chat do Cursor, e ir aprovando os diffs arquivo por arquivo:
+??? Roteiro de implementação – FazAI no Cursor
+?? Estrutura inicial do projeto
+/fazai
+ ?? /daemon
+ ?   ?? main.js
+ ?   ?? /handlers
+ ?   ?   ?? agent.js
+ ?   ?? /providers
+ ?   ?   ?? gemma-worker.js
+ ?   ?? /core
+ ?   ?   ?? prompt/agent_prompt.js
+ ?   ?   ?? research.js
+ ?   ?   ?? tools_codegen.js
+ ?   ?   ?? kb.js
+ ?   ?   ?? shell.js
+ ?   ?? package.json
+ ?? /worker
+ ?   ?? CMakeLists.txt
+ ?   ?? src/main.cpp
+ ?   ?? src/worker.cpp
+ ?   ?? src/worker.hpp
+ ?   ?? src/ipc.cpp
+ ?   ?? src/ipc.hpp
+ ?   ?? src/json.hpp
+ ?? /cli
+ ?   ?? fazai (binário Node CLI)
+ ?? /docs
+     ?? README.md
+1?? Criar Worker C++ (/worker)
+* Criar CMakeLists.txt com build de fazai-gemma-worker linkando libgemma.a.
+* Implementar main.cpp:
+o Iniciar engine
+o Abrir socket /run/fazai/gemma.sock
+o Loop de requests (create_session, generate, abort, close_session)
+* Implementar worker.hpp/worker.cpp:
+o Map de sessões + KVcache
+o generate_stream com callback por token
+o Métodos abort/close_session
+* Criar ipc.cpp/ipc.hpp e json.hpp (nlohmann)
+2?? Criar Provider Node (/daemon/providers)
+* Implementar gemma-worker.js:
+o Conexão via net com socket do worker
+o Métodos createSession, generateStream, abort
+o Parser de mensagens por linha
+o EventEmitter para SSE
+3?? Handlers do agente (/daemon/handlers)
+* Implementar agent.js:
+o Rotas /agent/sessions, /agent/generate, /agent/abort
+o Parsing de tokens NDJSON
+o Execução de ações: shell, tool_spec, use_tool, research, commit_kb
+o Stream SSE pro CLI
+4?? Núcleo (/daemon/core)
+* Prompt (prompt/agent_prompt.js):
+o Regras NDJSON
+o Injeção de contexto e histórico
+* Pesquisa (research.js):
+o Placeholder HTTP fetch
+* Codegen (tools_codegen.js):
+o Receber ToolSpec
+o Gerar código e salvar em _generated/
+o Executar ferramenta
+* KB (kb.js):
+o Upsert no Qdrant com embeddings (placeholder)
+* Shell (shell.js):
+o Execução com spawn e stream stdout/stderr
+5?? CLI (/cli/fazai)
+* Implementar subcomando agent:
+o Criar sessão no daemon
+o Abrir SSE
+o Render tokens/ações/logs/observações
+o CtrlC envia abort
+6?? Documentação (/docs)
+* Colar README.md consolidado (aquele que já montei com todo o código)
+* Instruções de build/teste
+?? Atenção durante a implementação
+* Framing no socket: JSON por linha ou token puro ? cuidado no parser
+* Parsing NDJSON: tolerar tokens incompletos
+* Execução root: garantir PATH e permissões corretas
+* Codegen: segurança no eval/exec
+* Idempotência: actions repetidas não podem causar efeitos colaterais duplos
+?? Dica pro Cursor: Abra todo o repositório, cole esse roteiro no chat e vá pedindo:
+“Crie o arquivo /worker/CMakeLists.txt conforme a especificação acima” Aceite o diff, depois: “Agora implemente /worker/src/main.cpp com o conteúdo X” E assim por diante, seguindo a ordem.
+
+
+
+
+
+
