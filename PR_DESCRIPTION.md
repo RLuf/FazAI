@@ -4,6 +4,8 @@
 
 Esta PR implementa uma transformação completa do FazAI de um simples orquestrador de comandos para um **sistema de agente inteligente cognitivo e persistente**, baseado nos conceitos definidos em `AGENTS.md`, `CONTEXT.md`, `Fluxo_de_atividades_complexas.txt` e `Fazai-inteligente.txt`.
 
+**Target Branch**: `v2.0` (não `main`)
+
 ## 🎯 Principais Mudanças
 
 ### 🏗️ **Arquitetura de Agente Inteligente**
