@@ -1,0 +1,1 @@
+/usr/bin/c++ -Xlinker --dependency-file=CMakeFiles/fazai-gemma-worker.dir/link.d "CMakeFiles/fazai-gemma-worker.dir/src/main.cpp.o" "CMakeFiles/fazai-gemma-worker.dir/src/worker.cpp.o" "CMakeFiles/fazai-gemma-worker.dir/src/ipc.cpp.o" -o fazai-gemma-worker  -lpthread
