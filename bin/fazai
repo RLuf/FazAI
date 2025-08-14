@@ -120,41 +120,99 @@ async function runRelayCommand(command, args = []) {
 // Função para executar comandos DOCLER
 async function runDoclerCommand(command, args = []) {
   try {
-    const { exec } = require('child_process');
+    const { exec, spawn } = require('child_process');
     const { promisify } = require('util');
+    const fs = require('fs');
+    const path = require('path');
     const execAsync = promisify(exec);
+    // Caminhos de PID e LOG para gerenciamento do DOCLER
+    const runDir = '/var/run/fazai';
+    const logDir = '/var/log/fazai';
+    const pidFile = path.join(runDir, 'docler-server.pid');
+    const logFile = path.join(logDir, 'docler-server.log');
+    const serverPath = '/opt/fazai/web/docler-server.js';
+    // Garante diretórios de execução e logs
+    try { if (!fs.existsSync(runDir)) fs.mkdirSync(runDir, { recursive: true }); } catch (_) {}
+    try { if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true }); } catch (_) {}
     
     switch (command) {
       case 'start':
-        console.log('\x1b[36m🚀 Iniciando servidor web DOCLER...\x1b[0m');
+        console.log('\x1b[36m🚀 Iniciando servidor web DOCLER em background...\x1b[0m');
         try {
-          const result = await execAsync('node /opt/fazai/web/docler-server.js');
-          console.log('\x1b[32m✓ Servidor DOCLER iniciado com sucesso!\x1b[0m');
+          if (!fs.existsSync(serverPath)) {
+            console.error(`\x1b[31m❌ Servidor não encontrado:\x1b[0m ${serverPath}`);
+            process.exit(1);
+          }
+          // Se já houver PID ativo, evita duplicidade
+          if (fs.existsSync(pidFile)) {
+            const existingPid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+            if (existingPid && !Number.isNaN(existingPid)) {
+              try { process.kill(existingPid, 0); console.log(`\x1b[33m⚠️ Já em execução (PID ${existingPid})\x1b[0m`); return; } catch (_) {}
+            }
+          }
+          // Inicia em background com stdout/stderr redirecionados
+          const out = fs.openSync(logFile, 'a');
+          const err = fs.openSync(logFile, 'a');
+          const child = spawn('node', [serverPath], {
+            detached: true,
+            stdio: ['ignore', out, err]
+          });
+          child.unref();
+          fs.writeFileSync(pidFile, String(child.pid));
+          console.log(`\x1b[32m✓ DOCLER iniciado (PID ${child.pid})\x1b[0m`);
           console.log('\x1b[36m📱 Cliente: http://localhost:3120\x1b[0m');
           console.log('\x1b[36m🔧 Admin: http://localhost:3121\x1b[0m');
+          console.log(`\x1b[90m(log) ${logFile}\x1b[0m`);
         } catch (error) {
           console.error('\x1b[31m❌ Erro ao iniciar servidor DOCLER:\x1b[0m', error.message);
+          process.exit(1);
         }
         break;
         
       case 'stop':
         console.log('\x1b[36m🛑 Parando servidor web DOCLER...\x1b[0m');
         try {
-          await execAsync('pkill -f "docler-server.js"');
-          console.log('\x1b[32m✓ Servidor DOCLER parado com sucesso!\x1b[0m');
+          let stopped = false;
+          if (fs.existsSync(pidFile)) {
+            const pid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+            if (pid && !Number.isNaN(pid)) {
+              try { process.kill(pid, 'SIGTERM'); stopped = true; } catch (_) {}
+              // aguarda curta
+              await new Promise(r=>setTimeout(r, 500));
+              try { process.kill(pid, 0); /* ainda vivo */ } catch (_) { stopped = true; }
+            }
+            try { fs.unlinkSync(pidFile); } catch (_) {}
+          }
+          if (!stopped) {
+            try { await execAsync('pkill -f "docler-server.js"'); stopped = true; } catch (_) {}
+          }
+          console.log(stopped ? '\x1b[32m✓ Servidor DOCLER parado com sucesso!\x1b[0m' : '\x1b[33m⚠️ Nenhum processo DOCLER encontrado\x1b[0m');
         } catch (error) {
           console.error('\x1b[31m❌ Erro ao parar servidor DOCLER:\x1b[0m', error.message);
+          process.exit(1);
         }
         break;
         
       case 'status':
         console.log('\x1b[36m📊 Verificando status do servidor DOCLER...\x1b[0m');
         try {
-          const result = await execAsync('pgrep -f "docler-server.js"');
-          if (result.stdout.trim()) {
-            console.log('\x1b[32m✓ Servidor DOCLER está rodando!\x1b[0m');
+          let running = false;
+          let pid = null;
+          if (fs.existsSync(pidFile)) {
+            pid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+            try { if (pid) { process.kill(pid, 0); running = true; } } catch (_) {}
+          }
+          if (!running) {
+            try {
+              const result = await execAsync('pgrep -f "docler-server.js"');
+              if (result.stdout.trim()) { running = true; pid = result.stdout.trim().split('\n')[0]; }
+            } catch (_) {}
+          }
+          if (running) {
+            console.log(`\x1b[32m✓ Servidor DOCLER rodando (PID ${pid})\x1b[0m`);
             console.log('\x1b[36m📱 Cliente: http://localhost:3120\x1b[0m');
             console.log('\x1b[36m🔧 Admin: http://localhost:3121\x1b[0m');
+            if (fs.existsSync(logFile)) console.log(`\x1b[90m(log) ${logFile}\x1b[0m`);
           } else {
             console.log('\x1b[33m⚠️ Servidor DOCLER não está rodando\x1b[0m');
           }
