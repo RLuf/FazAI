@@ -1338,6 +1338,75 @@ install_llamacpp() {
   fi
 }
 
+# Compila módulos nativos (C) se disponíveis
+compile_native_modules() {
+  log "INFO" "Compilando módulos nativos (se existirem)"
+  local mods_dir="/opt/fazai/lib/mods"
+  if [ -d "$mods_dir" ]; then
+    if [ -x "$mods_dir/build.sh" ]; then
+      if bash "$mods_dir/build.sh"; then
+        log "SUCCESS" "Módulos nativos compilados via build.sh"
+        return 0
+      else
+        log "WARNING" "Falha no build.sh; tentando fallback GCC para system_mod.c"
+      fi
+    fi
+    if [ -f "$mods_dir/system_mod.c" ]; then
+      if gcc -shared -fPIC -o "$mods_dir/system_mod.so" "$mods_dir/system_mod.c"; then
+        log "SUCCESS" "Compilado: $mods_dir/system_mod.so"
+      else
+        log "WARNING" "Não foi possível compilar system_mod.c (dependências ausentes?)"
+      fi
+    fi
+  else
+    log "INFO" "Diretório de módulos nativos não encontrado; ignorando"
+  fi
+  return 0
+}
+
+# Compila o worker C/C++ se o diretório existir
+compile_worker() {
+  local src_dir="$SCRIPT_DIR/worker"
+  if [ ! -d "$src_dir" ]; then
+    log "INFO" "Worker não presente; ignorando"
+    return 0
+  fi
+  log "INFO" "Compilando worker (cmake)"
+  mkdir -p "$src_dir/build"
+  if ( cd "$src_dir/build" && cmake .. && cmake --build . -j"$(nproc)" ); then
+    log "SUCCESS" "Worker compilado"
+    # Copia binário se existir
+    if [ -f "$src_dir/build/fazai-gemma-worker" ]; then
+      install -m 755 "$src_dir/build/fazai-gemma-worker" /opt/fazai/bin/fazai-gemma-worker || true
+      log "INFO" "Binário do worker instalado em /opt/fazai/bin/fazai-gemma-worker"
+    fi
+    return 0
+  else
+    log "WARNING" "Falha ao compilar worker (cmake)"
+    return 0
+  fi
+}
+
+# Instala e inicia Qdrant via Docker se não estiver presente
+install_qdrant() {
+  log "INFO" "Verificando Qdrant local (porta 6333)"
+  if curl -fsS http://127.0.0.1:6333/ready >/dev/null 2>&1; then
+    log "SUCCESS" "Qdrant já está ativo"
+    return 0
+  fi
+  if ! command -v docker >/dev/null 2>&1; then
+    log "WARNING" "Docker não encontrado; não é possível instalar Qdrant automaticamente"
+    return 0
+  fi
+  if node /opt/fazai/tools/qdrant_setup.js; then
+    log "SUCCESS" "Qdrant instalado e executando via Docker"
+    return 0
+  else
+    log "WARNING" "Falha ao iniciar Qdrant via qdrant_setup.js"
+    return 0
+  fi
+}
+
 # Função para instalar interface TUI
 install_tui() {
   log "INFO" "Instalando interface TUI..."
@@ -1885,8 +1954,11 @@ main_install() {
     "configure_systemd:Configurando serviço systemd"
     "install_node_dependencies:Instalando dependências Node.js"
     "compile_native_modules:Compilando módulos nativos"
+    "compile_worker:Compilando worker (se presente)"
+    "install_qdrant:Instalando Qdrant (Docker) se ausente"
   )
 
+  # llama.cpp opcional; somente se --with-llama
   if [ "$WITH_LLAMA" = true ]; then
     install_steps+=("install_llamacpp:Instalando llama.cpp")
   fi

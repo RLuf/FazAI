@@ -1455,6 +1455,30 @@ ${colors.bright}Para mais informações:${colors.reset}
     process.exit(0);
   }
 
+  // Verificar se é o subcomando guard (DDoS)
+  if (args[0] === 'guard') {
+    if (args.length < 2) {
+      printError('Ação é obrigatória para o subcomando guard');
+      console.log(`${colors.fg.cyan}Uso: fazai guard <acao> [--scope edge|cloudflare|upstream] [params...]${colors.reset}`);
+      process.exit(1);
+    }
+    const action = args[1];
+    const scopeIdx = args.findIndex(a=>a==='--scope');
+    const scope = scopeIdx!==-1 ? (args[scopeIdx+1] || 'edge') : 'edge';
+    // coleta params simples k=v
+    const params = { scope };
+    args.slice(2).forEach(tok=>{ const m = String(tok).match(/^(\w+)=([^\s]+)$/); if (m) params[m[1]]=m[2]; });
+    try {
+      const axios = require('axios');
+      const res = await axios.post(`${API_URL}/guard`, { action, params });
+      console.log(JSON.stringify(res.data, null, 2));
+      process.exit(0);
+    } catch (e) {
+      printError(`Falha guard: ${e.message}`);
+      process.exit(1);
+    }
+  }
+
   // Verificar se é o subcomando docler
   if (args[0] === 'docler') {
     if (args.length < 2) {

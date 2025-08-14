@@ -39,6 +39,9 @@ const crypto = require('crypto');
 const { ComplexTasksManager } = require('./complex_tasks');
 // Corrige caminho do MCP OPNsense (arquivo está em lib/mcp_opnsense.js)
 const { MCPOPNsense } = require('./mcp_opnsense');
+// Guard de DDoS (RTBH/Flowspec/Cloudflare/ASN/País)
+let ddosGuard = null;
+try { ddosGuard = require('./guard/ddos_guard'); } catch(_) {}
 
 // Importar handlers do agente inteligente
 let agentHandlers = null;
@@ -1482,6 +1485,21 @@ app.post('/search', async (req, res) => {
     return res.json({ success: true, total: result.results.length, first, results: result.results });
   } catch (e) {
     logger.error(`Erro em /search: ${e.message}`);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Endpoint DDoS Guard: orquestra ações de mitigação upstream/edge
+app.post('/guard', async (req, res) => {
+  try {
+    if (!ddosGuard || typeof ddosGuard.executeGuard !== 'function') {
+      return res.status(500).json({ success: false, error: 'ddos_guard indisponível' });
+    }
+    const payload = req.body || {};
+    const out = await ddosGuard.executeGuard(payload.action, payload.params || {}, { configPath: CONFIG_PATH, logger });
+    return res.json({ success: true, action: payload.action, result: out });
+  } catch (e) {
+    logger.error(`Erro em /guard: ${e.message}`);
     return res.status(500).json({ success: false, error: e.message });
   }
 });
