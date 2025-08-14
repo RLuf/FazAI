@@ -48,6 +48,14 @@ try {
   console.warn('Agent handlers não disponíveis:', error.message);
 }
 
+// Importar handlers do relay
+let relayHandlers = null;
+try {
+  relayHandlers = require('./handlers/relay');
+} catch (error) {
+  console.warn('Relay handlers não disponíveis:', error.message);
+}
+
 // Sistema de cache simples em memória
 class CacheManager {
   constructor() {
@@ -1725,6 +1733,12 @@ class FazAIDaemon extends EventEmitter {
     if (agentHandlers) {
       agentHandlers.mountAgent(app);
       this.log('Rotas do agente inteligente montadas', 'info');
+    }
+
+    // Montar rotas do relay se disponível
+    if (relayHandlers) {
+      relayHandlers.mountRelay(app);
+      this.log('Rotas do relay SMTP montadas', 'info');
     }
 
     // Health check

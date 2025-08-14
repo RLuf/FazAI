@@ -1,21 +1,64 @@
-# FazAI - Orquestrador Inteligente de Automação
+# 🤖 FazAI v2.0 - Sistema de Fluxo Inteligente
 
 > **Licença:** Este projeto está licenciado sob a [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
 
-FazAI é um sistema de automação inteligente para servidores Linux, que permite executar comandos complexos usando linguagem natural e inteligência artificial.
+**FazAI v2.0** representa uma transformação revolucionária: de um simples orquestrador para um **sistema de agente inteligente cognitivo e persistente** que mantém raciocínio contínuo, aprende continuamente e executa ações complexas de forma autônoma.
 
-## Principais recursos (v1.42.1)
+## 🚀 Principais recursos (v2.0.0)
 
-- IA local com Gemma (gemma.cpp) integrada: baixa latência e operação offline
-- Geração dinâmica de ferramentas (auto_tool) a partir de linguagem natural
-- Monitoração e QoS por IP (nftables + tc) com gráfico HTML (top 10 IPs)
-- Agentes remotos com ingestão em `/ingest` e métricas Prometheus em `/metrics`
-- Integrações de segurança ativas: ModSecurity, Suricata, CrowdSec, Monit
-- SNMP (consultas de OIDs) para equipamentos de rede
-- APIs de terceiros prontas: Cloudflare (DNS/Firewall) e SpamExperts (domínios/políticas)
-- Suporte a Qdrant (RAG) para consultas semânticas de redes/Linux
+### 🤖 **Agente Inteligente Cognitivo**
+- **Sistema de Agente Persistente**: Raciocínio contínuo até concluir objetivos
+- **Worker Gemma (C++)**: Processo residente com modelo libgemma.a para latência mínima
+- **Protocolo ND-JSON**: 9 tipos de ação estruturada (plan, ask, research, shell, toolSpec, observe, commitKB, done)
+- **Streaming em Tempo Real**: Server-Sent Events (SSE) para tokens e ações
+- **Base de Conhecimento**: Aprendizado contínuo com Qdrant para persistência
+- **Geração Dinâmica de Ferramentas**: Criação e execução sob demanda
+
+### 📊 **Integração Enterprise**
+- **Relay SMTP Inteligente**: Automação completa com SpamExperts e Zimbra
+- **Monitoramento Avançado**: Detecção de ataques e análise de padrões
+- **Resposta Automática**: Sistema inteligente de resposta a ameaças
+- **Configuração Automática**: IA que configura e otimiza sistemas
+
+### 🔧 **Recursos Legados Mantidos**
+- IA local com Gemma integrada: baixa latência e operação offline
+- Monitoração e QoS por IP (nftables + tc) com gráfico HTML
+- Agentes remotos com ingestão em `/ingest` e métricas Prometheus
+- Integrações de segurança: ModSecurity, Suricata, CrowdSec, Monit
+- APIs de terceiros: Cloudflare (DNS/Firewall) e SpamExperts
+- Suporte a Qdrant (RAG) para consultas semânticas
+
+
 
 Consulte o [CHANGELOG](CHANGELOG.md) para histórico completo de alterações.
+
+## 🎯 Exemplos de Uso Rápido
+
+### **Agente Inteligente**
+```bash
+# Configuração automática completa
+fazai agent "configurar servidor de email relay com antispam e antivirus"
+
+# Otimização inteligente
+fazai agent "otimizar performance do sistema e detectar gargalos"
+
+# Resposta automática a ataques
+fazai agent "detectar ataque de spam em massa e implementar contramedidas"
+```
+
+### **Relay SMTP Inteligente**
+```bash
+# Análise e configuração
+fazai relay analyze                    # Analisa configuração atual
+fazai relay configure                  # Configura automaticamente
+fazai relay monitor                    # Monitora em tempo real
+fazai relay stats                      # Estatísticas completas
+
+# Integração Enterprise
+fazai relay spamexperts                # Integra com SpamExperts
+fazai relay zimbra                     # Integra com Zimbra
+fazai relay blacklist 192.168.1.100    # Blacklist dinâmica
+```
 
 **Para instruções detalhadas de uso, consulte [Instruções de Uso](USAGE.md).**
 

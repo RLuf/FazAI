@@ -14,11 +14,11 @@ _fazai_completions()
     local system_info_commands="kernel sistema memoria disco processos rede data uptime opnsense"
     local visualization_commands="html tui interactive web complex"
     local config_commands="config cache cache-clear"
-    local ai_commands="mcps"
+    local ai_commands="mcps agent"
     local flags="-q --question -s --stream -w --web -d --debug --help --completion-help"
     local net_commands="snmp prometheus grafana qdrant agentes"
     local tool_commands="system-check version-bump sync-changes sync-keys github-setup install-llamacpp"
-    local security_commands="modsecurity suricata crowdsec monit"
+    local security_commands="modsecurity suricata crowdsec monit relay"
     local monitoring_commands="net-qos-monitor snmp-monitor agent-supervisor"
 
     # Todos os comandos disponíveis
@@ -39,6 +39,21 @@ _fazai_completions()
         mcps)
             # Sugere tarefas comuns para MCPS
             COMPREPLY=( $(compgen -W "atualizar sistema instalar pacote configurar rede monitorar servicos backup dados" -- ${cur}) )
+            return 0
+            ;;
+        agent)
+            # Sugere objetivos comuns para o agente
+            COMPREPLY=( $(compgen -W "configurar servidor de email relay com antispam otimizar performance do sistema monitorar logs e detectar ataques" -- ${cur}) )
+            return 0
+            ;;
+        relay)
+            # Sugere comandos do relay
+            COMPREPLY=( $(compgen -W "analyze configure monitor stats spamexperts zimbra blacklist restart" -- ${cur}) )
+            return 0
+            ;;
+        docler)
+            # Sugere comandos do DOCLER
+            COMPREPLY=( $(compgen -W "start stop status admin" -- ${cur}) )
             return 0
             ;;
         config)
@@ -71,7 +86,7 @@ _fazai_completions()
             COMPREPLY=()
             return 0
             ;;
-        web|tui|config|cache-clear|reload|interactive|complex)
+        web|tui|config|cache-clear|reload|interactive|complex|agent)
             # Comandos simples não precisam de argumentos adicionais
             COMPREPLY=()
             return 0
@@ -161,7 +176,7 @@ complete -F _fazai_main_completion fazai
 # Função para mostrar ajuda de completion
 _fazai_show_completion_help()
 {
-    echo "FazAI Bash Completion v1.42.2"
+    echo "FazAI Bash Completion v2.0.0"
     echo ""
     echo "Comandos disponíveis:"
     echo "  Sistema:     ajuda, help, --help, -d, --debug, versao, version, -v, check-deps"
@@ -170,7 +185,9 @@ _fazai_show_completion_help()
     echo "  Sistema:     kernel, sistema, memoria, disco, processos, rede, data, uptime"
     echo "  Visualização: html <tipo> [graf], tui, interactive, complex -g <objetivo> [--web]"
     echo "  Configuração: config, cache, cache-clear"
-    echo "  IA:          mcps <tarefa>, -q/--question, -s/--stream, -w/--web"
+    echo "  IA:          mcps <tarefa>, agent <objetivo>, -q/--question, -s/--stream, -w/--web"
+    echo "  Relay:       relay analyze, relay configure, relay monitor, relay stats"
+    echo "  DOCLER:      docler, docler admin, docler start, docler status"
     echo "  Segurança:   suricata_setup, modsecurity_setup, crowdsec_setup, spamexperts, cloudflare"
     echo ""
     echo "Exemplos:"

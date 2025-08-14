@@ -1,0 +1,31 @@
+{
+  "name": "docler-web-server",
+  "version": "2.0.0",
+  "description": "DOCLER Web Server - Interface web futurista para FazAI",
+  "main": "docler-server.js",
+  "scripts": {
+    "start": "node docler-server.js",
+    "dev": "nodemon docler-server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "docler",
+    "fazai",
+    "web",
+    "interface",
+    "admin",
+    "dashboard"
+  ],
+  "author": "Roger Luft - Andarilho dos Véus",
+  "license": "CC-BY-4.0",
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

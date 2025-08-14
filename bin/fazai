@@ -53,6 +53,143 @@ if (!fs.existsSync(mainJsPath)) {
   process.exit(1);
 }
 
+// Função para executar comandos do relay
+async function runRelayCommand(command, args = []) {
+  try {
+    const endpoint = `/relay/${command}`;
+    let response;
+    
+    switch (command) {
+      case 'analyze':
+        response = await axios.post(`${API_URL}${endpoint}`);
+        break;
+      case 'configure':
+        response = await axios.post(`${API_URL}${endpoint}`, {});
+        break;
+      case 'monitor':
+        response = await axios.get(`${API_URL}${endpoint}`);
+        break;
+      case 'stats':
+        response = await axios.get(`${API_URL}${endpoint}`);
+        break;
+      case 'spamexperts':
+        response = await axios.post(`${API_URL}${endpoint}`, {});
+        break;
+      case 'zimbra':
+        response = await axios.post(`${API_URL}${endpoint}`, {});
+        break;
+      case 'blacklist':
+        if (args.length === 0) {
+          printError('IP é obrigatório para o comando blacklist');
+          process.exit(1);
+        }
+        response = await axios.post(`${API_URL}${endpoint}`, { ip: args[0] });
+        break;
+      case 'restart':
+        response = await axios.post(`${API_URL}${endpoint}`);
+        break;
+      default:
+        printError(`Comando relay desconhecido: ${command}`);
+        process.exit(1);
+    }
+    
+    if (response.data.ok) {
+      console.log('\x1b[32m✓ Sucesso:\x1b[0m', response.data.message || 'Comando executado');
+      if (response.data.config) {
+        console.log('\x1b[36mConfiguração:\x1b[0m', JSON.stringify(response.data.config, null, 2));
+      }
+      if (response.data.stats) {
+        console.log('\x1b[36mEstatísticas:\x1b[0m', JSON.stringify(response.data.stats, null, 2));
+      }
+      if (response.data.recommendations) {
+        console.log('\x1b[33mRecomendações:\x1b[0m');
+        response.data.recommendations.forEach(rec => {
+          console.log(`  • ${rec}`);
+        });
+      }
+    } else {
+      console.error('\x1b[31m❌ Erro:\x1b[0m', response.data.error);
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error('\x1b[31m❌ Erro ao executar comando relay:\x1b[0m', error.message);
+    process.exit(1);
+  }
+}
+
+// Função para executar comandos DOCLER
+async function runDoclerCommand(command, args = []) {
+  try {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    switch (command) {
+      case 'start':
+        console.log('\x1b[36m🚀 Iniciando servidor web DOCLER...\x1b[0m');
+        try {
+          const result = await execAsync('node /opt/fazai/web/docler-server.js');
+          console.log('\x1b[32m✓ Servidor DOCLER iniciado com sucesso!\x1b[0m');
+          console.log('\x1b[36m📱 Cliente: http://localhost:3120\x1b[0m');
+          console.log('\x1b[36m🔧 Admin: http://localhost:3121\x1b[0m');
+        } catch (error) {
+          console.error('\x1b[31m❌ Erro ao iniciar servidor DOCLER:\x1b[0m', error.message);
+        }
+        break;
+        
+      case 'stop':
+        console.log('\x1b[36m🛑 Parando servidor web DOCLER...\x1b[0m');
+        try {
+          await execAsync('pkill -f "docler-server.js"');
+          console.log('\x1b[32m✓ Servidor DOCLER parado com sucesso!\x1b[0m');
+        } catch (error) {
+          console.error('\x1b[31m❌ Erro ao parar servidor DOCLER:\x1b[0m', error.message);
+        }
+        break;
+        
+      case 'status':
+        console.log('\x1b[36m📊 Verificando status do servidor DOCLER...\x1b[0m');
+        try {
+          const result = await execAsync('pgrep -f "docler-server.js"');
+          if (result.stdout.trim()) {
+            console.log('\x1b[32m✓ Servidor DOCLER está rodando!\x1b[0m');
+            console.log('\x1b[36m📱 Cliente: http://localhost:3120\x1b[0m');
+            console.log('\x1b[36m🔧 Admin: http://localhost:3121\x1b[0m');
+          } else {
+            console.log('\x1b[33m⚠️ Servidor DOCLER não está rodando\x1b[0m');
+          }
+        } catch (error) {
+          console.log('\x1b[33m⚠️ Servidor DOCLER não está rodando\x1b[0m');
+        }
+        break;
+        
+      case 'admin':
+        console.log('\x1b[36m🔧 Abrindo painel administrativo DOCLER...\x1b[0m');
+        try {
+          await execAsync('xdg-open http://localhost:3121 2>/dev/null || open http://localhost:3121 2>/dev/null || echo "Abra manualmente: http://localhost:3121"');
+          console.log('\x1b[32m✓ Painel administrativo aberto!\x1b[0m');
+        } catch (error) {
+          console.log('\x1b[36m📱 Abra manualmente: http://localhost:3121\x1b[0m');
+        }
+        break;
+        
+      default:
+        // Comando padrão: abrir interface cliente
+        console.log('\x1b[36m📱 Abrindo interface DOCLER...\x1b[0m');
+        try {
+          await execAsync('xdg-open http://localhost:3120 2>/dev/null || open http://localhost:3120 2>/dev/null || echo "Abra manualmente: http://localhost:3120"');
+          console.log('\x1b[32m✓ Interface DOCLER aberta!\x1b[0m');
+        } catch (error) {
+          console.log('\x1b[36m📱 Abra manualmente: http://localhost:3120\x1b[0m');
+        }
+        break;
+    }
+  } catch (error) {
+    console.error('\x1b[31m❌ Erro ao executar comando DOCLER:\x1b[0m', error.message);
+    process.exit(1);
+  }
+}
+
 // Função para executar agente inteligente
 async function runAgent(objective) {
   try {
@@ -623,7 +760,7 @@ async function main() {
   
   if (args[0] === 'ajuda' || args[0] === 'help' || args[0] === '--help') {
     console.log(`
-${colors.bright}${colors.fg.cyan}FazAI v1.42.2${colors.reset}
+${colors.bright}${colors.fg.cyan}FazAI v2.0.0${colors.reset}
 
 ${colors.bright}Compatível com:${colors.reset}
   • Debian/Ubuntu
@@ -684,6 +821,23 @@ ${colors.bright}Modo Agent (Agente Inteligente):${colors.reset}
   agent <objetivo>            Exemplo: fazai agent "configurar servidor de email relay"
                               Executa agente inteligente com fluxo iterativo
 
+${colors.bright}Modo Relay (Sistema SMTP):${colors.reset}
+  relay analyze               Analisa configuração atual do relay SMTP
+  relay configure             Configura relay automaticamente com IA
+  relay monitor               Monitora logs em tempo real e detecta ataques
+  relay stats                 Mostra estatísticas completas do sistema
+  relay spamexperts           Integra com SpamExperts (whitelist/blacklist)
+  relay zimbra                Integra com Zimbra (usuários/domínios)
+  relay blacklist <ip>        Adiciona IP malicioso à blacklist
+  relay restart               Reinicia o relay com novas configurações
+
+${colors.bright}Interface DOCLER (Web):${colors.reset}
+  docler                      Abre interface web DOCLER (cliente)
+  docler admin                Abre painel administrativo DOCLER
+  docler start                Inicia servidor web DOCLER
+  docler stop                 Para servidor web DOCLER
+  docler status               Mostra status do servidor web
+
 ${colors.bright}Modo MCPS (Planejamento Passo a Passo):${colors.reset}
   mcps <tarefa>               Exemplo: fazai mcps atualizar o sistema
   mcps --stream <tarefa>      Executa MCPS com saída em tempo real
@@ -709,7 +863,13 @@ ${colors.bright}Exemplos de Uso:${colors.reset}
   fazai cria um usuario com nome teste com a senha teste321 no grupo printers
   fazai instale os modulos mod_security do apache
   fazai altere a porta do ssh de 22 para 31052
-  fazai agent "configurar servidor de email relay com antispam"
+                fazai agent "configurar servidor de email relay com antispam"
+              fazai relay analyze                    # Analisa configuração do relay
+              fazai relay configure                  # Configura automaticamente
+              fazai relay monitor                    # Monitora em tempo real
+              fazai docler                           # Abre interface web DOCLER
+              fazai docler admin                     # Abre painel administrativo
+              fazai docler start                     # Inicia servidor web
   fazai mcps atualizar sistema
   fazai config                 # Configurar provedores de IA
   fazai cache                  # Verificar status do cache
@@ -801,7 +961,7 @@ ${colors.bright}Para mais informações:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log('FazAI v1.42.2');
+    console.log('FazAI v2.0.0');
     process.exit(0);
   }
 
@@ -1220,6 +1380,34 @@ ${colors.bright}Para mais informações:${colors.reset}
     
     const objective = args.slice(1).join(' ');
     await runAgent(objective);
+    process.exit(0);
+  }
+
+  // Verificar se é o subcomando relay
+  if (args[0] === 'relay') {
+    if (args.length < 2) {
+      printError('Comando é obrigatório para o subcomando relay');
+      console.log(`${colors.fg.cyan}Uso: fazai relay <comando> [args...]${colors.reset}`);
+      process.exit(1);
+    }
+    
+    const command = args[1];
+    const commandArgs = args.slice(2);
+    await runRelayCommand(command, commandArgs);
+    process.exit(0);
+  }
+
+  // Verificar se é o subcomando docler
+  if (args[0] === 'docler') {
+    if (args.length < 2) {
+      printError('Comando é obrigatório para o subcomando docler');
+      console.log(`${colors.fg.cyan}Uso: fazai docler <comando> [args...]${colors.reset}`);
+      process.exit(1);
+    }
+    
+    const command = args[1];
+    const commandArgs = args.slice(2);
+    await runDoclerCommand(command, commandArgs);
     process.exit(0);
   }
 

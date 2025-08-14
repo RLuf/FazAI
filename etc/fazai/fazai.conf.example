@@ -1,6 +1,6 @@
 ###############################################################################
 # FazAI - Arquivo de Configuração Principal
-# Versão: 1.42.1
+# Versão: 2.0.0 - DOCLER Interface
 #
 # Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL
 #
@@ -9,6 +9,9 @@
 # - Sistema de orquestração (modos de planejamento e ação)
 # - Configurações gerais do sistema
 # - Sistema de cache e performance
+# - Interface DOCLER (Oráculo Druídico Digital)
+# - Agente Inteligente Cognitivo
+# - Relay SMTP Inteligente
 #
 # Localização recomendada: /etc/fazai/fazai.conf
 ###############################################################################
@@ -204,7 +207,7 @@ default_model = claude-3-opus-20240229
 
 # Lista de modelos alternativos que podem ser utilizados
 # Separe múltiplos modelos com vírgulas
-models = claude-3-sonnet-20240229, claude-3-haiku-20240307
+models = claude-3-sonnet-20240229, claude-3-haiku-202.0.07
 
 # Temperatura para geração (0.0 a 1.0)
 temperature = 0.3
@@ -418,3 +421,122 @@ error_max_size = 5242880  # 5MB
 
 # Número máximo de arquivos de erro de backup
 error_max_files = 3
+
+###############################################################################
+# CONFIGURAÇÃO DA INTERFACE DOCLER
+###############################################################################
+
+[docler]
+# Habilita a interface web DOCLER
+enabled = true
+
+# Porta para a interface cliente
+client_port = 3120
+
+# Porta para o painel administrativo
+admin_port = 3121
+
+# Host para o servidor web (0.0.0.0 para todos os IPs)
+host = 0.0.0.0
+
+# Tema padrão da interface
+# Valores possíveis: cyberpunk, matrix, cosmic, druidic
+default_theme = cyberpunk
+
+# Habilita animações da face DOCLER
+face_animations = true
+
+# Intervalo de atualização da face (em segundos)
+face_update_interval = 10
+
+# Habilita WebSocket para comunicação em tempo real
+websocket_enabled = true
+
+# Diretório dos arquivos web
+web_dir = /opt/fazai/web
+
+# Configurações de segurança
+[docler_security]
+# Habilita autenticação básica
+auth_enabled = false
+
+# Usuário para autenticação (se habilitada)
+auth_user = admin
+
+# Senha para autenticação (se habilitada)
+auth_password = 
+
+# IPs permitidos (deixe vazio para permitir todos)
+allowed_ips = 
+
+# Habilita HTTPS (requer certificados)
+https_enabled = false
+
+# Caminho para certificado SSL
+ssl_cert = 
+
+# Caminho para chave SSL
+ssl_key = 
+
+###############################################################################
+# CONFIGURAÇÃO DO AGENTE INTELIGENTE
+###############################################################################
+
+[agent]
+# Habilita o agente inteligente cognitivo
+enabled = true
+
+# Caminho para o worker C++ (libgemma.a)
+worker_path = /opt/fazai/worker/build/worker
+
+# Socket Unix para comunicação IPC
+ipc_socket = /tmp/fazai_worker.sock
+
+# Timeout para operações do agente (em segundos)
+timeout = 300
+
+# Número máximo de iterações por objetivo
+max_iterations = 50
+
+# Habilita streaming SSE em tempo real
+sse_enabled = true
+
+# Configuração da base de conhecimento
+[knowledge_base]
+# Habilita a base de conhecimento persistente
+enabled = true
+
+# Endpoint do Qdrant
+qdrant_url = http://localhost:6333
+
+# Nome da coleção
+collection_name = fazai_kb
+
+# Dimensão dos embeddings
+embedding_dim = 1024
+
+###############################################################################
+# CONFIGURAÇÃO DO RELAY SMTP
+###############################################################################
+
+[relay]
+# Habilita integração com relay SMTP
+enabled = true
+
+# Caminho para logs do relay
+log_path = /var/log/mail.log
+
+# Intervalo de monitoramento (em segundos)
+monitor_interval = 30
+
+# Configuração do SpamExperts
+[relay_spamexperts]
+enabled = false
+api_url = 
+api_key = 
+
+# Configuração do Zimbra
+[relay_zimbra]
+enabled = false
+api_url = 
+api_key = 
