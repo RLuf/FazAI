@@ -111,6 +111,11 @@ class DoclerWebServer {
         this.adminApp.get('/admin', (req, res) => {
             res.sendFile(path.join(__dirname, 'docler-admin.html'));
         });
+
+        // Docler Dev (minimal) — editor conf + saúde
+        this.adminApp.get('/dev', (req, res) => {
+            res.sendFile(path.join(__dirname, 'docler-dev.html'));
+        });
         
         this.adminApp.get('/api/admin/status', (req, res) => {
             res.json({
@@ -144,6 +149,41 @@ class DoclerWebServer {
         
         this.adminApp.get('/api/admin/services', (req, res) => {
             res.json(this.getServicesStatus());
+        });
+
+        // Admin APIs: editar fazai.conf com auditoria simples
+        this.adminApp.get('/api/admin/conf', (req, res) => {
+            try {
+                const confPath = '/etc/fazai/fazai.conf';
+                const content = fs.readFileSync(confPath, 'utf8');
+                res.json({ ok: true, path: confPath, content });
+            } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+        });
+        this.adminApp.post('/api/admin/conf', (req, res) => {
+            try {
+                if (pam && (process.env.DOCLER_AUTH_PAM_ADMIN || 'true') === 'true') {
+                    if (!req.user || req.user.role !== 'admin') return res.status(403).json({ ok: false, error: 'Acesso restrito a admin' });
+                }
+                const confPath = '/etc/fazai/fazai.conf';
+                const { content } = req.body || {};
+                if (typeof content !== 'string') return res.status(400).json({ ok: false, error: 'Conteúdo inválido' });
+                const backup = `/etc/fazai/fazai.conf.bak.${Date.now()}`;
+                try { fs.copyFileSync(confPath, backup); } catch(_){ /* ignore */ }
+                fs.writeFileSync(confPath, content);
+                try { fs.chownSync(confPath, fs.statSync('/opt/fazai').uid, fs.statSync('/etc').gid); } catch(_){ /* ignore */ }
+                try { fs.chmodSync(confPath, 0o640); } catch(_){ /* ignore */ }
+                res.json({ ok: true, backup });
+            } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+        });
+
+        // Proxies simples para saúde do FazAI (usar na Docler Dev)
+        this.adminApp.get('/api/admin/fazai/agent_status', async (_req, res) => {
+            try { const r = await this.fetchJson('http://127.0.0.1:3120/agent/status'); res.json(r); }
+            catch(e){ res.status(500).json({ ok:false, error:e.message }); }
+        });
+        this.adminApp.get('/api/admin/fazai/services', async (_req, res) => {
+            try { const r = await this.fetchJson('http://127.0.0.1:3120/services'); res.json(r); }
+            catch(e){ res.status(500).json({ ok:false, error:e.message }); }
         });
         
         // API para logs

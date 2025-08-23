@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docler Dev</title>
+  <style>
+    body { font-family: sans-serif; margin: 16px; background: #111; color: #eee; }
+    h1 { margin: 0 0 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card { border: 1px solid #444; border-radius: 6px; padding: 10px; background: #1a1a1a; }
+    textarea { width: 100%; min-height: 320px; background: #000; color: #0f0; border: 1px solid #333; border-radius: 4px; padding: 8px; }
+    pre { background: #000; color: #0f0; border: 1px solid #333; border-radius: 4px; padding: 8px; max-height: 360px; overflow: auto; }
+    button { padding: 8px 12px; border-radius: 4px; border: 1px solid #666; background: #222; color: #eee; cursor: pointer; }
+    button:hover { background: #333; }
+    input { width: 100%; padding: 6px; background: #000; color: #eee; border: 1px solid #333; border-radius: 4px; }
+    small { color: #bbb; }
+  </style>
+</head>
+<body>
+  <h1>Docler Dev</h1>
+  <div class="row">
+    <div class="card">
+      <h3>Editor de Configuração (fazai.conf)</h3>
+      <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+        <button onclick="loadConf()">Carregar</button>
+        <button onclick="saveConf()">Salvar</button>
+        <small id="confMsg"></small>
+      </div>
+      <textarea id="confArea" placeholder="Conteúdo de /etc/fazai/fazai.conf"></textarea>
+    </div>
+    <div class="card">
+      <h3>Saúde do Sistema</h3>
+      <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+        <button onclick="checkHealth()">Verificar</button>
+      </div>
+      <pre id="healthOut">(resultado)</pre>
+      <h3>Pesos do Gemma</h3>
+      <p>
+        O download dos pesos do Gemma requer autenticação (Hugging Face) e pode envolver termos de uso.
+        Para manter segurança e rastreabilidade, o bootstrap deve ser executado manualmente no servidor:
+      </p>
+      <pre>sudo /opt/fazai/tools/gemma_bootstrap.sh</pre>
+      <small>
+        Após instalar, verifique: /opt/fazai/bin/gemma_oneshot e /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
+      </small>
+    </div>
+  </div>
+
+  <script>
+    async function loadConf(){
+      const r = await fetch('/api/admin/conf').then(r=>r.json());
+      if (r.ok){ document.getElementById('confArea').value = r.content; confMsg.textContent = 'Config carregada.'; }
+      else confMsg.textContent = 'Falha: '+ (r.error||'erro');
+    }
+    async function saveConf(){
+      const content = document.getElementById('confArea').value;
+      const r = await fetch('/api/admin/conf', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ content }) }).then(r=>r.json());
+      confMsg.textContent = r.ok ? ('Salvo. Backup: '+ (r.backup||'')) : ('Falha: '+ (r.error||'erro'));
+    }
+    async function checkHealth(){
+      const [svc, ag] = await Promise.all([
+        fetch('/api/admin/fazai/services').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/admin/fazai/agent_status').then(r=>r.json()).catch(()=>({}))
+      ]);
+      healthOut.textContent = JSON.stringify({ services: svc, agent: ag }, null, 2);
+    }
+  </script>
+</body>
+</html>
+
