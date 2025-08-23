@@ -783,7 +783,8 @@ int fazai_mod_init() {
 /**
  * Executa uma função do módulo
  */
-int fazai_mod_exec(const char* command, const char* params, char* output, int output_len) {
+// Compatível com assinatura declarada em fazai_mod.h
+int fazai_mod_exec(const char* command, char* output, int output_len) {
     if (!initialized) {
         snprintf(output, output_len, "Módulo não inicializado");
         return -1;
@@ -822,8 +823,10 @@ int fazai_mod_exec(const char* command, const char* params, char* output, int ou
         return 0;
     }
     
-    if (strcmp(command, "http_wrapper") == 0) {
-        if (params == NULL) {
+    if (strncmp(command, "http_wrapper", 12) == 0) {
+        const char* params = command + 12;
+        while (*params == ' ') params++;
+        if (*params == '\0') {
             snprintf(output, output_len, "Parâmetro necessário: dados HTTP");
             return -1;
         }
@@ -842,7 +845,9 @@ int fazai_mod_exec(const char* command, const char* params, char* output, int ou
         return 0;
     }
     
-    if (strcmp(command, "smtp_wrapper") == 0) {
+    if (strncmp(command, "smtp_wrapper", 12) == 0) {
+        const char* params = command + 12;
+        while (*params == ' ') params++;
         char* space = strchr((char*)params, ' ');
         if (space == NULL) {
             snprintf(output, output_len, "Parâmetros necessários: <ip> <dados>");
@@ -868,8 +873,9 @@ int fazai_mod_exec(const char* command, const char* params, char* output, int ou
         return 0;
     }
     
-    if (strcmp(command, "db_wrapper") == 0) {
-        char* params_copy = strdup(params);
+    if (strncmp(command, "db_wrapper", 10) == 0) {
+        const char* rest = command + 10; while (*rest==' ') rest++;
+        char* params_copy = strdup(rest);
         char* space1 = strchr(params_copy, ' ');
         char* space2 = strrchr(params_copy, ' ');
         

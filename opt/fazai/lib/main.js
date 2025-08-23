@@ -155,6 +155,7 @@ let server; // http server será inicializado em FazAIDaemon.start()
 let AI_CONFIG = {
   default_provider: 'gemma_cpp',
   enable_fallback: true,
+  fallback_for_simple: false,
   max_retries: 3,
   retry_delay: 2,
   continue_on_error: true,
@@ -712,14 +713,38 @@ function analyzeCommand(command) {
  * @returns {Promise<object>} - Interpretação do comando
  */
 async function processQuestion(command) {
-  // Remove _ do início e ? do final
-  const cleanCommand = command.substring(1, command.length - 1);
-
-  return {
-    interpretation: `echo "${cleanCommand}"`,
-    success: true,
-    isQuestion: true
-  };
+  // Remove delimitadores ? do início e fim, se existirem
+  const clean = command.replace(/^\?+\s*/, '').replace(/\?+\s*$/, '').trim();
+  // Tenta responder com Gemma local (texto direto)
+  try {
+    const providerConfig = AI_CONFIG.providers.gemma_cpp || {};
+    const bin = (providerConfig.endpoint || '/opt/fazai/bin/gemma_oneshot').trim();
+    const model = (providerConfig.default_model || process.env.GEMMA_MODEL || 'gemma2-2b-it').trim();
+    const weights = (providerConfig.weights || process.env.GEMMA_WEIGHTS || '/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs').trim();
+    const tokenizer = (providerConfig.tokenizer || process.env.GEMMA_TOKENIZER || '/opt/fazai/models/gemma/tokenizer.spm').trim();
+    const prompt = `Responda com objetividade e precisão: ${clean}`;
+    const args = [bin, '--weights', weights, '--model', model, '--verbosity', '0'];
+    if (tokenizer) args.push('--tokenizer', tokenizer);
+    const { execFileSync } = require('child_process');
+    const out = execFileSync(args[0], args.slice(1), { encoding: 'utf8', input: prompt + "\n" });
+    return { interpretation: `echo "${out.trim()}"`, success: true, isQuestion: true };
+  } catch (e) {
+    logger.warn(`Gemma (Q) indisponível: ${e.message}`);
+  }
+  // Se falhar, tenta primeiro provedor HTTP se habilitado; se não, Context7
+  try {
+    const result = await queryAIForSteps(`Explique sucintamente: ${clean}`);
+    if (result && Array.isArray(result.steps) && result.steps.length) {
+      const ans = String(result.steps[0] || '').trim();
+      if (ans) return { interpretation: `echo "${ans.replace(/\"/g,'\\\"')}"`, success: true, isQuestion: true };
+    }
+  } catch (_) {}
+  try {
+    const docs = await doResearch([clean], 3);
+    const top = (docs||[]).slice(0,3).map(d=>`${d.title} - ${d.url}`).join(' | ');
+    return { interpretation: `echo "(referências) ${top}"`, success: true, isQuestion: true };
+  } catch (_) {}
+  return { interpretation: `echo "${clean}"`, success: true, isQuestion: true };
 }
 
 /**
@@ -863,11 +888,13 @@ async function queryAI(command, cwd = process.env.HOME) {
     }
   }
 
-  // Processamento normal para comandos simples com fallback inteligente
+  // Processamento normal para comandos simples
   const providers = AI_CONFIG.fallback_order;
-  
+  // Se comando é simples (não complex, não questão) e fallback_for_simple=false, restringe a Gemma local
+  const onlyGemma = (!analysis.needsArchitecting && !analysis.isQuestion && AI_CONFIG.fallback_for_simple === false);
   for (let i = 0; i < providers.length; i++) {
     const provider = providers[i];
+    if (onlyGemma && provider !== 'gemma_cpp') continue;
     const providerConfig = AI_CONFIG.providers[provider];
     
     // Verifica se o provedor tem chave de API configurada
@@ -912,8 +939,8 @@ async function queryAI(command, cwd = process.env.HOME) {
     }
   }
 
-  // Se todos os provedores falharam, usa fallback simples
-  if (AI_CONFIG.enable_fallback) {
+  // Se todos os provedores falharam, usa fallback simples (apenas se habilitado e não simples)
+  if (AI_CONFIG.enable_fallback && !onlyGemma) {
     logger.info('Todos os provedores falharam - usando fallback simples');
     return {
       interpretation: `echo "Comando não interpretado: ${command}"`,
