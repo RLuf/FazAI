@@ -874,7 +874,7 @@
 
     <script>
         // Configuração inicial
-        const API = 'http://localhost:3120';
+        const API = (function(){ try { return `${location.protocol}//${location.hostname}:3120`; } catch(_) { return 'http://localhost:3120'; } })();
         let currentTheme = 'cyberpunk';
         let doclerMood = 'observing';
         let faceExpressions = {

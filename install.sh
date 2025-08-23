@@ -1405,6 +1405,7 @@ User=fazai-web
 Group=fazai-web
 Environment=DOCLER_CLIENT_PORT=3220
 Environment=DOCLER_ADMIN_PORT=3221
+Environment=DOCLER_HOST=0.0.0.0
 WorkingDirectory=/opt/fazai/web
 ExecStart=/usr/bin/node /opt/fazai/web/docler-server.js
 Restart=always

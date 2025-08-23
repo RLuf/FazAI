@@ -469,13 +469,15 @@ class DoclerWebServer {
         return new Promise((resolve, reject) => {
             try {
                 // Iniciar servidor cliente
-                this.server.listen(this.config.port, () => {
-                    console.log(`🌐 DOCLER Cliente rodando em http://localhost:${this.config.port}`);
+                const host = process.env.DOCLER_HOST || '0.0.0.0';
+                this.server.listen(this.config.port, host, () => {
+                    console.log(`🌐 DOCLER Cliente rodando em http://${host}:${this.config.port}`);
                 });
                 
                 // Iniciar servidor admin
-                this.adminServer.listen(this.config.adminPort, () => {
-                    console.log(`🔧 DOCLER Admin rodando em http://localhost:${this.config.adminPort}`);
+                const hostA = process.env.DOCLER_HOST || '0.0.0.0';
+                this.adminServer.listen(this.config.adminPort, hostA, () => {
+                    console.log(`🔧 DOCLER Admin rodando em http://${hostA}:${this.config.adminPort}`);
                 });
                 
                 // Iniciar loop de atualizações
