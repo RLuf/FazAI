@@ -344,6 +344,30 @@ check_system() {
   fi
 }
 
+# Garante runtime de contêiner (Docker) para serviços opcionais (Qdrant/Prometheus/Grafana)
+ensure_container_runtime() {
+  if command -v docker >/dev/null 2>&1 || command -v podman >/dev/null 2>&1; then
+    log "INFO" "Runtime de contêiner já disponível"
+    return 0
+  fi
+  log "INFO" "Instalando Docker (runtime de contêiner)"
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update && apt-get install -y docker.io || log "WARNING" "Falha ao instalar Docker (apt)."
+    systemctl enable --now docker || true
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y docker || log "WARNING" "Falha ao instalar Docker (dnf)."
+    systemctl enable --now docker || true
+  elif command -v yum >/dev/null 2>&1; then
+    yum install -y docker || log "WARNING" "Falha ao instalar Docker (yum)."
+    systemctl enable --now docker || true
+  elif command -v zypper >/dev/null 2>&1; then
+    zypper install -y docker || log "WARNING" "Falha ao instalar Docker (zypper)."
+    systemctl enable --now docker || true
+  else
+    log "WARNING" "Gerenciador de pacotes não suportado para instalação automática do Docker."
+  fi
+}
+
 # Função para instalar Node.js com retry e múltiplas versões
 install_nodejs() {
   if command -v node &> /dev/null; then
@@ -1528,6 +1552,20 @@ build_gemma_worker() {
   fi
 }
 
+# Instala Gemma one-shot e pesos padrão (máquinas pequenas)
+bootstrap_gemma() {
+  if [ -x "/opt/fazai/bin/gemma_oneshot" ] && [ -f "/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs" ]; then
+    log "INFO" "Gemma (oneshot + pesos) já presente."
+    return 0
+  fi
+  if [ -x "/opt/fazai/tools/gemma_bootstrap.sh" ]; then
+    log "INFO" "Executando gemma_bootstrap.sh (download/instalação do modelo)."
+    bash /opt/fazai/tools/gemma_bootstrap.sh || log "WARNING" "Falha no gemma_bootstrap.sh"
+  else
+    log "WARNING" "gemma_bootstrap.sh não encontrado."
+  fi
+}
+
 	# Função para instalar dependências do Node.js com retry
 	install_node_dependencies() {
 	  log "INFO" "Instalando dependências do Node.js..."
@@ -1980,10 +2018,12 @@ EOF
 	    "convert_files_to_unix:Convertendo arquivos para formato Linux"
 	    "install_nodejs:Instalando Node.js"
 	    "install_npm:Verificando npm"
-	    "install_python:Instalando Python 3"
+    "install_python:Instalando Python 3"
     "install_gcc:Instalando ferramentas de compilação"
+    "ensure_container_runtime:Instalando runtime de contêiner (Docker)"
     "create_directories:Criando estrutura de diretórios"
     "build_gemma_worker:Compilando Gemma Worker"
+    "bootstrap_gemma:Instalando Gemma one-shot e pesos padrão"
     "copy_files:Copiando arquivos"
 	    "import_env_config:Importando configurações"
 	    "configure_systemd:Configurando serviço systemd"

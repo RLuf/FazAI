@@ -261,7 +261,7 @@ max_tokens = 2000
 
 [ollama]
 # Habilita o uso do Ollama para modelos locais
-enabled = true
+enabled = false
 
 # Endpoint do Ollama (padrão: localhost:11434)
 endpoint = http://127.0.0.1:11434/v1
