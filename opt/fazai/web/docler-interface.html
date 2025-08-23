@@ -657,6 +657,22 @@
                     </div>
                 </section>
 
+                <!-- Saúde do Sistema -->
+                <section id="health" style="background: rgba(0,0,0,0.3); border:1px solid #16a085; border-radius:12px; padding:1rem; margin-top:12px;">
+                    <h2 style="color:#16a085; margin-bottom:10px;">Saúde do Sistema</h2>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <button onclick="healthCheck()">Verificar Saúde</button>
+                        <span id="hcAgent" style="font-size:12px; color:#ccc;">Agente: -</span>
+                        <span id="hcWorker" style="font-size:12px; color:#ccc;">Worker: -</span>
+                        <span id="hcGrafana" style="font-size:12px; color:#ccc;">Grafana: -</span>
+                        <span id="hcProm" style="font-size:12px; color:#ccc;">Prometheus: -</span>
+                        <span id="hcQdrant" style="font-size:12px; color:#ccc;">Qdrant: -</span>
+                        <span id="hcDoclerC" style="font-size:12px; color:#ccc;">Docler C: -</span>
+                        <span id="hcDoclerA" style="font-size:12px; color:#ccc;">Docler A: -</span>
+                    </div>
+                    <pre id="hcOut" style="white-space:pre-wrap; margin-top:8px; max-height:220px; overflow:auto;"></pre>
+                </section>
+
                 <!-- Agente NL -->
                 <section id="agentNL" style="background: rgba(0,0,0,0.3); border:1px solid #9b59b6; border-radius:12px; padding:1rem; margin-top:12px;">
                     <h2 style="color:#9b59b6; margin-bottom:10px;">Agente por Linguagem Natural</h2>
@@ -1207,6 +1223,38 @@
                 await fetch(`${api}/agent/abort`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ session_id: sid }) });
                 agentStat.textContent = 'Status: abortado';
             } catch(_){ agentStat.textContent = 'Status: erro ao abortar'; }
+        }
+
+        // ===== Health Check =====
+        function badge(el, status){
+            const s = String(status||'-').toLowerCase();
+            let color = '#ccc';
+            if (s === 'available' || s === 'online' || s === 'running' || s === 'ok' || s === 'true') color = '#0f0';
+            else if (s === 'degraded' || s === 'unknown') color = '#ff0';
+            else if (s === 'unavailable' || s === 'offline' || s === 'false') color = '#f33';
+            el.style.color = color;
+            el.textContent = el.textContent.replace(/:.*/, `: ${status}`);
+        }
+        async function healthCheck(){
+            const api = API;
+            try {
+                const [svcRes, agRes] = await Promise.all([
+                    fetch(`${api}/services`).then(r=>r.json()).catch(()=>({})),
+                    fetch(`${api}/agent/status`).then(r=>r.json()).catch(()=>({}))
+                ]);
+                document.getElementById('hcOut').textContent = JSON.stringify({ services: svcRes, agent: agRes }, null, 2);
+                const st = (svcRes && svcRes.statuses) || {};
+                const ag = agRes || {};
+                badge(document.getElementById('hcAgent'), ag.ok ? 'ok' : 'offline');
+                badge(document.getElementById('hcWorker'), ag.gemma_worker || 'unknown');
+                badge(document.getElementById('hcGrafana'), st.grafana || 'unknown');
+                badge(document.getElementById('hcProm'), st.prometheus || 'unknown');
+                badge(document.getElementById('hcQdrant'), st.qdrant || 'unknown');
+                badge(document.getElementById('hcDoclerC'), st.docler_client || 'unknown');
+                badge(document.getElementById('hcDoclerA'), st.docler_admin || 'unknown');
+            } catch(e){
+                document.getElementById('hcOut').textContent = String(e);
+            }
         }
 
         function openRelay() {
