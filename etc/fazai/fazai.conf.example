@@ -567,3 +567,11 @@ api_key =
 enabled = false
 api_url = 
 api_key = 
+
+###############################################################################
+# UI LEGADA (DEV-ONLY)
+###############################################################################
+
+[ui_legacy]
+# Se false, a rota /ui retorna 404 (recomendado)
+enabled = false

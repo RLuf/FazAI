@@ -39,9 +39,9 @@ class DoclerWebServer {
         // Middleware para cliente
         this.app.use(express.json());
         // Autenticação básica via PAM (opcional)
-        const pamEnabled = (process.env.DOCLER_AUTH_PAM || 'false') === 'true';
-        if (pamEnabled && pam) {
-            const basicAuth = (req, res, next) => {
+        const pamClient = (process.env.DOCLER_AUTH_PAM || 'false') === 'true';
+        const pamAdmin  = (process.env.DOCLER_AUTH_PAM_ADMIN || 'true') === 'true';
+        const makeAuth = () => (req, res, next) => {
                 const auth = req.headers['authorization'] || '';
                 const [type, b64] = auth.split(' ');
                 if (type !== 'Basic' || !b64) { res.set('WWW-Authenticate', 'Basic realm="FazAI"'); return res.status(401).send('Auth required'); }
@@ -56,10 +56,8 @@ class DoclerWebServer {
                     } catch { req.user = { name: user, role: 'user' }; }
                     next();
                 });
-            };
-            this.app.use(basicAuth);
-            this.adminApp.use(basicAuth);
-        }
+        };
+        if (pam && pamClient) this.app.use(makeAuth());
         this.app.use(express.static(path.join(__dirname)));
         this.app.use((req, res, next) => {
             res.header('Access-Control-Allow-Origin', '*');
@@ -70,6 +68,7 @@ class DoclerWebServer {
         
         // Middleware para admin
         this.adminApp.use(express.json());
+        if (pam && pamAdmin) this.adminApp.use(makeAuth());
         this.adminApp.use(express.static(path.join(__dirname)));
         this.adminApp.use((req, res, next) => {
             res.header('Access-Control-Allow-Origin', '*');

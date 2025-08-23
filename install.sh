@@ -1706,15 +1706,17 @@ EOF
 	    log "SUCCESS" "Usuário 'fazai' criado"
 	  fi
 	  
-	  # Define permissões dos diretórios
-	  chown -R fazai:fazai /opt/fazai
-	  chown -R fazai:fazai /var/log/fazai
-	  chown -R fazai:fazai /var/lib/fazai
-	  
-	  # Permissões específicas
-	  chmod 750 /opt/fazai
-	  chmod 755 /opt/fazai/bin/fazai
-	  chmod 640 /etc/fazai/fazai.conf
+  # Define permissões dos diretórios
+  chown -R fazai:fazai /opt/fazai
+  chown -R fazai:fazai /var/log/fazai
+  chown -R fazai:fazai /var/lib/fazai
+  
+  # Permissões específicas
+  chmod 750 /opt/fazai
+  chmod 755 /opt/fazai/bin/fazai
+  # Conf: dono fazai, grupo root, 640
+  chown fazai:root /etc/fazai/fazai.conf 2>/dev/null || true
+  chmod 640 /etc/fazai/fazai.conf
 	  chmod 755 /opt/fazai/tools/fazai-config.js
 	  
 	  # Configura sudoers para permitir comandos específicos do fazai

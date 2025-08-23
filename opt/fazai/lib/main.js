@@ -259,11 +259,20 @@ app.get('/research', async (req, res) => {
 try {
   const staticDir = '/opt/fazai/tools';
   app.use('/web', express.static(staticDir));
-  // Redireciona raiz para /ui
-  app.get('/', (_req, res) => res.redirect('/ui'));
-  // Página principal da UI
+  // Página principal (redireciona para Docler se habilitado)
+  app.get('/', (req, res) => {
+    try {
+      const dport = parseInt((config?.docler?.client_port)||process.env.DOCLER_CLIENT_PORT||'3220',10);
+      const enabled = (String((config?.docler?.enabled ?? 'true')) === 'true');
+      if (enabled) return res.redirect(`http://${req.hostname}:${dport}`);
+      return res.redirect('/ui');
+    } catch(_) { return res.redirect('/ui'); }
+  });
+  // UI legada (dev-only) — controlada via conf
   app.get('/ui', (_req, res) => {
     try {
+      const enabled = (String((config?.ui_legacy?.enabled ?? 'false')) === 'true');
+      if (!enabled) return res.status(404).send('UI legada desabilitada');
       res.sendFile(path.join(staticDir, 'fazai_web_frontend.html'));
     } catch (e) {
       res.status(500).send('Frontend indisponível');
