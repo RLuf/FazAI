@@ -568,6 +568,39 @@ create_directories() {
   log "SUCCESS" "Estrutura de diretórios criada com sucesso."
 }
 
+# Verifica saúde do serviço e tenta autorreparo básico
+health_check_repair() {
+  log "INFO" "Executando health-check do FazAI (/agent/status)"
+  local API="http://127.0.0.1:3120"
+  local ok=false
+  for attempt in 1 2 3; do
+    if curl -fsS --max-time 3 "$API/agent/status" >/dev/null 2>&1; then
+      ok=true
+      break
+    fi
+    log "WARNING" "Health-check falhou (tentativa $attempt). Tentando reparo..."
+    # Reinicia o worker e o serviço mestre
+    systemctl restart fazai-gemma-worker 2>/dev/null || true
+    sleep 1
+    # Garante diretório do socket
+    mkdir -p /run/fazai && chmod 755 /run/fazai || true
+    systemctl restart fazai 2>/dev/null || true
+    sleep 2
+    # Se o binário do worker não existir, tenta compilar/instalar
+    if [ ! -x "/opt/fazai/bin/fazai-gemma-worker" ] && [ -d "worker" ] && [ -f "worker/CMakeLists.txt" ]; then
+      log "INFO" "Binário do worker ausente; tentando compilar/instalar..."
+      (cd worker && ./build.sh && sudo make install) || true
+      systemctl restart fazai-gemma-worker 2>/dev/null || true
+      sleep 1
+    fi
+  done
+  if [ "$ok" = true ]; then
+    log "SUCCESS" "Health-check OK: /agent/status respondeu"
+  else
+    log "ERROR" "Health-check ainda falhou após tentativas de reparo. Verifique logs do serviço."
+  fi
+}
+
 # Função para copiar arquivos
 copy_files() {
   log "INFO" "Copiando arquivos para diretórios de instalação..."
@@ -2014,13 +2047,15 @@ EOF
 	  
 	  # Validação e testes finais
 	  log "INFO" "Executando validação final..."
-	  if validate_installation; then
-	    run_post_install_tests
-	    show_installation_summary
-	    
-	    # Inicia o serviço se tudo estiver OK
+  if validate_installation; then
+    run_post_install_tests
+    show_installation_summary
+
+    # Inicia o serviço se tudo estiver OK
     if systemctl start fazai; then
       log "SUCCESS" "Serviço FazAI iniciado com sucesso!"
+      # Health-check com autorreparo
+      health_check_repair
       # Resumo da engine/módulo nativo, se o verificador existir
       if [ -x "scripts/verify-engine.sh" ]; then
         log "INFO" "Resumo de verificação pós-instalação:"
