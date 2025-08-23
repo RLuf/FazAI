@@ -1,98 +1,38 @@
-Propósito
-Este documento define as regras técnicas e operacionais para implementação, integração e manutenção de agentes no FazAI. Serve como contrato para desenvolvedores e como referência para garantir consistência e interoperabilidade entre agentes, handlers e providers.
+# Repository Guidelines
 
-📚 Conceitos básicos
-Agente – Serviço/processo que executa tarefas sob comando do FazAI, podendo ser local ou remoto.
+This document helps contributors work effectively in this repository and keep changes consistent and testable.
 
-Handler – Módulo no daemon que interpreta ações do modelo e chama o(s) agente(s).
+## Project Structure & Module Organization
+- `opt/fazai/tools/`: Node.js tools and integrations (e.g., `agent_supervisor.js`, `rag_ingest.js`).
+- `worker/`: C/C++ Gemma worker and IPC server; builds a local ND‑JSON provider on `unix:/run/fazai/gemma.sock`.
+- `bin/`: CLI binary (`fazai`) and build helpers; `tui/` contains TUI bits if enabled.
+- `gemma.cpp/`: Upstream Gemma engine sources and tests.
+- `etc/`, `var/`: Config and logs at runtime; mounted in Docker.
+- `tests/`: Shell/PowerShell tests (`*.test.sh`, `*.tests.ps1`).
+- Specs: see `SPEC.md` for protocol schemas; top‑level docs in `README.md`.
 
-Provider – Adaptador que intermedia a comunicação entre handler e agente, encapsulando protocolo e transporte.
+## Build, Test, and Development Commands
+- Install: `sudo ./install.sh` (provisions deps, CLI, services). Uninstall: `sudo ./uninstall.sh`.
+- Tests: `npm test` (runs `tests/*.test.sh` and WSL PowerShell where available).
+- TUI/Config/Web helpers: `npm run tui`, `npm run config-tui`, `npm run web`.
+- Docker: `docker compose up -d --build` (binds `3120`; optional Qdrant at `6333`).
 
-🔄 Ciclo de vida do agente
-Registro – Handler reconhece e registra o agente conforme SPEC.
+## Coding Style & Naming Conventions
+- JavaScript: 2‑space indent, semicolons, `camelCase` functions/vars, `PascalCase` classes, `UPPER_SNAKE_CASE` constants. Tool filenames prefer `lower_snake_case.js`.
+- C/C++: follow existing style in `worker/` (4‑space indent, include guards, minimal iostreams in headers).
+- Keep functions small, pure where possible, and log with `winston` in JSON.
 
-Handshake – Troca inicial de credenciais, versão, capacidades e status.
+## Testing Guidelines
+- Add tests alongside existing scripts in `tests/` using the `*.test.sh` pattern; keep them idempotent.
+- CI entry is `npm test`; ensure local tests pass and avoid external network reliance.
+- For protocol changes, add/adjust contract checks per `SPEC.md` and include fixtures.
 
-Execução – Recebe comando no formato acordado, processa e retorna saída.
+## Commit & Pull Request Guidelines
+- Commits: short imperative summary, scoped body, reference issues (e.g., `Fix: opnsense list health (#123)`).
+- Update docs: `CHANGELOG.md`, `SPEC.md` (when schemas change), and relevant README sections.
+- PRs: clear description, reproduction steps, test evidence, and screenshots/logs when UI/metrics change.
 
-Observação – FazAI analisa saída, registra no KB e decide próxima ação.
-
-Encerramento – Sessão finalizada ou persistida para reuso.
-
-📜 Contratos e formatos
-Consulte também: SPEC.md (v1.0) para detalhes de schemas.
-1. Mensagens de socket (worker local)
-Protocolo: ND‑JSON, 1 objeto por linha.
-
-Métodos:
-
-create_session → { "type": "create_session", "params": {...} }
-
-generate / generate_stream
-
-abort
-
-close_session
-
-Campos obrigatórios: conforme SPEC atual do provider (`type`, `session_id`, `prompt`, `params`).
-
-2. SSE (daemon ⇄ CLI/UI)
-Eventos padronizados:
-
-token – Token de texto gerado.
-
-action – Objeto de ação emitido pelo modelo (plan, shell, use_tool, etc.).
-
-log – Log textual.
-
-observe – Observação retornada após ação.
-
-done – Encerramento da iteração.
-
-3. Southbound (agentes remotos)
-Método hello: anuncia agente e versão.
-
-Comandos: command.exec, telemetry.push, file.diff/apply.
-
-Transporte: WS/mTLS ou HTTP/REST assinado.
-
-Formato: JSON com action_id idempotente.
-
-⚠️ Regras obrigatórias para todos os agentes
-1 ação por iteração – Evita concorrência indesejada e facilita debug.
-
-Validação estrita – Rejeitar payloads fora do SPEC.
-
-Idempotência – Repetir action_id não pode causar efeitos duplicados.
-
-Timeouts – Definir limite por operação.
-
-Segurança – Respeitar mTLS para agentes remotos; isolar permissões no SO.
-
-✅ Critérios de aceitação (DoD)
-SPEC.md versionado no repositório.
-
-Passar testes unitários e de contrato.
-
-Integrar em ambiente de staging com sucesso.
-
-Documentar no AGENTS.md: nome, função, protocolo, endpoints, formatos suportados.
-
-📌 Boas práticas
-Logs estruturados (JSON) com agent_id, session_id e timestamp.
-
-Monitoramento ativo via /metrics Prometheus.
-
-Fallback seguro em caso de falha de rede ou timeout.
-
-Testes de carga para validar estabilidade sob uso intensivo.
-
-📝 Preencha abaixo para cada agente implementado:
-
-Nome do Agente	Tipo	Função	Protocolo	Endpoints/Rota	Observações
-…	…	…	…	…	…
-
-OPNsense	Integração nativa (sem agente)	Monitorar e consultar firewalls	HTTPS REST (Basic Auth)	/opn/add, /opn/list, /opn/:id/health, /opn/:id/interfaces, /opn/:id/metrics	Segredos em /etc/fazai/secrets/opnsense; apenas leitura por padrão
-Gemma Worker	Provider local	Geração de tokens/stream	Unix Socket ND‑JSON	SOCK: /run/fazai/gemma.sock	Serviço `fazai-gemma-worker`; ver providers/gemma-worker.js
-Agent Supervisor	Orquestrador (tool)	Instala/gerencia agentes remotos de telemetria	SSH + HTTP/REST	POST /ingest (daemon)	Script em opt/fazai/tools/agent_supervisor.js
-Telemetry Agent (bash)	Agente remoto	Coleta telemetria de processos/rede	HTTP POST (JSON)	POST /ingest	Assinatura opcional; batimento configurável; idempotência por `timestamp`
+## Security & Agent Tips
+- Secrets live under `/etc/fazai/secrets/`; never commit them. Enforce mTLS for remote agents.
+- Respect idempotency (`action_id`) and timeouts for southbound calls. Local provider uses ND‑JSON over Unix socket at `/run/fazai/gemma.sock`.
+- OPNsense integration is native (no agent): see daemon endpoints `/opn/*` and keep operations read‑only by default.

@@ -273,7 +273,7 @@ const payload = {
 ### Arquivo de Configuração Principal
 ```ini
 [ai_provider]
-provider = gemma-worker
+provider = gemma-worker (obsoleto pois o gemma eh motor central integrados os providers extras como api openai e opentouter sao apoios.
 
 [gemma_worker]
 socket = /run/fazai/gemma.sock

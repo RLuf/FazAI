@@ -20,7 +20,7 @@ Se falha (teste, build, erro de runtime), o agente entra em depuração e itera 
 Precisa de poder extra? Conecta MCP servers (via stdio/HTTP). As ferramentas MCP aparecem pro agente como comandos adicionais plugáveis. 
 
 6. Providers de IA
-Chama modelos via provedor (padrão OpenRouter/Kilo) ou perfil custom. Resposta volta pro passo 3.
+Chama modelos via provedor (padrão OpenRouter/openai) ou perfil custom local como llamma para fallback ou duvidas via api. Resposta volta pro passo 3.
 
 
 Ele Interpreta a entrada (prompt, contexto, estado do sistema).

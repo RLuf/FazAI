@@ -788,16 +788,30 @@ EOF
     fi
   fi
 
-  # Copia modelos Gemma se estiverem no repositório
+  # Copia modelos Gemma se estiverem no repositório (estrutura antiga)
   if [ -d "opt/fazai/models/gemma" ]; then
     if ! copy_with_verification "opt/fazai/models/gemma" "/opt/fazai/models/" "Modelos Gemma"; then
       copy_errors=$((copy_errors+1))
     fi
   else
-    # Fallback: se existir caminho externo informado pelo usuário, copie de lá
-    if [ -d "/media/rluft/fedora/root/opt/fazai/models/gemma" ]; then
-      if ! copy_with_verification "/media/rluft/fedora/root/opt/fazai/models/gemma" "/opt/fazai/models/" "Modelos Gemma (externo)"; then
-        copy_errors=$((copy_errors+1))
+    # Nova estrutura: pesos e tokenizer embarcados em gemma.cpp/
+    if [ -f "gemma.cpp/2.0-2b-it-sfp.sbs" ] || [ -f "gemma.cpp/tokenizer.spm" ]; then
+      mkdir -p /opt/fazai/models/gemma
+      if [ -f "gemma.cpp/2.0-2b-it-sfp.sbs" ]; then
+        log "INFO" "Copiando pesos Gemma de gemma.cpp para /opt/fazai/models/gemma/"
+        cp -f "gemma.cpp/2.0-2b-it-sfp.sbs" "/opt/fazai/models/gemma/" || copy_errors=$((copy_errors+1))
+      fi
+      if [ -f "gemma.cpp/tokenizer.spm" ]; then
+        log "INFO" "Copiando tokenizer Gemma de gemma.cpp para /opt/fazai/models/gemma/"
+        cp -f "gemma.cpp/tokenizer.spm" "/opt/fazai/models/gemma/" || copy_errors=$((copy_errors+1))
+      fi
+      chmod 644 /opt/fazai/models/gemma/* 2>/dev/null || true
+    else
+      # Fallback: caminho externo informado pelo usuário
+      if [ -d "/media/rluft/fedora/root/opt/fazai/models/gemma" ]; then
+        if ! copy_with_verification "/media/rluft/fedora/root/opt/fazai/models/gemma" "/opt/fazai/models/" "Modelos Gemma (externo)"; then
+          copy_errors=$((copy_errors+1))
+        fi
       fi
     fi
   fi

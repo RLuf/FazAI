@@ -238,7 +238,7 @@ async function runDoclerCommand(command, args = []) {
   }
 }
 
-// Função para executar agente inteligente
+// Função para executar agente inteligente (com suporte a perguntas interativas)
 async function runAgent(objective) {
   try {
     console.log('\x1b[36m🤖 FazAI Agent iniciando...\x1b[0m');
@@ -247,120 +247,96 @@ async function runAgent(objective) {
 
     // Criar sessão
     const sessionResponse = await axios.post(`${API_URL}/agent/sessions`, {});
-    if (!sessionResponse.data.ok) {
-      throw new Error('Falha ao criar sessão');
-    }
-    
+    if (!sessionResponse.data.ok) throw new Error('Falha ao criar sessão');
     const sessionId = sessionResponse.data.session_id;
     console.log('\x1b[32m✓ Sessão criada:\x1b[0m', sessionId);
 
-    // Configurar handler de interrupção
+    // Ctrl+C aborta a sessão atual
     process.on('SIGINT', async () => {
       console.log('\n\x1b[33m🛑 Interrompendo agente...\x1b[0m');
-      try {
-        await axios.post(`${API_URL}/agent/abort`, { session_id: sessionId });
-      } catch (e) {
-        // Ignorar erros de abort
-      }
+      try { await axios.post(`${API_URL}/agent/abort`, { session_id: sessionId }); } catch {}
       process.exit(130);
     });
 
-    // Iniciar stream SSE
-    const response = await axios.post(`${API_URL}/agent/generate`, {
-      session_id: sessionId,
-      objective: objective,
-      history: []
-    }, {
-      responseType: 'stream',
-      headers: {
-        'Accept': 'text/event-stream',
-        'Cache-Control': 'no-cache'
-      }
-    });
+    // Loop de geração com histórico acumulado
+    async function streamWithHistory(history) {
+      const response = await axios.post(`${API_URL}/agent/generate`, {
+        session_id: sessionId,
+        objective,
+        history
+      }, {
+        responseType: 'stream',
+        headers: { 'Accept': 'text/event-stream', 'Cache-Control': 'no-cache' }
+      });
 
-    let buffer = '';
-    
-    response.data.on('data', (chunk) => {
-      buffer += chunk.toString();
-      
-      // Processar eventos SSE
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const event = JSON.parse(line.slice(6));
-            handleAgentEvent(event);
-          } catch (e) {
-            // Ignorar linhas que não são JSON válido
+      let buffer = '';
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+      // Encapsula handler com acesso ao history
+      const handleAgentEvent = async (event) => {
+        switch (event.type) {
+          case 'token':
+            process.stdout.write(event.text);
+            break;
+          case 'plan':
+            console.log('\n\x1b[35m📋 Plano:\x1b[0m', (event.steps||[]).join(' → '));
+            break;
+          case 'action':
+            console.log('\n\x1b[34m⚡ Ação:\x1b[0m', event.action, event.command || event.name || '');
+            break;
+          case 'exec_log':
+            process.stdout.write(event.chunk);
+            break;
+          case 'observe':
+            console.log('\n\x1b[36m👁️  Observação:\x1b[0m', event.note);
+            break;
+          case 'ask': {
+            console.log('\n\x1b[33m❓ Pergunta:\x1b[0m', event.question);
+            if (Array.isArray(event.options) && event.options.length) {
+              console.log('\x1b[33mOpções:\x1b[0m');
+              event.options.forEach((opt, i) => console.log(`  ${i+1}. ${opt}`));
+            }
+            const answer = await new Promise((res) => rl.question('> ', (ans) => res(ans)));
+            // Aborta geração atual e continua com resposta no mesmo session_id
+            try { await axios.post(`${API_URL}/agent/abort`, { session_id: sessionId }); } catch {}
+            rl.close();
+            console.log('\x1b[36m↪️ Continuando com a resposta fornecida...\x1b[0m');
+            // Reencadeia stream com histórico atualizado
+            await streamWithHistory([...(history||[]), { answer }]);
+            break;
           }
+          case 'done':
+            console.log('\n\x1b[32m✅ Iteração concluída\x1b[0m');
+            if (event.result) console.log('\x1b[32mResultado:\x1b[0m', event.result);
+            break;
+          case 'error':
+            console.error('\n\x1b[31m❌ Erro:\x1b[0m', event.message);
+            break;
         }
-      }
-    });
+      };
 
-    response.data.on('end', () => {
-      console.log('\n\x1b[32m✅ Agente concluído\x1b[0m');
-    });
+      response.data.on('data', (chunk) => {
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try { handleAgentEvent(JSON.parse(line.slice(6))); } catch {}
+        }
+      });
 
-    response.data.on('error', (error) => {
-      console.error('\n\x1b[31m❌ Erro no stream:\x1b[0m', error.message);
-    });
+      await new Promise((resolve) => {
+        response.data.on('end', resolve);
+        response.data.on('error', resolve);
+      });
+    }
 
+    // Inicia primeira iteração
+    await streamWithHistory([]);
+    console.log('\n\x1b[32m✅ Agente concluído\x1b[0m');
   } catch (error) {
     console.error('\x1b[31m❌ Erro ao executar agente:\x1b[0m', error.message);
     process.exit(1);
-  }
-}
-
-// Handler de eventos do agente
-function handleAgentEvent(event) {
-  switch (event.type) {
-    case 'token':
-      process.stdout.write(event.text);
-      break;
-      
-    case 'plan':
-      console.log('\n\x1b[35m📋 Plano:\x1b[0m', event.steps.join(' → '));
-      break;
-      
-    case 'action':
-      console.log('\n\x1b[34m⚡ Ação:\x1b[0m', event.action, event.command || event.name || '');
-      break;
-      
-    case 'exec_log':
-      process.stdout.write(event.chunk);
-      break;
-      
-    case 'observe':
-      console.log('\n\x1b[36m👁️  Observação:\x1b[0m', event.note);
-      break;
-      
-    case 'ask':
-      console.log('\n\x1b[33m❓ Pergunta:\x1b[0m', event.question);
-      if (event.options && event.options.length > 0) {
-        console.log('\x1b[33mOpções:\x1b[0m');
-        event.options.forEach((option, i) => {
-          console.log(`  ${i + 1}. ${option}`);
-        });
-      }
-      // TODO: Implementar interação com usuário
-      break;
-      
-    case 'done':
-      console.log('\n\x1b[32m✅ Iteração concluída\x1b[0m');
-      if (event.result) {
-        console.log('\x1b[32mResultado:\x1b[0m', event.result);
-      }
-      break;
-      
-    case 'error':
-      console.error('\n\x1b[31m❌ Erro:\x1b[0m', event.message);
-      break;
-      
-    default:
-      // Ignorar eventos desconhecidos
-      break;
   }
 }
 
