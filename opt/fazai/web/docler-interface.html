@@ -617,6 +617,46 @@
                     <pre id="intResult" style="margin-top:10px; white-space:pre-wrap;"></pre>
                 </section>
 
+                <!-- Console do Agente (SSE) -->
+                <section id="agentConsole" style="background: rgba(0,0,0,0.3); border:1px solid #27ae60; border-radius:12px; padding:1rem; margin-top:12px;">
+                    <h2 style="color:#27ae60; margin-bottom:10px;">Console do Agente (SSE)</h2>
+                    <div style="display:grid; grid-template-columns: 1fr 280px; gap:10px; align-items:start;">
+                        <div>
+                            <textarea id="agentObjective" placeholder="Descreva o objetivo. Ex: atualizar sistema e listar serviços ativos" style="width:100%; min-height:80px; margin-bottom:8px;"></textarea>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                                <button onclick="agentStart()">Iniciar</button>
+                                <button onclick="agentAbort()">Abortar</button>
+                                <span id="agentSess" style="color:#ccc; font-size:12px;">Sessão: -</span>
+                                <span id="agentStat" style="color:#0f0; font-size:12px;">Status: pronto</span>
+                            </div>
+                            <div style="margin-top:8px; display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:10px;">
+                                <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                                    <div style="font-weight:bold; color:#0ff;">Tokens</div>
+                                    <pre id="agentTokens" style="white-space:pre-wrap; max-height:240px; overflow:auto;"></pre>
+                                </div>
+                                <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                                    <div style="font-weight:bold; color:#0ff;">Ações / Logs</div>
+                                    <pre id="agentLogs" style="white-space:pre-wrap; max-height:240px; overflow:auto;"></pre>
+                                </div>
+                                <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                                    <div style="font-weight:bold; color:#0ff;">Observações</div>
+                                    <pre id="agentObs" style="white-space:pre-wrap; max-height:240px; overflow:auto;"></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                            <div style="font-weight:bold; color:#0ff;">Opções</div>
+                            <label style="display:block; margin-top:6px; font-size:12px; color:#ccc;">API</label>
+                            <input id="agentApi" value="http://localhost:3120" style="width:100%;">
+                            <label style="display:block; margin-top:6px; font-size:12px; color:#ccc;">Sessão</label>
+                            <input id="agentSessionId" placeholder="(auto)" style="width:100%;">
+                            <button style="margin-top:8px; width:100%;" onclick="agentNewSession()">Nova Sessão</button>
+                            <button style="margin-top:6px; width:100%;" onclick="agentStatus()">Status do Agente</button>
+                            <pre id="agentStatusOut" style="white-space:pre-wrap; max-height:160px; overflow:auto; margin-top:6px;"></pre>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Agente NL -->
                 <section id="agentNL" style="background: rgba(0,0,0,0.3); border:1px solid #9b59b6; border-radius:12px; padding:1rem; margin-top:12px;">
                     <h2 style="color:#9b59b6; margin-bottom:10px;">Agente por Linguagem Natural</h2>
@@ -1051,6 +1091,122 @@
             doclerMood = 'focused';
             updateDoclerFace();
             alert('🤖 Agente DOCLER ativado! Pronto para tarefas inteligentes.');
+        }
+
+        // ===== Console do Agente (SSE) =====
+        let agentSession = '';
+        let agentStreamCtrl = null;
+        const agentTokens = document.getElementById('agentTokens');
+        const agentLogs = document.getElementById('agentLogs');
+        const agentObs = document.getElementById('agentObs');
+        const agentSess = document.getElementById('agentSess');
+        const agentStat = document.getElementById('agentStat');
+        const agentApiEl = document.getElementById('agentApi');
+        const agentSessionEl = document.getElementById('agentSessionId');
+
+        async function agentNewSession(){
+            const api = agentApiEl.value || API;
+            try {
+                const r = await fetch(`${api}/agent/sessions`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ params:{} }) });
+                const t = await r.json();
+                agentSession = t.session_id || '';
+                agentSessionEl.value = agentSession;
+                agentSess.textContent = `Sessão: ${agentSession||'-'}`;
+                agentStat.textContent = 'Status: sessão criada';
+            } catch(e) {
+                agentStat.textContent = 'Status: falha ao criar sessão';
+            }
+        }
+
+        async function agentStatus(){
+            const api = agentApiEl.value || API;
+            try { const t = await fetch(`${api}/agent/status`).then(r=>r.json()); agentStatusOut.textContent = JSON.stringify(t,null,2); }
+            catch(e){ agentStatusOut.textContent = String(e); }
+        }
+
+        async function agentStart(){
+            const api = agentApiEl.value || API;
+            const objective = (document.getElementById('agentObjective').value||'').trim();
+            if (!objective){ agentStat.textContent = 'Status: informe um objetivo'; return; }
+            if (!agentSession) { await agentNewSession(); }
+            const sid = agentSessionEl.value.trim() || agentSession;
+            if (!sid){ agentStat.textContent = 'Status: sessão ausente'; return; }
+
+            agentTokens.textContent=''; agentLogs.textContent=''; agentObs.textContent='';
+            agentStat.textContent = 'Status: executando...';
+
+            try {
+                agentStreamCtrl = new AbortController();
+                const res = await fetch(`${api}/agent/generate`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ session_id: sid, objective }), signal: agentStreamCtrl.signal });
+                if (!res.ok) { agentStat.textContent = `Status: erro HTTP ${res.status}`; return; }
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buf = '';
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buf += decoder.decode(value, { stream: true });
+                    // Processar eventos SSE (separados por \n\n)
+                    let idx;
+                    while ((idx = buf.indexOf('\n\n')) >= 0) {
+                        const evt = buf.slice(0, idx).trim();
+                        buf = buf.slice(idx+2);
+                        const line = evt.split('\n').find(l=>l.startsWith('data:')) || '';
+                        const jsonStr = line.replace(/^data:\s*/, '');
+                        if (!jsonStr) continue;
+                        try {
+                            const ev = JSON.parse(jsonStr);
+                            handleAgentEvent(ev);
+                        } catch(_) {
+                            // Ignora
+                        }
+                    }
+                }
+                agentStat.textContent = 'Status: concluído';
+            } catch(e){
+                agentStat.textContent = 'Status: interrupção/erro';
+            }
+        }
+
+        function handleAgentEvent(ev){
+            if (!ev || !ev.type) return;
+            switch(ev.type){
+                case 'token':
+                    agentTokens.textContent += ev.text || '';
+                    agentTokens.scrollTop = agentTokens.scrollHeight;
+                    break;
+                case 'action':
+                    agentLogs.textContent += `> action ${ev.action} ${ev.command||ev.name||''}\n`;
+                    agentLogs.scrollTop = agentLogs.scrollHeight;
+                    break;
+                case 'exec_log':
+                    agentLogs.textContent += `[${ev.stream}] ${ev.chunk}\n`;
+                    agentLogs.scrollTop = agentLogs.scrollHeight;
+                    break;
+                case 'observe':
+                    agentObs.textContent += `${ev.note||''}\n`;
+                    agentObs.scrollTop = agentObs.scrollHeight;
+                    break;
+                case 'plan':
+                    agentLogs.textContent += `plan: ${(ev.steps||[]).join(' -> ')}\n`;
+                    break;
+                case 'done':
+                    agentLogs.textContent += `done: ${JSON.stringify(ev.result||null)}\n`;
+                    break;
+                case 'error':
+                    agentLogs.textContent += `ERROR: ${ev.message}\n`;
+                    break;
+            }
+        }
+
+        async function agentAbort(){
+            const api = agentApiEl.value || API;
+            const sid = agentSessionEl.value.trim() || agentSession;
+            try {
+                if (agentStreamCtrl) { agentStreamCtrl.abort(); }
+                await fetch(`${api}/agent/abort`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ session_id: sid }) });
+                agentStat.textContent = 'Status: abortado';
+            } catch(_){ agentStat.textContent = 'Status: erro ao abortar'; }
         }
 
         function openRelay() {
