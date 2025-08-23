@@ -137,22 +137,37 @@ sudo ./install.sh
 # chamado de qualquer pasta, pois detecta seu próprio caminho.
 ```
 
-### Instalação via Docker
+### Docker e Compose
 
-O FazAI pode ser executado em um container Docker, facilitando a instalação e execução em qualquer ambiente. A imagem inclui o daemon, ferramentas e endpoints (`/status`, `/logs`, `/ingest`, `/metrics`).
-
+Opção A — Docker Compose (recomendado)
 ```bash
-# Construir a imagem
-docker build -t fazai:latest .
+# 1) Traga seus pesos para o host em ./opt/models/gemma
+#    Ex.: ./opt/models/gemma/2.0-2b-it-sfp.sbs
 
-# Executar o container
-docker run -d --name fazai \
-  -p 3120:3120 \
-  -v /etc/fazai:/etc/fazai \
-  -v /var/log/fazai:/var/log/fazai \
-  -e FAZAI_PORT=3120 \
-  fazai:latest
+# 2) Suba com Compose
+docker compose up -d --build
+
+# 3) Teste
+curl http://localhost:3120/agent/status
 ```
+
+Opção B — Docker direto
+```bash
+docker build -t rluf/fazai:latest .
+docker run -d --name fazai \
+  -p 3120:3120 -p 3220:3220 -p 3221:3221 \
+  -e FAZAI_PORT=3120 \
+  -e FAZAI_GEMMA_MODEL=/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs \
+  -v $(pwd)/etc/fazai:/etc/fazai \
+  -v $(pwd)/var/log/fazai:/var/log/fazai \
+  -v $(pwd)/opt/models/gemma:/opt/fazai/models/gemma \
+  rluf/fazai:latest
+```
+
+Notas
+- O container inicia o Gemma Worker (C++) e o daemon Node no mesmo serviço, usando socket Unix em `/run/fazai/gemma.sock`.
+- Monte seus pesos do modelo em `/opt/fazai/models/gemma` e aponte `FAZAI_GEMMA_MODEL` se necessário.
+- Qdrant opcional disponível via serviço `qdrant` no `docker-compose.yml` (porta 6333).
 
 #### Portas Oficiais do FazAI
 

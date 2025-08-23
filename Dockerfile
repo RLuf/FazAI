@@ -1,5 +1,5 @@
 # Imagem base (Debian Slim para leveza e compatibilidade)
-FROM debian:stable-slim
+FROM debian:stable-slim AS base
 
 # Definir variáveis de ambiente
 ENV FAZAI_PORT=3120 \
@@ -27,6 +27,22 @@ COPY package.json /opt/fazai/
 COPY opt/fazai/lib/ /opt/fazai/lib/
 COPY opt/fazai/tools/ /opt/fazai/tools/
 COPY install.sh /opt/fazai/
+
+# Preparar diretório do worker e modelos
+RUN mkdir -p /opt/fazai/bin /opt/fazai/models/gemma /run/fazai
+
+# Etapa de build do worker Gemma (C++)
+FROM debian:stable-slim AS worker-build
+RUN apt-get update && apt-get install -y cmake g++ make git && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY worker/ /src/worker/
+WORKDIR /src/worker
+RUN mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/fazai && cmake --build . -j$(nproc) && cmake --install .
+
+# Imagem final: base + worker
+FROM base AS final
+COPY --from=worker-build /opt/fazai/bin/fazai-gemma-worker /opt/fazai/bin/fazai-gemma-worker
+RUN chmod +x /opt/fazai/bin/fazai-gemma-worker && mkdir -p /run/fazai
 
 WORKDIR /opt/fazai
 
