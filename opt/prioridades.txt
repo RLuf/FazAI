@@ -1,0 +1,138 @@
+prioridades agora
+1) Modelo e armazenamento
+
+Criar registro de endpoints OPNsense: id, name, base_url, api_key, api_secret, verify_tls=true, tags[], created_at, updated_at.
+
+Guardar api_key/api_secret de forma segura (arquivo de segredos do FazAI sob permissões estritas) e referenciar por id.
+
+Suportar múltiplos firewalls; tags para agrupamento; last_seen, last_error.
+
+2) Backend (daemon) — Endpoints REST
+
+POST /opn/add {name, base_url, api_key, api_secret, verify_tls?, tags?} → testa conexão e persiste.
+
+GET /opn/list → todos com health resumido.
+
+GET /opn/:id/health → uptime, versão, load, CPU, RAM, disco, temperatura (quando disponível).
+
+GET /opn/:id/interfaces → lista, status, RX/TX, erros, IPs.
+
+GET /opn/:id/metrics → pacote consolidado: CPU, RAM, estado de sessões, throughput por interface.
+
+Firewall:
+
+GET /opn/:id/firewall/rules → regras, aliases, estados.
+
+POST /opn/:id/firewall/apply {diff} → aplica mudanças com preview/diff.
+
+DNS (Unbound/DNSMasq):
+
+GET /opn/:id/dns/config / POST /opn/:id/dns/config {diff} → overrides, forwarding, listas.
+
+VPN:
+
+GET /opn/:id/vpn/status (OpenVPN/IPsec) e operações básicas suportadas pela API (start/stop quando disponível).
+
+Pacotes:
+
+GET /opn/:id/packages / POST /opn/:id/packages/install {name} / POST /opn/:id/packages/upgrade {name?} (usar API; se faltar, fallback SSH).
+
+Gráficos:
+
+GET /opn/:id/graphs/rrd → coleta séries (RRD/collectd) e expõe como timeseries; opcional export para Prometheus.
+
+Shell (opcional):
+
+POST /opn/:id/exec {mode:"configd"|"ssh", cmd|action, args?} → preferir configd; ssh com chave dedicada não-root quando precisar.
+
+Inventário/Jobs:
+
+POST /opn/:id/sync → puxa config, salva snapshot e diferenças (auditoria).
+
+Todas as chamadas passam pelo agent_supervisor (job id, status, logs).
+
+3) Agendamento e saúde
+
+Scheduler para health/metrics a cada 30–60s por firewall; backoff em erro.
+
+/services passa a incluir agregados OPNsense: quantos OK/Degraded/Down.
+
+check-deps valida cada OPNsense cadastrado (conexão + endpoint básico).
+
+4) UI — Docler Web
+
+Página “OPNsense” com tabela multiserver: Nome, Tags, Versão, Uptime, CPU/RAM, Sessões, Interfaces ativas, Status/Último contato.
+
+Modal “Adicionar Firewall”: base_url, api_key, api_secret, verify_tls, tags; botão Testar & Salvar.
+
+Detalhe do Firewall com tabs:
+
+Dashboard: recursos (CPU/RAM/disco), sessões, alertas, mini-gráficos.
+
+Interfaces: lista + RX/TX ao vivo, erros, IPs, toggles suportados.
+
+Firewall: regras + diff/preview/apply; aliases; estados.
+
+DNS: Unbound/DNSMasq (overrides, forwarding) com apply seguro.
+
+VPN: OpenVPN/IPsec estado, conexões, controles básicos.
+
+Pacotes: listar/instalar/atualizar.
+
+Gráficos: séries embutidas; link rápido para dashboards do Grafana se exportados.
+
+Shell: painel restrito (configd ações comuns; SSH só se habilitado).
+
+UI mostra jobs em tempo real (agent_supervisor) para cada ação.
+
+5) Observabilidade
+
+Exportar métricas OPNsense para Prometheus via scraper no daemon:
+
+alvo virtual opnsense_<id> com CPU/RAM/sessions/if_octets/errors.
+
+Provisionar dashboard Grafana “OPNsense Fleet” (por firewall e agregado).
+
+GET /services reflete também opnsense_fleet_ok/degraded/down.
+
+6) Segurança e RBAC
+
+Apenas usuários admin (RBAC) podem criar/editar firewalls e aplicar diffs.
+
+Segredos fora do bundle da UI; nunca expor api_secret.
+
+Logs de auditoria por ação (quem, o quê, onde, quando, diff).
+
+7) Installer & check-deps
+
+Sem agente no OPNsense. Apenas validar reachability, TLS, versão da API.
+
+check-deps:
+
+tenta health de todos os OPNsense configurados,
+
+reporta latência, status e último erro,
+
+confirma dashboards do Grafana (se provisionados).
+
+8) Documentação
+
+README/USAGE: seção “OPNsense Multiserver”.
+
+AGENTS.md: clarificar que OPNsense usa API nativa (sem agente).
+
+CHANGELOG v2.0.2: incluir módulo OPNsense multiserver, endpoints, UI e dashboards.
+
+Critérios de aceite
+
+Cadastro de múltiplos OPNsense funcionando (testa e salva).
+
+Dashboard multiserver com saúde em tempo real e drill-down por tabs.
+
+Firewall/DNS/VPN/pacotes/shell operacionais conforme API; diffs antes de aplicar.
+
+Métricas expostas no Prometheus e dashboards Grafana visíveis.
+
+check-deps reporta conectividade de todos os firewalls e estado dos serviços.
+
+RBAC aplicando restrições na UI; segredos protegidos no backend.

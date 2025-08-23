@@ -1251,11 +1251,22 @@ app.post('/command', async (req, res) => {
     logger.info(`Processando pergunta direta: "${command}"`);
     try {
       const provider = process.env.DEFAULT_PROVIDER || AI_CONFIG.default_provider;
-      const providerConfig = AI_CONFIG.providers[provider];
+      const providerConfig = AI_CONFIG.providers[provider] || {};
       const questionPrompt = config.question_mode?.system_prompt ||
         'Você é um assistente de perguntas e respostas para automação de servidores Linux e tecnologias correlatas. ' +
         'Responda de forma objetiva e sucinta, sem gerar comandos, a menos que solicitado.';
-
+      // Se o provider não é HTTP (ex.: gemma_cpp), usa caminho local (processQuestion)
+      const ep = String(providerConfig.endpoint || '').trim();
+      const isHttp = ep.startsWith('http://') || ep.startsWith('https://');
+      if (!isHttp) {
+        try {
+          const pq = await processQuestion(`?${command}?`);
+          const ans = String(pq.interpretation || '').replace(/^echo\s+"?|"?$/g,'');
+          return res.json({ question: command, answer: ans, type: 'question', success: true });
+        } catch (e) {
+          logger.warn(`processQuestion falhou: ${e.message}`);
+        }
+      }
       // Integra Context7 de forma transparente quando disponível
       let context7Note = '';
       try {

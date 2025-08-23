@@ -1,0 +1,124 @@
+
+1) LEIA O CONTEXT.md e o AGENTS.md para se interar 
+  -complemente o conhecimento estudando os codigos como fazai fazai.conf main.js CHANGELOG.md e somente apos entendimento da proposta prossiga com o procedimento a seguir e qualquer duvida pergunte.
+##############REVISAR E TESTAR OS ITENS ABAIXO"
+1.2) Upload & inferências
+- Adicionar upload de arquivos no /ui (PDF/MD/TXT) via multipart (multer) com endpoint dedicado.
+- Aprimorar inferências no Docler: após ingest (upload/link/texto), usar Qdrant+Gemma e expor resultados/sugestões na própria UI.
+
+2) check-deps reforçado
+- Testar portas do Docler (3220/3221) e relatar status.
+- Testar Qdrant: criar coleção temporária, upsert/search.
+- Verificar instalação de dependências obrigatórias (Node deps, Docker/Podman, Qdrant, Prometheus, Grafana) e reportar.
+
+3) Web UI
+- Adaptar UI para:
+  - Upload/ingest e resultados de inferência.
+  - Status dos serviços (Docler, Qdrant, Prometheus, Grafana).
+  - Dashboards integrados do Prometheus/Grafana embutidos em iframes ou tiles.
+- Manter execução non-root (`fazai-web`), confirmando permissões de upload/storage.
+- Adicionar login na interface baseado em usuário/senha Linux (PAM) com RBAC mínimo.
+- Incluir painel para acionar MCP tools, crawlers e integrações (Cloudflare, SpamExperts, Oracle, etc.).
+
+4) Installer idempotente
+- Detectar Docker/Podman e suportar ambos.
+- Subir Qdrant, Prometheus e Grafana como serviços (`fazai-qdrant.service`, `fazai-prometheus.service`, `fazai-grafana.service`) com storage persistente em /var/lib/fazai/.
+- Rodar `npm install` na web (omit dev em prod).
+- Configurar systemd services de Docler, Qdrant, Prometheus, Grafana.
+
+5) Integrações
+- Ativar uso de MCP tools direto no backend.
+- Adicionar crawlers configuráveis e painéis de APIs (Cloudflare, SpamExperts, Registro.br, Oracle Cloud, etc.) na UI.
+- Cada integração com endpoint dedicado + card na UI.
+
+6) Documentação & metadata
+- Registrar tudo no CHANGELOG.md.
+- Atualizar README/USAGE com instruções para:
+  - Upload e inferência
+  - Painéis Prometheus/Grafana
+  - Integrações (MCP tools, crawlers, APIs Cloudflare/SpamExperts/Oracle/etc.)
+  - Novos comandos de check-deps
+- Help/completion sincronizados se expuser novos comandos CLI (mesmo que a UI seja o foco).
+
+Critérios de aceite:
+- /ui: upload (PDF/MD/TXT) funcionando, inferências do Gemma visíveis, painel para MCP tools e integrações acessíveis.
+- check-deps: relatório inclui Docler, Qdrant, Prometheus e Grafana ativos.
+- Installer: sobe tudo automaticamente (Docler non-root, Qdrant, Prometheus, Grafana).
+- UI: dashboards Prometheus/Grafana integrados e interativos.
+
+## 9) Integração com Context7 MCP
+
+Além da base Qdrant local, o FazAI utiliza o serviço externo **Context7 MCP** como fonte de conhecimento auxiliar.
+
+### Como funciona:
+- **Gemma decide** se a informação local (Qdrant) é suficiente. Se não for, consulta o Context7.
+- O daemon (`main.js`) deve expor:
+  - `POST /kb/context7/query` → payload `{ query: "..." }`
+- A resposta é transformada em contexto adicional no fluxo de planejamento (ND-JSON ou plain text).
+
+### Requisitos:
+- API_KEY e endpoint em `fazai.conf` → `[context7]`  
+- O módulo MCP deve implementar: fetch remoto, cache local, fallback.
+
+### UI:
+- Campo de busca “Expandir com MCP” (ativa Context7 manualmente).
+- Ou log da origem da inferência: `base: local | mcp`.
+
+---
+
+7) Adaptação de Context7
+- Garantir que o FazAI integre a base Context7 no fluxo de recuperação de contexto.
+- O daemon deve priorizar Qdrant e Context7 como fontes principais de RAG, antes de disparar "Research".
+- Reforçar no README/USAGE a existência de duas bases distintas: Qdrant (memória operacional) e Context7 (conhecimento técnico).
+- Validar que a montagem do prompt siga a ordem correta:
+  - Regras + contexto (Qdrant + Context7) + estado do sistema → então gerar plano NDJSON.
+
+8) Revisão do agente supervisor
+- Verificar e documentar uso do `agent_supervisor.js` para instalar, iniciar e monitorar agentes remotos.
+- Integrar suporte ao auto_tool.js para agentes escreverem seus próprios tools sob demanda.
+- Ajustar agente para escutar políticas do FazAI e acionar tools como crowdsec.js, blacklist_check.js e similares conforme contexto.
+
+9) Conformidade geral
+- Validar idempotência das ações do FazAI (evitar reexecuções desnecessárias).
+- Auditar segurança dos canais: WebSocket mTLS, cofre de segredos, autenticação PAM na UI
+
+[INTEGRAÇÃO CONTEXT7 MCP]
+
+- Implementar tool `context7.js` com função `queryContext7(text)`:
+  - Usa API do Context7 (https://context7.com/docs)
+  - Envia texto ou pergunta, retorna contexto vetorial ou resposta
+- Adicionar endpoint `POST /kb/context7/query`
+- Expor na UI:
+  - Toggle “Usar Context7 se Qdrant falhar”
+  - Histórico da origem da resposta (local/mcp)
+- Respeitar chave de API e configs em `[context7]` no `fazai.conf`
+- Adicionar fallback inteligente no Gemma:
+  - Se plano falhar ou Qdrant retornar vazio, consulta MCP
+
+Critério de aceite:
+- `curl -X POST /kb/context7/query` responde corretamente
+- Fluxo de planejamento registra origem dos dados (Qdrant ou MCP)
+- Interface permite ativar MCP opcionalmente
+[INTEGRAÇÃO CONTEXT7 MCP]
+
+- Implementar tool `context7.js` com função `queryContext7(text)`:
+  - Usa API do Context7 (https://context7.com/docs)
+  - Envia texto ou pergunta, retorna contexto vetorial ou resposta
+- Adicionar endpoint `POST /kb/context7/query`
+- Expor na UI:
+  - Toggle “Usar Context7 se Qdrant falhar”
+  - Histórico da origem da resposta (local/mcp)
+- Respeitar chave de API e configs em `[context7]` no `fazai.conf`
+- Adicionar fallback inteligente no Gemma:
+  - Se plano falhar ou Qdrant retornar vazio, consulta MCP
+
+Critério de aceite:
+- `curl -X POST /kb/context7/query` responde corretamente
+- Fluxo de planejamento registra origem dos dados (Qdrant ou MCP)
+- Interface permite ativar MCP opcionalmente
+UI: cards funcionais para ModSecurity/Monit/Ports/NetQoS/CrowdSec/Cloudflare/SpamExperts, abas Conhecimento (Qdrant search/ingest), Pesquisa (web_search), Tarefas (jobs), AutoTools.
+
+Installer: instalar ModSecurity+CRS e Monit quando acionados; garantir Qdrant(6333)/Prom(9090)/Graf(3000), Docler(3220/3221); rodar npm install web/daemon.
+
+check-deps: validar portas, Qdrant upsert/search, Prom/Graf health, crescimento dos logs em /var/log/fazai/.
+
