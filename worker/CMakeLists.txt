@@ -32,6 +32,7 @@ add_executable(fazai-gemma-worker ${SOURCES} ${HEADERS})
 target_include_directories(fazai-gemma-worker PRIVATE 
     src/
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 
 # Linkar bibliotecas

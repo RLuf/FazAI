@@ -21,15 +21,10 @@
 ###############################################################################
 
 [ai_provider]
-# Define qual provedor de IA será utilizado como padrão
-# Valores possíveis: openrouter, requesty, openai, anthropic, gemini, ollama
-# - openrouter: Utiliza a API do OpenRouter para acessar múltiplos modelos
-# - requesty: Utiliza a API do Requesty para acessar múltiplos modelos
-# - openai: Utiliza diretamente a API da OpenAI
-# - anthropic: Utiliza a API da Anthropic (Claude)
-# - gemini: Utiliza a API do Google Gemini
-# - ollama: Utiliza modelos locais via Ollama
-provider = gemma_cpp
+# Núcleo de IA: Gemma (não configurável)
+# O FazAI utiliza Gemma local (gemma_cpp) como núcleo essencial.
+# Provedores externos são apenas apoios complementares/fallback.
+provider = gemma_cpp  # Ignorado se diferente de gemma_cpp
 
 # Habilita fallback automático para outro provedor em caso de falha
 # Se true, tentará o próximo provedor na ordem: gemma_cpp -> llama_server -> openrouter -> requesty -> openai -> anthropic -> gemini -> ollama
@@ -49,16 +44,26 @@ retry_delay = 2
 # Habilita o uso do Gemma local compilado (gemma.cpp)
 enabled = true
 # Caminho do binário (pré-compilado) gemma_oneshot
+# Observação: o instalador pode criar este binário via gemma_bootstrap.sh
 endpoint = /opt/fazai/bin/gemma_oneshot
-# Caminho dos pesos (preferir formato single-file com tokenizer embutido)
+# Caminho dos pesos (preferir formato single-file .sbs com tokenizer embutido)
 weights = /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
 # Se estiver usando pesos multi-arquivo, informe tokenizer; caso single-file, deixe vazio
 tokenizer = 
 # Model ID aceito pelo gemma.cpp (ex.: gemma2-2b-it, 2b-it)
-model = gemma2-2b-it
+default_model = gemma2-2b-it
  # Parâmetros do modelo
  temperature = 0.2
  max_tokens = 1024
+
+###############################################################################
+# LOGGING
+###############################################################################
+
+[logging]
+# Define o nível de log do daemon (substitui system.log_level)
+# Valores: debug, info, warn, error
+level = info
 
 ###############################################################################
 # TELEMETRIA / PROMETHEUS
@@ -69,6 +74,8 @@ model = gemma2-2b-it
 enable_ingest = true
 # Habilita exposição Prometheus em GET /metrics
 enable_metrics = true
+# Porta UDP opcional para ingestão (JSON ou texto). 0 para desabilitar
+udp_port = 0
 
 ###############################################################################
 # BANCO DE DADOS (MySQL)
@@ -91,6 +98,14 @@ enabled = false
 url = http://127.0.0.1:6333
 collection = linux_networking_tech
 dim = 1024
+
+###############################################################################
+# CONTEXT7 (RAG Auxiliar)
+###############################################################################
+
+[context7]
+endpoint = 
+api_key = 
 
 ###############################################################################
 # OPNsense MCP
@@ -378,9 +393,8 @@ forbidden_commands = rm -rf /
 ###############################################################################
 
 [system]
-# Nível de log
-# Valores possíveis: debug, info, warn, error
-log_level = debug
+# Nível de log (LEGADO - use [logging].level)
+log_level = info
 
 # Timeout para chamadas de API (em segundos)
 api_timeout = 60
@@ -453,6 +467,7 @@ face_update_interval = 10
 websocket_enabled = true
 
 # Diretório dos arquivos web
+# Diretório dos arquivos web (atual UI embutida é servida de /opt/fazai/tools)
 web_dir = /opt/fazai/web
 
 # Configurações de segurança
@@ -486,8 +501,8 @@ ssl_key =
 # Habilita o agente inteligente cognitivo
 enabled = true
 
-# Caminho para o worker C++ (libgemma.a)
-worker_path = /opt/fazai/worker/build/worker
+# Caminho para o worker (não utilizado diretamente pelo daemon; serviço systemd recomendado)
+worker_path = /opt/fazai/bin/fazai-gemma-worker
 
 # Socket Unix para comunicação IPC
 ipc_socket = /tmp/fazai_worker.sock
@@ -500,6 +515,18 @@ max_iterations = 50
 
 # Habilita streaming SSE em tempo real
 sse_enabled = true
+
+###############################################################################
+# MODOS ESPECIAIS DE PROMPTS
+###############################################################################
+
+[mcps_mode]
+# Prompt de sistema para geração de passos (MCPS) via provedores HTTP
+system_prompt = Você está executando como root e deve retornar uma lista de passos executáveis (um por linha). Use ferramentas no formato tool:<nome> param={...} quando apropriado; caso contrário, retorne apenas comandos bash puros, sem explicações.
+
+[question_mode]
+# Prompt de sistema para perguntas simples (-q)
+system_prompt = Responda de forma direta e objetiva.
 
 # Configuração da base de conhecimento
 [knowledge_base]

@@ -8,6 +8,8 @@
  */
 
 const axios = require('axios');
+const { spawn } = require('child_process');
+const path = require('path');
 
 /**
  * Realiza pesquisa online
@@ -18,9 +20,15 @@ const axios = require('axios');
 async function doResearch(queries = [], maxDocs = 5) {
     const results = [];
     
+    const useContext7 = Boolean(process.env.CONTEXT7_API_KEY);
     for (const query of queries) {
         try {
-            const docs = await searchWeb(query, maxDocs);
+            let docs;
+            if (useContext7) {
+                docs = await context7Search(query, maxDocs);
+            } else {
+                docs = await searchWeb(query, maxDocs);
+            }
             results.push(...docs);
         } catch (error) {
             console.error(`Erro na pesquisa para "${query}":`, error);
@@ -231,9 +239,54 @@ function filterResults(results, filters = {}) {
 module.exports = {
     doResearch,
     searchWeb,
+    context7Search,
     searchTechnicalDocs,
     searchForums,
     searchCodeRepos,
     searchCombined,
     filterResults
 };
+
+/**
+ * Integração Context7 via módulo Python (opt/fazai/lib/context7_module.py)
+ */
+async function context7Search(query, maxDocs = 5) {
+    const modPath = path.resolve('/opt/fazai/lib/context7_module.py');
+    const fallbackMod = path.resolve(__dirname, '../context7_module.py');
+    const script = require('fs').existsSync(modPath) ? modPath : fallbackMod;
+
+    return new Promise((resolve) => {
+        const env = Object.assign({}, process.env);
+        const proc = spawn('python3', [script, 'search', '--query', query, '--max', String(maxDocs)], { env });
+        let out = '';
+        let err = '';
+        proc.stdout.on('data', (c) => (out += c.toString()));
+        proc.stderr.on('data', (c) => (err += c.toString()));
+        proc.on('close', (_code) => {
+            try {
+                const data = JSON.parse(out || '{}');
+                if (data && data.ok && Array.isArray(data.results)) {
+                    // Normalize to FazAI expected doc shape
+                    const docs = data.results.map((r) => ({
+                        title: r.title || r.id || query,
+                        url: (r.id ? `https://context7.com${r.id}` : ''),
+                        snippet: r.description || '',
+                        meta: {
+                            totalTokens: r.totalTokens,
+                            totalSnippets: r.totalSnippets,
+                            stars: r.stars,
+                            trustScore: r.trustScore,
+                            provider: 'context7'
+                        }
+                    }));
+                    resolve(docs);
+                    return;
+                }
+            } catch (e) {
+                // ignore parsing error
+            }
+            console.error('context7Search stderr:', err.trim());
+            resolve(generateMockResults(query, maxDocs));
+        });
+    });
+}

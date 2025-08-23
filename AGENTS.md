@@ -20,12 +20,13 @@ Observação – FazAI analisa saída, registra no KB e decide próxima ação.
 Encerramento – Sessão finalizada ou persistida para reuso.
 
 📜 Contratos e formatos
+Consulte também: SPEC.md (v1.0) para detalhes de schemas.
 1. Mensagens de socket (worker local)
 Protocolo: ND‑JSON, 1 objeto por linha.
 
 Métodos:
 
-create_session → { "method": "create_session", "params": {...} }
+create_session → { "type": "create_session", "params": {...} }
 
 generate / generate_stream
 
@@ -33,7 +34,7 @@ abort
 
 close_session
 
-Campos obrigatórios: id, method, params, timestamp.
+Campos obrigatórios: conforme SPEC atual do provider (`type`, `session_id`, `prompt`, `params`).
 
 2. SSE (daemon ⇄ CLI/UI)
 Eventos padronizados:
@@ -90,3 +91,8 @@ Testes de carga para validar estabilidade sob uso intensivo.
 
 Nome do Agente	Tipo	Função	Protocolo	Endpoints/Rota	Observações
 …	…	…	…	…	…
+
+OPNsense	Integração nativa (sem agente)	Monitorar e consultar firewalls	HTTPS REST (Basic Auth)	/opn/add, /opn/list, /opn/:id/health, /opn/:id/interfaces, /opn/:id/metrics	Segredos em /etc/fazai/secrets/opnsense; apenas leitura por padrão
+Gemma Worker	Provider local	Geração de tokens/stream	Unix Socket ND‑JSON	SOCK: /run/fazai/gemma.sock	Serviço `fazai-gemma-worker`; ver providers/gemma-worker.js
+Agent Supervisor	Orquestrador (tool)	Instala/gerencia agentes remotos de telemetria	SSH + HTTP/REST	POST /ingest (daemon)	Script em opt/fazai/tools/agent_supervisor.js
+Telemetry Agent (bash)	Agente remoto	Coleta telemetria de processos/rede	HTTP POST (JSON)	POST /ingest	Assinatura opcional; batimento configurável; idempotência por `timestamp`

@@ -12,7 +12,7 @@ const net = require('net');
 const { EventEmitter } = require('events');
 const fs = require('fs');
 
-const SOCK = process.env.FAZAI_GEMMA_SOCK || "/run/fazai/gemma.sock";
+const SOCK = process.env.FAZAI_GEMMA_SOCK || process.env.FAZAI_GEMMA_SOCKET || "/run/fazai/gemma.sock";
 
 /**
  * Envia JSON para o socket

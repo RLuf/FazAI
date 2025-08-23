@@ -4,11 +4,7 @@
 #include <memory>
 #include <thread>
 #include <atomic>
-
-// Forward declarations
-namespace nlohmann {
-    class json;
-}
+#include <nlohmann/json.hpp>
 
 class IpcConn {
 public:

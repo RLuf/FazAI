@@ -1,6 +1,7 @@
-# FazAI Agent “Codex de Infra” com libgemma
+:# FazAI Agent “Codex de Infra” com libgemma
 
-Este README reúne em um único lugar toda a arquitetura, instruções e código para montar o agente operac ional do FazAI usando a libgemma.a, com streaming de tokens, contexto dinâmico, pesquisa, síntese de ferramentas e base de conhecimento.
+Este README reúne em um único lugar toda a arquitetura, instruções e código para montar o agente operac ional do FazAI usando a libgemma.a, com streaming de tokens, contexto dinâmico, pesquisa, síntese de ferramentas e base de conhecimento. 
+O gemma deixa de ser um provedor e passa a ser parte integrante fundamental do sistema, potanto nao eh mais tratado como provedor mas sim um orchestrador que pode consultar web carregar ferramentas mcp ou tools e fazer fakllback, contar com ajuda od qrant para o usuario inferir mais conhecmentos e ainda contar com outras apis localis ou  remots
 
 ---
 

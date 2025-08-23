@@ -5,11 +5,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
-
-// Forward declarations
-namespace nlohmann {
-    class json;
-}
+#include <nlohmann/json.hpp>
 
 struct GenParams { 
     float temperature = 0.2f; 

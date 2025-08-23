@@ -1,4 +1,5 @@
 #include "worker.hpp"
+#include <nlohmann/json.hpp>
 #include <random>
 #include <sstream>
 #include <iostream>
@@ -131,12 +132,21 @@ void GemmaEngine::generate_stream(const std::string& sid, const std::string& pro
     //     if (!on_token(piece)) break;
     // }
     
-    // Placeholder: simula geração de resposta ND-JSON
+    // Placeholder avançado: sequência ND-JSON para implantar relay antispam com SPF + SpamAssassin + Zimbra
     std::vector<std::string> fake_responses = {
-        "{\"type\":\"plan\",\"steps\":[\"inventário\",\"instalar\",\"configurar\",\"testar\"]}\n",
-        "{\"type\":\"shell\",\"command\":\"apt-get update && apt-get install -y postfix\"}\n",
-        "{\"type\":\"observe\",\"summary\":\"Postfix instalado com sucesso\"}\n",
-        "{\"type\":\"done\",\"result\":\"Configuração concluída\"}\n"
+        "{\"type\":\"plan\",\"steps\":[\"instalar pacotes\",\"coletar SPF e gerar CIDR\",\"configurar Postfix\",\"ativar SpamAssassin\",\"testar entrega para Zimbra\"]}\n",
+        "{\"type\":\"shell\",\"command\":\"export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y postfix spamassassin spamc postfix-policyd-spf-python dnsutils\"}\n",
+        "{\"type\":\"observe\",\"summary\":\"Pacotes instalados (postfix, spamassassin, policyd-spf, dnsutils)\"}\n",
+        "{\"type\":\"shell\",\"command\":\"systemctl enable --now spamassassin || systemctl enable --now spamd || true\"}\n",
+        "{\"type\":\"observe\",\"summary\":\"SpamAssassin habilitado\"}\n",
+        "{\"type\":\"shell\",\"command\":\"cat > /usr/local/bin/build_spf_cidr.sh << 'EOF'\\n#!/usr/bin/env bash\\nset -euo pipefail\\nDOMAIN=\\\"${1:-webstorage.com.br}\\\"\\nTMPDIR=$(mktemp -d)\\ntrap 'rm -rf \"$TMPDIR\"' EXIT\\nresolve_spf(){ dig +short TXT \"$1\" | sed 's/\\\"//g' | awk '/^v=spf1/ {print}'; }\\nextract_tokens(){ tr ' ' \\n | sed 's/^ *//;s/ *$//' | grep -Ev '^(v=spf1|~all|-all|\\?all|all)$' || true; }\\nresolve_a(){ dig +short A \"$1\"; }\\nresolve_mx_ips(){ dig +short MX \"$1\" | awk '{print $2}' | while read -r mx; do dig +short A \"$mx\"; done; }\\ncollect(){ local d=\"$1\"; local depth=${2:-0}; [ \"$depth\" -gt 5 ] && return 0; resolve_spf \"$d\" | while read -r line; do echo \"$line\" | extract_tokens | while read -r tok; do case \"$tok\" in include:*) collect \\\"${tok#include:}\\\" $((depth+1));; ip4:*) echo \\\"${tok#ip4:}\\\" >> $TMPDIR/ip4.txt;; ip6:*) echo \\\"${tok#ip6:}\\\" >> $TMPDIR/ip6.txt;; a) resolve_a \"$d\" >> $TMPDIR/ip4.txt;; a:*) resolve_a \\\"${tok#a:}\\\" >> $TMPDIR/ip4.txt;; mx) resolve_mx_ips \"$d\" >> $TMPDIR/ip4.txt;; mx:*) resolve_mx_ips \\\"${tok#mx:}\\\" >> $TMPDIR/ip4.txt;; esac; done; done; }\\ncollect \"$DOMAIN\" 0\\nmkdir -p /etc/postfix\\nawk '{print $0}' $TMPDIR/ip4.txt 2>/dev/null | sed '/^$/d' | sort -u | awk '{print $0\\\" OK\\\"}' > /etc/postfix/spf_clients.cidr\\nawk '{print $0}' $TMPDIR/ip6.txt 2>/dev/null | sed '/^$/d' | sort -u | awk '{print $0\\\" OK\\\"}' >> /etc/postfix/spf_clients.cidr || true\\nEOF\\nchmod +x /usr/local/bin/build_spf_cidr.sh\"}\n",
+        "{\"type\":\"shell\",\"command\":\"/usr/local/bin/build_spf_cidr.sh webstorage.com.br && postmap -q 1.1.1.1 cidr:/etc/postfix/spf_clients.cidr >/dev/null 2>&1 || true\"}\n",
+        "{\"type\":\"observe\",\"summary\":\"SPF processado e CIDR gerado\"}\n",
+        "{\"type\":\"shell\",\"command\":\"postconf -e 'smtpd_recipient_restrictions=reject_unauth_destination, check_client_access cidr:/etc/postfix/spf_clients.cidr, check_policy_service unix:private/policyd-spf, permit_sasl_authenticated, reject' && postconf -e 'policyd-spf_time_limit=3600s' && postconf -e 'smtpd_tls_security_level=may' && postconf -e 'relayhost=[mail.webstorage.com.br]:25'\"}\n",
+        "{\"type\":\"shell\",\"command\":\"bash -lc 'if ! grep -q policyd-spf /etc/postfix/master.cf; then printf \"policyd-spf unix  -       n       n       -       0       spawn\\n  user=policyd-spf argv=/usr/sbin/policyd-spf\\n\" >> /etc/postfix/master.cf; fi'\"}\n",
+        "{\"type\":\"shell\",\"command\":\"systemctl enable --now postfix && systemctl restart postfix\"}\n",
+        "{\"type\":\"observe\",\"summary\":\"Postfix configurado; relay para Zimbra habilitado\"}\n",
+        "{\"type\":\"done\",\"result\":\"Implantação do relay antispam concluída\"}\n"
     };
     
     for (const auto& response : fake_responses) {

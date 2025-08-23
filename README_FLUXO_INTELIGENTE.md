@@ -12,7 +12,8 @@ O FazAI foi transformado num sistema de **fluxo inteligente** que opera como um 
 - Streaming em tempo real de tokens, ações e observações
 
 ### 🧠 Inteligência Distribuída
-- **Modelo Local**: Via libgemma.a para raciocínio rápido e contextual
+- **Motor Padrão (Core)**: libgemma.a (Gemma local) — sempre preferido
+- **APIs Fallback**: OpenRouter/OpenAI/Anthropic/Gemini/Ollama quando Gemma falhar
 - **Recuperação de Contexto**: Qdrant (memória operacional) + Context7 (documentos técnicos)
 - **Pesquisa Online**: Acesso à internet para soluções quando necessário
 - **Síntese Dinâmica**: Gera ferramentas sob demanda, carrega e executa
@@ -369,3 +370,17 @@ Este projeto está licenciado sob a Creative Commons Attribution 4.0 Internation
 ---
 
 **FazAI - Transformando automação em inteligência operacional**
+#### Fallbacks de IA
+```ini
+[ai_provider]
+enable_fallback = true
+
+[openrouter]
+api_key = SUA_CHAVE
+default_model = openai/gpt-4o
+
+[openai]
+api_key = SUA_CHAVE
+default_model = gpt-4o
+```
+Use o utilitário: `sudo node /opt/fazai/tools/fazai-config.js` e escolha “Configurar fallback de IA”.

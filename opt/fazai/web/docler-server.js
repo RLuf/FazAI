@@ -9,12 +9,14 @@ const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
 const fs = require('fs');
+let pam;
+try { pam = require('authenticate-pam'); } catch (_) { pam = null; }
 
 class DoclerWebServer {
     constructor(config = {}) {
         this.config = {
-            port: config.port || 3120,
-            adminPort: config.adminPort || 3121,
+            port: config.port || parseInt(process.env.DOCLER_CLIENT_PORT || '3220', 10),
+            adminPort: config.adminPort || parseInt(process.env.DOCLER_ADMIN_PORT || '3221', 10),
             ...config
         };
         
@@ -36,6 +38,28 @@ class DoclerWebServer {
     setupMiddleware() {
         // Middleware para cliente
         this.app.use(express.json());
+        // Autenticação básica via PAM (opcional)
+        const pamEnabled = (process.env.DOCLER_AUTH_PAM || 'false') === 'true';
+        if (pamEnabled && pam) {
+            const basicAuth = (req, res, next) => {
+                const auth = req.headers['authorization'] || '';
+                const [type, b64] = auth.split(' ');
+                if (type !== 'Basic' || !b64) { res.set('WWW-Authenticate', 'Basic realm="FazAI"'); return res.status(401).send('Auth required'); }
+                const [user, pass] = Buffer.from(b64, 'base64').toString('utf8').split(':');
+                pam.authenticate(user, pass, (err) => {
+                    if (err) return res.status(401).send('Invalid credentials');
+                    // RBAC simples por grupos
+                    try {
+                        const { execSync } = require('child_process');
+                        const groups = execSync(`id -nG ${user}`, { encoding: 'utf8' }).trim().split(/\s+/);
+                        req.user = { name: user, role: groups.includes('sudo') ? 'admin' : 'user' };
+                    } catch { req.user = { name: user, role: 'user' }; }
+                    next();
+                });
+            };
+            this.app.use(basicAuth);
+            this.adminApp.use(basicAuth);
+        }
         this.app.use(express.static(path.join(__dirname)));
         this.app.use((req, res, next) => {
             res.header('Access-Control-Allow-Origin', '*');

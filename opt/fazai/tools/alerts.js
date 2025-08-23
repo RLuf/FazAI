@@ -39,10 +39,18 @@ async function telegram({ botToken, chatId, message }) {
   return { success: res.statusCode === 200, status: res.statusCode };
 }
 
+async function whatsapp({ webhookUrl, message, to }) {
+  if (!webhookUrl || !message) return { success: false, error: 'webhookUrl e message são obrigatórios' };
+  // Envia para um webhook genérico (integração via middleware próprio)
+  const res = await fetchPost(webhookUrl, { to, message });
+  return { success: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode };
+}
+
 async function run(params) {
   if (params?.channel === 'email') return email(params);
   if (params?.channel === 'telegram') return telegram(params);
-  return { success: false, error: 'Canal não suportado. Use channel=email|telegram' };
+  if (params?.channel === 'whatsapp') return whatsapp(params);
+  return { success: false, error: 'Canal não suportado. Use channel=email|telegram|whatsapp' };
 }
 
-module.exports = { info, run, email, telegram };
+module.exports = { info, run, email, telegram, whatsapp };

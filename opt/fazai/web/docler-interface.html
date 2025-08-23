@@ -578,6 +578,198 @@
                         <p class="action-description">Análise avançada de dados e relatórios de produtividade</p>
                     </div>
                 </div>
+
+
+                <!-- Integrações Cloudflare / SpamExperts -->
+                <section id="integrations" style="background: rgba(0,0,0,0.3); border:1px solid #0088ff; border-radius:12px; padding:1rem;">
+                    <h2 style="color:#0088ff; margin-bottom:10px;">Integrações</h2>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">Cloudflare DNS</h3>
+                            <input id="cfToken" placeholder="API Token" style="width:100%; margin:4px 0;">
+                            <input id="cfZone" placeholder="Zone ID" style="width:100%; margin:4px 0;">
+                            <input id="cfName" placeholder="Record name (ex: host.example.com)" style="width:100%; margin:4px 0;">
+                            <input id="cfType" placeholder="Type (A/CNAME/TXT)" style="width:100%; margin:4px 0;">
+                            <input id="cfContent" placeholder="Content (IP/target)" style="width:100%; margin:4px 0;">
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <button onclick="cfListZones()">Listar Zonas</button>
+                                <button onclick="cfListDns()">Listar DNS</button>
+                                <button onclick="cfCreate()">Criar/Atualizar</button>
+                            </div>
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">SpamExperts</h3>
+                            <input id="seBase" placeholder="Base URL (ex: https://spamlogin.com)" style="width:100%; margin:4px 0;">
+                            <input id="seKey" placeholder="API Key" style="width:100%; margin:4px 0;">
+                            <input id="seDomain" placeholder="Domain (opcional)" style="width:100%; margin:4px 0;">
+                            <input id="seEmail" placeholder="Email (opcional)" style="width:100%; margin:4px 0;">
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <button onclick="seInboundLogs()">Inbound Logs</button>
+                                <button onclick="seOutboundLogs()">Outbound Logs</button>
+                                <button onclick="seQuarantine()">Quarentena</button>
+                            </div>
+                            <div style="margin-top:6px; display:flex; gap:6px;">
+                                <input id="seQId" placeholder="Quarentena ID p/ release" style="flex:1;">
+                                <button onclick="seRelease()">Release</button>
+                            </div>
+                        </div>
+                    </div>
+                    <pre id="intResult" style="margin-top:10px; white-space:pre-wrap;"></pre>
+                </section>
+
+                <!-- Agente NL -->
+                <section id="agentNL" style="background: rgba(0,0,0,0.3); border:1px solid #9b59b6; border-radius:12px; padding:1rem; margin-top:12px;">
+                    <h2 style="color:#9b59b6; margin-bottom:10px;">Agente por Linguagem Natural</h2>
+                    <textarea id="nlText" placeholder="Ex: listar regras do firewall opnsense" style="width:100%; min-height:80px; margin-bottom:8px;"></textarea>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:8px;">
+                        <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                            <div style="font-weight:bold; color:#0ff;">Hints OPNsense</div>
+                            <input id="nlOpnId" placeholder="Firewall ID (opcional)" style="width:100%; margin:4px 0;">
+                            <input id="nlOpnName" placeholder="Firewall Nome (opcional)" style="width:100%; margin:4px 0;">
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                            <div style="font-weight:bold; color:#0ff;">Cloudflare</div>
+                            <input id="nlCfToken" placeholder="API Token" style="width:100%; margin:4px 0;">
+                            <input id="nlCfZone" placeholder="Zone ID" style="width:100%; margin:4px 0;">
+                            <input id="nlCfType" placeholder="Tipo (A/CNAME/TXT)" style="width:100%; margin:4px 0;">
+                            <input id="nlCfName" placeholder="Nome (host.example.com)" style="width:100%; margin:4px 0;">
+                            <input id="nlCfContent" placeholder="Conteúdo (IP/target)" style="width:100%; margin:4px 0;">
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                            <div style="font-weight:bold; color:#0ff;">SpamExperts</div>
+                            <input id="nlSpxBase" placeholder="Base URL (https://spamlogin.com)" style="width:100%; margin:4px 0;">
+                            <input id="nlSpxKey" placeholder="API Key" style="width:100%; margin:4px 0;">
+                            <input id="nlSpxDomain" placeholder="Domínio (opcional)" style="width:100%; margin:4px 0;">
+                            <input id="nlSpxEmail" placeholder="Email (opcional)" style="width:100%; margin:4px 0;">
+                            <input id="nlSpxQid" placeholder="Quarantine ID (release)" style="width:100%; margin:4px 0;">
+                        </div>
+                    </div>
+                    <div style="margin-top:8px; display:flex; gap:8px;">
+                        <button onclick="nlRoute()">Analisar</button>
+                        <button onclick="nlExec()">Executar</button>
+                    </div>
+                    <pre id="nlOut" style="margin-top:10px; white-space:pre-wrap;"></pre>
+                </section>
+
+                <!-- Segurança Proativa -->
+                <section id="secPolicies" style="background: rgba(0,0,0,0.3); border:1px solid #e67e22; border-radius:12px; padding:1rem; margin-top:12px;">
+                    <h2 style="color:#e67e22; margin-bottom:10px;">Segurança Proativa</h2>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">Políticas</h3>
+                            <div style="margin-bottom:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                                <button onclick="secLoad()">Carregar</button>
+                                <button onclick="secSave()">Salvar</button>
+                                <button onclick="secTemplate('suricata')">Template Suricata</button>
+                                <button onclick="secTemplate('clamav')">Template ClamAV</button>
+                                <button onclick="secTemplate('policy')">Template ET POLICY</button>
+                                <button onclick="secTemplate('shellcode')">Template SHELLCODE</button>
+                                <button onclick="secTemplate('spx_quarantine')">Template SPX Quarantine</button>
+                                <button onclick="secTemplate('spx_allow')">Template SPX Allowlist</button>
+                                <button onclick="secTemplate('spx_block')">Template SPX Blocklist</button>
+                            </div>
+                            <textarea id="secJson" style="width:100%; min-height:220px; font-family: monospace;"></textarea>
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">ModSecurity</h3>
+                            <select id="modSecServer" style="width:100%; margin:4px 0;">
+                                <option value="nginx">Nginx</option>
+                                <option value="apache">Apache</option>
+                            </select>
+                            <select id="modSecMode" style="width:100%; margin:4px 0;">
+                                <option value="detection">Detection Only</option>
+                                <option value="blocking">Blocking</option>
+                            </select>
+                            <button onclick="modSecSetup()">Instalar/Configurar</button>
+                            <pre id="modSecOut" style="white-space:pre-wrap; margin-top:8px;"></pre>
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">Grafana</h3>
+                            <input id="gfBase" placeholder="Base (ex: http://127.0.0.1:3000)" style="width:100%; margin:4px 0;">
+                            <input id="gfUser" placeholder="User (ex: admin)" style="width:100%; margin:4px 0;">
+                            <input id="gfPass" placeholder="Pass (ex: admin)" style="width:100%; margin:4px 0;">
+                            <input id="gfTok" placeholder="Token (opcional)" style="width:100%; margin:4px 0;">
+                            <input id="gfProm" placeholder="Prometheus URL (ex: http://127.0.0.1:9090)" style="width:100%; margin:4px 0;">
+                            <button onclick="gfProvision()">Provisionar</button>
+                            <pre id="gfOut" style="white-space:pre-wrap; margin-top:8px;"></pre>
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">Config (runtime)</h3>
+                            <input id="udpPort" placeholder="UDP Port (ex: 5514)" style="width:100%; margin:4px 0;">
+                            <div style="display:flex; gap:6px;">
+                                <button onclick="cfgReload(true)">Reload de disco</button>
+                                <button onclick="cfgSetUdp()">Salvar UDP & Reiniciar</button>
+                            </div>
+                            <pre id="cfgOut" style="white-space:pre-wrap; margin-top:8px;"></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- OPNsense Fleet -->
+                <section id="opnFleet" style="background: rgba(0,0,0,0.3); border:1px solid #00ff88; border-radius:12px; padding:1rem;">
+                    <h2 style="color:#00ff88; margin-bottom:10px;">OPNsense Fleet</h2>
+                    <div style="margin-bottom:10px;">
+                        <button onclick="openOpnAdd()" style="padding:6px 10px;">Adicionar Firewall</button>
+                    </div>
+                    <div id="opnAgg" style="margin-bottom:10px; color:#ccc;">Carregando agregados...</div>
+                    <table id="opnTable" style="width:100%; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th style="border-bottom:1px solid #00ff88; text-align:left; padding:6px;">Nome</th>
+                                <th style="border-bottom:1px solid #00ff88; text-align:left; padding:6px;">Versão</th>
+                                <th style="border-bottom:1px solid #00ff88; text-align:left; padding:6px;">Último Contato</th>
+                                <th style="border-bottom:1px solid #00ff88; text-align:left; padding:6px;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="opnTableBody"></tbody>
+                    </table>
+                    <div id="opnDetails" style="margin-top:15px; display:none;">
+                        <h3 id="opnDetailTitle" style="color:#00ff88;">Detalhes</h3>
+                        <div>
+                            <button onclick="showTab('dash')">Dashboard</button>
+                            <button onclick="showTab('if')">Interfaces</button>
+                            <button onclick="showTab('fw')">Firewall</button>
+                            <button onclick="showTab('diag')">Diagnostics</button>
+                        </div>
+                        <div id="tabDash" style="display:none; margin-top:10px;">
+                            <pre id="opnMetrics" style="white-space:pre-wrap;"></pre>
+                        </div>
+                        <div id="tabIf" style="display:none; margin-top:10px;">
+                            <pre id="opnIfaces" style="white-space:pre-wrap;"></pre>
+                        </div>
+                        <div id="tabFw" style="display:none; margin-top:10px;">
+                            <button onclick="loadOpnFwRules()">Atualizar Regras</button>
+                            <pre id="opnFwRules" style="white-space:pre-wrap; max-height:280px; overflow:auto;"></pre>
+                        </div>
+                        <div id="tabDiag" style="display:none; margin-top:10px;">
+                            <div style="display:flex; gap:8px;">
+                                <button onclick="loadOpnStates()">Estados</button>
+                                <button onclick="loadOpnActivity()">Atividade</button>
+                                <button onclick="loadOpnFwLogs()">Logs Firewall</button>
+                            </div>
+                            <pre id="opnDiagOut" style="white-space:pre-wrap; max-height:280px; overflow:auto;"></pre>
+                        </div>
+                    </div>
+                </section>
+                <!-- Modal Adicionar Firewall -->
+                <div id="opnAddModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+                    <div style="background:#111; border:1px solid #00ff88; border-radius:8px; padding:16px; width:520px;">
+                        <h3 style="color:#00ff88; margin-top:0;">Adicionar OPNsense</h3>
+                        <div style="display:grid; grid-template-columns: 120px 1fr; gap:6px; align-items:center;">
+                            <label>Nome</label><input id="opnName" placeholder="Ex: Firewall-01">
+                            <label>Base URL</label><input id="opnUrl" placeholder="https://host:port">
+                            <label>API Key</label><input id="opnKey" placeholder="...">
+                            <label>API Secret</label><input id="opnSec" placeholder="...">
+                            <label>Verificar TLS</label><select id="opnTLS"><option value="true">true</option><option value="false">false</option></select>
+                            <label>Tags</label><input id="opnTags" placeholder="ex: prod,edge">
+                        </div>
+                        <div style="margin-top:10px; display:flex; gap:8px;">
+                            <button onclick="submitOpnAdd()">Testar & Salvar</button>
+                            <button onclick="closeOpnAdd()">Cancelar</button>
+                        </div>
+                        <pre id="opnAddResult" style="margin-top:10px; white-space:pre-wrap;"></pre>
+                    </div>
+                </div>
             </div>
         </main>
 
@@ -626,6 +818,7 @@
 
     <script>
         // Configuração inicial
+        const API = 'http://localhost:3120';
         let currentTheme = 'cyberpunk';
         let doclerMood = 'observing';
         let faceExpressions = {
@@ -643,7 +836,99 @@
             initializeMatrix();
             updateDoclerFace();
             startFaceAnimation();
+            loadOpnFleet();
+            setInterval(loadOpnFleet, 10000);
+            refreshAlertFw();
         });
+
+        // Integrações
+        async function cfListZones() {
+            const token = document.getElementById('cfToken').value.trim();
+            const url = `${API}/cf/zones?api_token=${encodeURIComponent(token)}`;
+            const t = await fetch(url).then(r=>r.json());
+            document.getElementById('intResult').textContent = JSON.stringify(t, null, 2);
+        }
+        async function cfListDns() {
+            const token = document.getElementById('cfToken').value.trim();
+            const zoneId = document.getElementById('cfZone').value.trim();
+            const name = document.getElementById('cfName').value.trim();
+            const url = `${API}/cf/dns?api_token=${encodeURIComponent(token)}&zone_id=${encodeURIComponent(zoneId)}${name?`&name=${encodeURIComponent(name)}`:''}`;
+            const t = await fetch(url).then(r=>r.json());
+            document.getElementById('intResult').textContent = JSON.stringify(t, null, 2);
+        }
+        async function cfCreate() {
+            const token = document.getElementById('cfToken').value.trim();
+            const zone = document.getElementById('cfZone').value.trim();
+            const name = document.getElementById('cfName').value.trim();
+            const type = document.getElementById('cfType').value.trim();
+            const content = document.getElementById('cfContent').value.trim();
+            const body = { api_token: token, zone_id: zone, type, name, content };
+            const r = await fetch(`${API}/cf/dns`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const t = await r.json();
+            document.getElementById('intResult').textContent = JSON.stringify(t, null, 2);
+        }
+        async function seInboundLogs(){ const base_url = seBase.value.trim(); const api_key = seKey.value.trim(); const domain = seDomain.value.trim(); const email = seEmail.value.trim(); const url = `${API}/spx/logs/inbound?base_url=${encodeURIComponent(base_url)}&api_key=${encodeURIComponent(api_key)}${domain?`&domain=${encodeURIComponent(domain)}`:''}${email?`&recipient=${encodeURIComponent(email)}`:''}`; const t = await fetch(url).then(r=>r.json()); intResult.textContent = JSON.stringify(t, null, 2); }
+        async function seOutboundLogs(){ const base_url = seBase.value.trim(); const api_key = seKey.value.trim(); const domain = seDomain.value.trim(); const email = seEmail.value.trim(); const url = `${API}/spx/logs/outbound?base_url=${encodeURIComponent(base_url)}&api_key=${encodeURIComponent(api_key)}${domain?`&domain=${encodeURIComponent(domain)}`:''}${email?`&sender=${encodeURIComponent(email)}`:''}`; const t = await fetch(url).then(r=>r.json()); intResult.textContent = JSON.stringify(t, null, 2); }
+        async function seQuarantine(){ const base_url = seBase.value.trim(); const api_key = seKey.value.trim(); const domain = seDomain.value.trim(); const email = seEmail.value.trim(); const url = `${API}/spx/quarantine?base_url=${encodeURIComponent(base_url)}&api_key=${encodeURIComponent(api_key)}${domain?`&domain=${encodeURIComponent(domain)}`:''}${email?`&email=${encodeURIComponent(email)}`:''}`; const t = await fetch(url).then(r=>r.json()); intResult.textContent = JSON.stringify(t, null, 2); }
+        async function seRelease(){ const base_url = seBase.value.trim(); const api_key = seKey.value.trim(); const id = document.getElementById('seQId').value.trim(); const body = { base_url, api_key, id }; const t = await fetch(`${API}/spx/quarantine/release`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r=>r.json()); intResult.textContent = JSON.stringify(t, null, 2); }
+
+        // NL Agent helpers
+        async function nlRoute(){
+            const text = document.getElementById('nlText').value;
+            const hints = buildNlHints();
+            const t = await fetch(`${API}/nl/route`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, hints }) }).then(r=>r.json());
+            document.getElementById('nlOut').textContent = JSON.stringify(t, null, 2);
+        }
+        async function nlExec(){
+            const text = document.getElementById('nlText').value;
+            const hints = buildNlHints();
+            const auth = {};
+            const cfToken = document.getElementById('nlCfToken').value.trim(); if (cfToken) auth.cloudflare_token = cfToken;
+            const t = await fetch(`${API}/nl/execute`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, hints, auth }) }).then(r=>r.json());
+            document.getElementById('nlOut').textContent = JSON.stringify(t, null, 2);
+        }
+        function buildNlHints(){
+            const opn = {}; const opnId = document.getElementById('nlOpnId').value.trim(); if (opnId) opn.id = opnId; const opnName = document.getElementById('nlOpnName').value.trim(); if (opnName) opn.name = opnName;
+            const cf = {}; const z=document.getElementById('nlCfZone').value.trim(); if(z) cf.zone_id=z; const ty=document.getElementById('nlCfType').value.trim(); if(ty) cf.type=ty; const nm=document.getElementById('nlCfName').value.trim(); if(nm) cf.name=nm; const ct=document.getElementById('nlCfContent').value.trim(); if(ct) cf.content=ct;
+            const spx = {}; const sb=document.getElementById('nlSpxBase').value.trim(); if(sb) spx.base_url=sb; const sk=document.getElementById('nlSpxKey').value.trim(); if(sk) spx.api_key=sk; const sd=document.getElementById('nlSpxDomain').value.trim(); if(sd) spx.domain=sd; const se=document.getElementById('nlSpxEmail').value.trim(); if(se) spx.email=se; const qi=document.getElementById('nlSpxQid').value.trim(); if(qi) spx.id=qi;
+            const hints = {}; if(Object.keys(opn).length) hints.opn=opn; if(Object.keys(cf).length) hints.cf=cf; if(Object.keys(spx).length) hints.spx=spx; return hints;
+        }
+
+        // Segurança Proativa
+        async function secLoad(){ const t = await fetch(`${API}/sec/policies`).then(r=>r.json()); document.getElementById('secJson').value = JSON.stringify(t.policies||t, null, 2); }
+        async function secSave(){ try{ const obj = JSON.parse(document.getElementById('secJson').value); const r = await fetch(`${API}/sec/policies`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(obj) }).then(r=>r.json()); alert('Salvo: '+JSON.stringify(r)); } catch(e){ alert('JSON inválido: '+e.message); } }
+        function secTemplate(which){
+            if (which==='suricata'){
+                const tpl = { interval_sec: 30, rules: [ { type:'suricata_signature', signature_contains:'ET TROJAN', threshold:3, window_sec:300, action:{ type:'opn_block_ip', fw_id:'<FW_ID>', ip_side:'src', interface:'wan', description:'AutoBlock TROJAN' } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='clamav'){
+                const tpl = { interval_sec: 30, rules: [ { type:'clamav_virus', name_contains:'Eicar', threshold:1, window_sec:300, action:{ type:'ai_decide', ai:{ opn:{ fw_id:'<FW_ID>', ip_side:'src', interface:'wan', description:'AutoBlock ClamAV' } } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='policy'){
+                const tpl = { interval_sec: 30, rules: [ { type:'suricata_signature', signature_contains:'ET POLICY', threshold:5, window_sec:600, action:{ type:'ai_decide', ai:{ threshold_ip:3, threshold_subnet:15, opn:{ fw_id:'<FW_ID>', ip_side:'src', interface:'wan', description:'AutoBlock POLICY' } } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='shellcode'){
+                const tpl = { interval_sec: 30, rules: [ { type:'suricata_signature', signature_contains:'SHELLCODE', threshold:1, window_sec:300, action:{ type:'ai_decide', ai:{ opn:{ fw_id:'<FW_ID>', ip_side:'src', interface:'wan', description:'AutoBlock SHELLCODE' } } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='spx_quarantine'){
+                const tpl = { interval_sec: 30, rules: [ { type:'clamav_virus', name_contains:'', threshold:1, window_sec:300, action:{ type:'spx_quarantine', base_url:'https://spamlogin.com', api_key:'<SPX_KEY>', params:{ id:'<MESSAGE_ID>', deliver:1 } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='spx_allow'){
+                const tpl = { interval_sec: 30, rules: [ { type:'suricata_signature', signature_contains:'', threshold:10, window_sec:3600, action:{ type:'spx_allowlist', base_url:'https://spamlogin.com', api_key:'<SPX_KEY>', params:{ domain:'example.com', entry:'sender@example.com' } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='spx_block'){
+                const tpl = { interval_sec: 30, rules: [ { type:'suricata_signature', signature_contains:'', threshold:10, window_sec:3600, action:{ type:'spx_blocklist', base_url:'https://spamlogin.com', api_key:'<SPX_KEY>', params:{ domain:'example.com', entry:'bad@example.com' } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            }
+        }
+        async function modSecSetup(){
+            const server = document.getElementById('modSecServer').value; const mode = document.getElementById('modSecMode').value;
+            const t = await fetch(`${API}/security/modsecurity/setup`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ server, mode }) }).then(r=>r.json());
+            document.getElementById('modSecOut').textContent = JSON.stringify(t, null, 2);
+        }
+        async function cfgReload(fromDisk){ const t = await fetch(`${API}/config/reload`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reload: !!fromDisk }) }).then(r=>r.json()); document.getElementById('cfgOut').textContent = JSON.stringify(t, null, 2); }
+        async function cfgSetUdp(){ const udp = parseInt(document.getElementById('udpPort').value)||0; const t = await fetch(`${API}/config/reload`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ telemetry:{ udp_port: udp } }) }).then(r=>r.json()); document.getElementById('cfgOut').textContent = JSON.stringify(t, null, 2); }
+        async function gfProvision(){ const base=gfBase.value||'http://127.0.0.1:3000'; const user=gfUser.value||'admin'; const pass=gfPass.value||'admin'; const token=gfTok.value||''; const prom=gfProm.value||'http://127.0.0.1:9090'; const body={ base, user, pass, token, prom }; const t=await fetch(`${API}/grafana/provision`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r=>r.json()); gfOut.textContent=JSON.stringify(t,null,2); }
 
         // Matrix background
         function initializeMatrix() {
@@ -658,6 +943,79 @@
                 matrixBg.appendChild(rain);
             }
         }
+
+        // OPNsense Fleet
+        async function loadOpnFleet() {
+            try {
+                const list = await fetch(`${API}/opn/list`) .then(r=>r.json());
+                const items = list.items || [];
+                const agg = await fetch(`${API}/services`) .then(r=>r.json());
+                const s = agg.statuses?.opnsense_fleet || { ok:0, degraded:0, down:0, total:0 };
+                document.getElementById('opnAgg').textContent = `Fleet: OK=${s.ok} Degraded=${s.degraded} Down=${s.down} Total=${s.total}`;
+                const tb = document.getElementById('opnTableBody');
+                tb.innerHTML='';
+                items.forEach(fw=>{
+                    const tr = document.createElement('tr');
+                    const st = fw.last_error ? 'Down' : (fw.last_seen ? 'OK' : 'Degraded');
+                    tr.innerHTML = `<td style="padding:6px; border-bottom:1px solid #333; cursor:pointer; color:#0ff;">${fw.name}</td>
+                                    <td style="padding:6px; border-bottom:1px solid #333;">${fw.version||'-'}</td>
+                                    <td style="padding:6px; border-bottom:1px solid #333;">${fw.last_seen||'-'}</td>
+                                    <td style="padding:6px; border-bottom:1px solid #333;">${st}</td>`;
+                    tr.onclick = ()=> openOpnDetails(fw);
+                    tb.appendChild(tr);
+                });
+            } catch(e) {
+                document.getElementById('opnAgg').textContent = 'Falha ao carregar fleet';
+            }
+        }
+
+        // Modal Adicionar Firewall
+        function openOpnAdd(){ document.getElementById('opnAddModal').style.display='flex'; document.getElementById('opnAddResult').textContent=''; }
+        function closeOpnAdd(){ document.getElementById('opnAddModal').style.display='none'; }
+        async function submitOpnAdd(){
+            const name = document.getElementById('opnName').value.trim();
+            const base_url = document.getElementById('opnUrl').value.trim();
+            const api_key = document.getElementById('opnKey').value.trim();
+            const api_secret = document.getElementById('opnSec').value.trim();
+            const verify_tls = document.getElementById('opnTLS').value === 'true';
+            const tags = document.getElementById('opnTags').value.split(',').map(s=>s.trim()).filter(Boolean);
+            const body = { name, base_url, api_key, api_secret, verify_tls, tags };
+            try{
+                const r = await fetch(`${API}/opn/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                const t = await r.json();
+                document.getElementById('opnAddResult').textContent = JSON.stringify(t, null, 2);
+                if (t.success){ await loadOpnFleet(); setTimeout(() => closeOpnAdd(), 800); }
+            } catch(e){ document.getElementById('opnAddResult').textContent = String(e); }
+        }
+
+        let currentFw = null;
+        async function openOpnDetails(fw) {
+            currentFw = fw;
+            document.getElementById('opnDetails').style.display = 'block';
+            document.getElementById('opnDetailTitle').textContent = `Detalhes: ${fw.name}`;
+            // Load metrics e interfaces
+            try {
+                const m = await fetch(`${API}/opn/${fw.id}/metrics`).then(r=>r.json());
+                document.getElementById('opnMetrics').textContent = JSON.stringify(m.metrics||m, null, 2);
+            } catch (_) {}
+            try {
+                const ifs = await fetch(`${API}/opn/${fw.id}/interfaces`).then(r=>r.json());
+                document.getElementById('opnIfaces').textContent = JSON.stringify(ifs.data||ifs, null, 2);
+            } catch (_) {}
+            showTab('dash');
+        }
+
+        function showTab(which) {
+            document.getElementById('tabDash').style.display = (which==='dash')?'block':'none';
+            document.getElementById('tabIf').style.display = (which==='if')?'block':'none';
+            document.getElementById('tabFw').style.display = (which==='fw')?'block':'none';
+            document.getElementById('tabDiag').style.display = (which==='diag')?'block':'none';
+        }
+
+        async function loadOpnFwRules(){ if(!currentFw) return; const r = await fetch(`${API}/opn/${currentFw.id}/firewall/rules`).then(r=>r.json()); document.getElementById('opnFwRules').textContent = JSON.stringify(r.data||r, null, 2); showTab('fw'); }
+        async function loadOpnStates(){ if(!currentFw) return; const r = await fetch(`${API}/opn/${currentFw.id}/diagnostics/states`).then(r=>r.json()); document.getElementById('opnDiagOut').textContent = JSON.stringify(r.data||r, null, 2); showTab('diag'); }
+        async function loadOpnActivity(){ if(!currentFw) return; const r = await fetch(`${API}/opn/${currentFw.id}/diagnostics/activity`).then(r=>r.json()); document.getElementById('opnDiagOut').textContent = JSON.stringify(r.data||r, null, 2); showTab('diag'); }
+        async function loadOpnFwLogs(){ if(!currentFw) return; const r = await fetch(`${API}/opn/${currentFw.id}/logs/firewall?limit=200`).then(r=>r.json()); document.getElementById('opnDiagOut').textContent = JSON.stringify(r.data||r, null, 2); showTab('diag'); }
 
         // Atualizar face DOCLER
         function updateDoclerFace() {
@@ -831,6 +1189,46 @@
 
         // Conectar WebSocket quando disponível
         setTimeout(connectWebSocket, 1000);
-    </script>
+    
+
+        // Alertas (UI visual)
+        let alRules = [];
+        async function refreshAlertFw() {
+            try {
+                const list = await fetch(`${API}/opn/list`).then(r=>r.json());
+                const sel = document.getElementById('alFw'); sel.innerHTML='';
+                (list.items||[]).forEach(fw=>{ const opt=document.createElement('option'); opt.value = fw.id; opt.textContent = `${fw.name} (${fw.id})`; sel.appendChild(opt); });
+            } catch (_) {}
+        }
+        async function alAddRule() {
+            const id = document.getElementById('alFw').value;
+            const cpu = parseInt(document.getElementById('alCpu').value||0) || undefined;
+            const mem = parseInt(document.getElementById('alMem').value||0) || undefined;
+            const ses = parseInt(document.getElementById('alSess').value||0) || undefined;
+            const ifn = document.getElementById('alIf').value.trim();
+            const rx = parseInt(document.getElementById('alRx').value||0) || undefined;
+            const tx = parseInt(document.getElementById('alTx').value||0) || undefined;
+            const ch = document.getElementById('alChannel').value;
+            const tgt = document.getElementById('alTarget').value.trim();
+            const rule = { id, channel: ch, target: {} };
+            if (cpu) rule.cpu_percent = cpu; if (mem) rule.mem_percent = mem; if (ses) rule.sessions = ses;
+            if (ifn) rule.ifaces = [{ name: ifn, rx_bps: rx, tx_bps: tx }];
+            if (ch==='email') rule.target.to = tgt; else if (ch==='telegram') rule.target.chatId = tgt; else if (ch==='whatsapp') rule.target.webhookUrl = tgt;
+            alRules.push(rule);
+            renderAlRules();
+        }
+        function renderAlRules() {
+            document.getElementById('alList').textContent = JSON.stringify(alRules, null, 2);
+        }
+        async function alSave() {
+            const interval = parseInt(document.getElementById('alInterval').value) || 60;
+            await fetch(`${API}/alerts/config`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ interval_sec: interval, rules: alRules }) });
+            alert('Salvo!');
+        }
+        async function alTest() {
+            await loadOpnFleet();
+            alert('Scheduler acionado, verifique seus canais.');
+        }
+</script>
 </body>
 </html>

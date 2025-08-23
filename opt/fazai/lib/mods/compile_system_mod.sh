@@ -5,6 +5,18 @@
 
 set -e
 
+# Opções
+AUTO_INSTALL=1
+CHECK_ONLY=0
+for a in "$@"; do
+  case "$a" in
+    --check|--dry-run)
+      AUTO_INSTALL=0; CHECK_ONLY=1 ;;
+    --no-install)
+      AUTO_INSTALL=0 ;;
+  esac
+done
+
 # Cores para output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -29,10 +41,12 @@ info() {
     echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')] INFO:${NC} $1"
 }
 
-# Verifica se está rodando como root
-if [[ $EUID -ne 0 ]]; then
-   error "Este script deve ser executado como root"
-   exit 1
+# Verifica root somente quando for instalar pacotes
+if [[ $AUTO_INSTALL -eq 1 ]]; then
+  if [[ $EUID -ne 0 ]]; then
+    error "Este script deve ser executado como root (instalação automática de dependências). Use --check para apenas verificar."
+    exit 1
+  fi
 fi
 
 # Diretório do projeto
@@ -48,57 +62,92 @@ if [ ! -d "$BUILD_DIR" ]; then
     mkdir -p "$BUILD_DIR"
 fi
 
+install_pkg() {
+  local pkg="$1"
+  if command -v apt-get >/dev/null 2>&1; then apt-get install -y "$pkg"; return $?; fi
+  if command -v dnf >/dev/null 2>&1; then dnf install -y "$pkg"; return $?; fi
+  if command -v yum >/dev/null 2>&1; then yum install -y "$pkg"; return $?; fi
+  if command -v zypper >/dev/null 2>&1; then zypper install -y "$pkg"; return $?; fi
+  if command -v pacman >/dev/null 2>&1; then pacman -S --noconfirm "$pkg"; return $?; fi
+  return 1
+}
+
 # Verifica dependências
 log "Verificando dependências..."
 
 # Verifica se o GCC está instalado
 if ! command -v gcc &> /dev/null; then
-    error "GCC não encontrado. Instalando..."
-    apt-get update
-    apt-get install -y build-essential
+    if [[ $AUTO_INSTALL -eq 1 ]]; then
+      error "GCC não encontrado. Instalando..."
+      (command -v apt-get >/dev/null 2>&1 && apt-get update || true)
+      install_pkg build-essential || install_pkg gcc || true
+    else
+      warn "GCC não encontrado (modo --check)."
+    fi
 fi
 
 # Verifica se o ClamAV está instalado
 if ! command -v clamscan &> /dev/null; then
-    warn "ClamAV não encontrado. Instalando..."
-    apt-get update
-    apt-get install -y clamav clamav-daemon
-    systemctl enable clamav-daemon
-    systemctl start clamav-daemon
-    freshclam
+    if [[ $AUTO_INSTALL -eq 1 ]]; then
+      warn "ClamAV não encontrado. Instalando..."
+      (command -v apt-get >/dev/null 2>&1 && apt-get update || true)
+      install_pkg clamav || true
+      install_pkg clamav-daemon || true
+      systemctl enable clamav-daemon || true
+      systemctl start clamav-daemon || true
+      command -v freshclam >/dev/null 2>&1 && freshclam || true
+    else
+      warn "ClamAV não encontrado (modo --check)."
+    fi
 fi
 
 # Verifica se o libcurl está instalado
 if ! pkg-config --exists libcurl; then
-    warn "libcurl não encontrado. Instalando..."
-    apt-get update
-    apt-get install -y libcurl4-openssl-dev
+    if [[ $AUTO_INSTALL -eq 1 ]]; then
+      warn "libcurl não encontrado. Instalando..."
+      (command -v apt-get >/dev/null 2>&1 && apt-get update || true)
+      install_pkg libcurl4-openssl-dev || install_pkg libcurl-devel || true
+    else
+      warn "libcurl (dev) não encontrado (modo --check)."
+    fi
 fi
 
 # Verifica se o json-c está instalado
 if ! pkg-config --exists json-c; then
-    warn "json-c não encontrado. Instalando..."
-    apt-get update
-    apt-get install -y libjson-c-dev
+    if [[ $AUTO_INSTALL -eq 1 ]]; then
+      warn "json-c não encontrado. Instalando..."
+      (command -v apt-get >/dev/null 2>&1 && apt-get update || true)
+      install_pkg libjson-c-dev || install_pkg json-c-devel || true
+    else
+      warn "json-c (dev) não encontrado (modo --check)."
+    fi
 fi
 
 # Verifica se o libclamav está instalado
 if ! pkg-config --exists libclamav; then
-    warn "libclamav não encontrado. Instalando..."
-    apt-get update
-    apt-get install -y libclamav-dev
+    if [[ $AUTO_INSTALL -eq 1 ]]; then
+      warn "libclamav não encontrado. Instalando..."
+      (command -v apt-get >/dev/null 2>&1 && apt-get update || true)
+      install_pkg libclamav-dev || install_pkg clamav-devel || true
+    else
+      warn "libclamav (dev) não encontrado (modo --check)."
+    fi
 fi
 
 # Verifica se o pthread está disponível
+# pthread usualmente não possui pkg-config; apenas avisa
 if ! pkg-config --exists pthread; then
-    warn "pthread não encontrado. Instalando..."
-    apt-get update
-    apt-get install -y libpthread-stubs0-dev
+    warn "pthread: pkg-config ausente (ok); biblioteca será vinculada via -lpthread"
 fi
 
 log "Todas as dependências verificadas"
 
 # Compila o módulo
+if [[ $CHECK_ONLY -eq 1 ]]; then
+  log "Modo --check: verificação concluída (sem compilar)."
+  exit 0
+fi
+
 log "Compilando system_mod.c..."
 
 cd "$MODS_DIR"

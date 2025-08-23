@@ -88,7 +88,7 @@ if [ -f "$CONF_FILE" ]; then
         if($0 ~ /^endpoint[[:space:]]*=/){$0="endpoint = " b}
         if($0 ~ /^weights[[:space:]]*=/){$0="weights = " w}
         if($0 ~ /^tokenizer[[:space:]]*=/){$0="tokenizer = "}
-        if($0 ~ /^model[[:space:]]*=/){$0="model = " m}
+        if($0 ~ /^(model|default_model)[[:space:]]*=/){$0="default_model = " m}
       }
       print
     }

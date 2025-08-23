@@ -1,5 +1,6 @@
 #include "worker.hpp"
 #include "ipc.hpp"
+#include <nlohmann/json.hpp>
 #include <iostream>
 #include <cstdlib>
 #include <string>

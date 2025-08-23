@@ -96,6 +96,31 @@ async function main() {
   screen.append(actions);
   screen.append(logBox);
 
+  // Ajuda rápida (fallbacks de IA)
+  const helpBox = blessed.box({
+    label: ' Ajuda (H) ',
+    top: 'center', left: 'center', width: '80%', height: '60%',
+    border: { type: 'line' }, style: { border: { fg: 'yellow' } },
+    tags: true, hidden: true,
+    scrollable: true, keys: true, vi: true, alwaysScroll: true,
+    content: [
+      '{bold}Gemma é o motor padrão (fixo).{/bold}',
+      'Para configurar fallbacks de IA (OpenRouter/OpenAI):',
+      '',
+      '1) sudo node /opt/fazai/tools/fazai-config.js',
+      '   → "Configurar fallback de IA (OpenRouter, OpenAI, etc.)"',
+      '',
+      '2) Ou edite /etc/fazai/fazai.conf:',
+      '   [ai_provider]',
+      '   enable_fallback = true',
+      '   [openrouter] api_key=... endpoint=https://openrouter.ai/api/v1',
+      '   [openai]     api_key=... endpoint=https://api.openai.com/v1',
+      '',
+      'Depois: sudo systemctl restart fazai',
+    ].join('\n')
+  });
+  screen.append(helpBox);
+
   async function refreshStatus() {
     try {
       const st = await fetchJSON('/status');
@@ -126,6 +151,10 @@ async function main() {
   screen.key(['q', 'C-c'], () => process.exit(0));
   screen.key(['s'], refreshStatus);
   screen.key(['L'], loadLogs);
+  screen.key(['h', 'H'], () => {
+    helpBox.hidden = !helpBox.hidden;
+    screen.render();
+  });
   screen.key(['r'], async () => {
     try { await axios.post(`${API_URL}/reload`); logBox.add('Reload OK'); } catch (e) { logBox.add('Reload falhou'); }
     screen.render();
@@ -181,4 +210,16 @@ async function main() {
   screen.render();
 }
 
-main().catch(err => { console.error(err); process.exit(1); });
+// Executar TUI apenas se chamado diretamente
+if (require.main === module) {
+  main().catch(err => { console.error(err); process.exit(1); });
+}
+
+module.exports = {
+  main,
+  info: {
+    name: 'FazAI TUI',
+    description: 'Interface TUI para gerenciamento do FazAI',
+    interactive: true
+  }
+};

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # FazAI - Script de Instalação Oficial (VERSÃO CORRIGIDA)
-# Este script instala o FazAI em sistemas Debian/Ubuntu com suporte à interface TUI
+# Este script instala o FazAI em sistemas Debian/Ubuntu
 # Suporte a Windows via WSL (Windows Subsystem for Linux)
 
 # Verifica se está rodando no WSL (CORREÇÃO: Tornar opcional)
@@ -64,12 +64,12 @@ DEPENDENCY_MODULES=(
     "ffi-napi-v22"
     "dotenv"
     "commander"
-    "blessed"
-    "blessed-contrib"
+
     "chalk"
     "figlet"
     "inquirer"
     "mysql2"
+    "multer"
 )
 
 # Estado da instalação
@@ -272,8 +272,7 @@ install_bash_completion() {
     if [ -f "etc/fazai/fazai-completion.sh" ]; then
         cp "etc/fazai/fazai-completion.sh" "$completion_dir/fazai"
     else
-        log "WARNING" "etc/fazai/fazai-completion.sh não encontrado, gerando sc"\
-"ript simples"
+        log "WARNING" "etc/fazai/fazai-completion.sh não encontrado, gerando script simples"
         cat > "$completion_dir/fazai" <<'EOF'
 #!/bin/bash
 complete -W "install uninstall status config help version" fazai
@@ -318,8 +317,12 @@ check_system() {
   log "DEBUG" "Verificando sistema operacional..."
   if [ -f /etc/os-release ]; then
     . /etc/os-release
+    # Trata derivados como Ubuntu (ex.: Pop!_OS)
+    if echo "${ID_LIKE:-}" | grep -qi ubuntu; then
+      ID=ubuntu
+    fi
     case "$ID" in
-      debian|ubuntu)
+      debian|ubuntu|pop)
         log "SUCCESS" "Sistema Debian/Ubuntu detectado: $NAME $VERSION_ID"
         ;;
       fedora|rhel|centos)
@@ -380,6 +383,8 @@ install_nodejs_from_source() {
   fi
   log "INFO" "Atualizando lista de pacotes..."
   $PKG_MGR update -y
+  $PKG_MGR autoremove -y
+  $PKG_MGR upgrade -y
   log "INFO" "Tentando instalar Node.js via $PKG_MGR..."
   $PKG_MGR install -y nodejs npm
   if command -v node &> /dev/null; then
@@ -507,47 +512,24 @@ install_gcc() {
   fi
   if ! command -v gcc &> /dev/null; then
     log "WARNING" "gcc não encontrado. Instalando build-essential..."
-    $PKG_MGR install -y gcc make
+    $PKG_MGR install -y gcc g++ make cmake
     if ! command -v gcc &> /dev/null; then
       log "ERROR" "Falha ao instalar gcc. Por favor, instale manualmente."
       exit 1
     fi
     GCC_VERSION=$(gcc --version | head -n1)
+    CMAKE_VERSION=$(cmake --version 2>/dev/null | head -n1)
     log "SUCCESS" "gcc instalado com sucesso: $GCC_VERSION"
+    [ -n "$CMAKE_VERSION" ] && log "SUCCESS" "cmake disponível: $CMAKE_VERSION"
   else
     GCC_VERSION=$(gcc --version | head -n1)
+    CMAKE_VERSION=$(cmake --version 2>/dev/null | head -n1)
     log "SUCCESS" "gcc já instalado: $GCC_VERSION"
+    [ -n "$CMAKE_VERSION" ] && log "SUCCESS" "cmake disponível: $CMAKE_VERSION"
   fi
 }
 
-# Função para instalar o pacote 'dialog' (necessário para TUI)
-install_dialog() {
-  log "INFO" "Verificando dependência 'dialog' para TUI..."
-  local PKG_MGR="apt-get"
-  if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    case "$ID" in
-      fedora|rhel|centos)
-        PKG_MGR="dnf"
-        ;;
-      *)
-        PKG_MGR="apt-get"
-        ;;
-    esac
-  fi
 
-  if ! command -v dialog >/dev/null 2>&1; then
-    log "INFO" "Instalando 'dialog' via $PKG_MGR..."
-    $PKG_MGR update -y || true
-    if $PKG_MGR install -y dialog; then
-      log "SUCCESS" "'dialog' instalado com sucesso"
-    else
-      log "WARNING" "Falha ao instalar 'dialog'. Recursos TUI podem ficar indisponíveis."
-    fi
-  else
-    log "SUCCESS" "'dialog' já está instalado"
-  fi
-}
 
 # Função para criar estrutura de diretórios
 create_directories() {
@@ -569,6 +551,7 @@ create_directories() {
     "/var/lib/fazai/history"
     "/var/lib/fazai/cache"
     "/var/lib/fazai/data"
+    "/var/backups/fazai"
   )
   
   for dir in "${directories[@]}"; do
@@ -579,6 +562,8 @@ create_directories() {
       log "DEBUG" "Diretório já existe: $dir"
     fi
   done
+  # Diretório de segredos OPNsense (permissões estritas)
+  mkdir -p /etc/fazai/secrets/opnsense && chmod 700 /etc/fazai/secrets/opnsense || true
   
   log "SUCCESS" "Estrutura de diretórios criada com sucesso."
 }
@@ -680,10 +665,13 @@ EOF
   fi
   
   # Agora copia os arquivos
-  if ! copy_with_verification "opt/fazai/lib/main.js" "/opt/fazai/lib/" "Arquivo principal"; then
+  # Copia toda a biblioteca (inclui handlers, core, providers, etc.)
+  if ! copy_with_verification "opt/fazai/lib" "/opt/fazai/" "Biblioteca FazAI"; then
     copy_errors=$((copy_errors+1))
+  else
+    # Garante permissão de execução no entrypoint
+    chmod 755 /opt/fazai/lib/main.js 2>/dev/null || true
   fi
-  chmod 755 /opt/fazai/lib/main.js
 
   
   
@@ -705,6 +693,57 @@ EOF
       fi
     fi
   done
+
+  # Copia todas as ferramentas para garantir que plugins sejam carregados
+  if [ -d "opt/fazai/tools" ]; then
+    if ! copy_with_verification "opt/fazai/tools" "/opt/fazai/" "Ferramentas FazAI"; then
+      copy_errors=$((copy_errors+1))
+    fi
+  fi
+
+  # Copia interface web (DOCLER)
+  if [ -d "opt/fazai/web" ]; then
+    if ! copy_with_verification "opt/fazai/web" "/opt/fazai/" "Interface Web"; then
+      copy_errors=$((copy_errors+1))
+    fi
+    # Instalar dependências do web server (express, ws)
+    if [ -f "/opt/fazai/web/package.json" ]; then
+      log "INFO" "Instalando dependências da interface web (/opt/fazai/web)"
+      (cd /opt/fazai/web && npm install --omit=dev --no-audit --no-progress || true)
+      # Tenta instalar autenticação PAM (opcional)
+      (cd /opt/fazai/web && npm install authenticate-pam --no-audit --no-progress || true)
+    fi
+
+    # Cria usuário de serviço não-root para o Docler
+    if ! id -u fazai-web >/dev/null 2>&1; then
+      log "INFO" "Criando usuário de serviço 'fazai-web' (sem shell de login)"
+      useradd --system --home /opt/fazai/web --shell /usr/sbin/nologin fazai-web || true
+    fi
+    chown -R fazai-web:fazai-web /opt/fazai/web || true
+  fi
+
+  # Copia binários auxiliares (inclui fazai-gemma-worker e utilitários)
+  if [ -d "opt/fazai/bin" ]; then
+    if ! copy_with_verification "opt/fazai/bin" "/opt/fazai/" "Binários FazAI"; then
+      copy_errors=$((copy_errors+1))
+    else
+      chmod -R 755 /opt/fazai/bin 2>/dev/null || true
+    fi
+  fi
+
+  # Copia modelos Gemma se estiverem no repositório
+  if [ -d "opt/fazai/models/gemma" ]; then
+    if ! copy_with_verification "opt/fazai/models/gemma" "/opt/fazai/models/" "Modelos Gemma"; then
+      copy_errors=$((copy_errors+1))
+    fi
+  else
+    # Fallback: se existir caminho externo informado pelo usuário, copie de lá
+    if [ -d "/media/rluft/fedora/root/opt/fazai/models/gemma" ]; then
+      if ! copy_with_verification "/media/rluft/fedora/root/opt/fazai/models/gemma" "/opt/fazai/models/" "Modelos Gemma (externo)"; then
+        copy_errors=$((copy_errors+1))
+      fi
+    fi
+  fi
 
   # DeepSeek helper removido (no-op)
   
@@ -756,6 +795,22 @@ EOF
       log "SUCCESS" "Configuração de tarefas complexas copiada"
     fi
   fi
+
+  # Copia manual para /opt/fazai/MANUAL_COMPLETO.md (fallback para MANUAL_FERRAMENTAS.md)
+  if [ -f "MANUAL_COMPLETO.md" ]; then
+    if ! copy_with_verification "MANUAL_COMPLETO.md" "/opt/fazai/" "Manual completo"; then
+      copy_errors=$((copy_errors+1))
+    fi
+  elif [ -f "MANUAL_FERRAMENTAS.md" ]; then
+    if ! copy_with_verification "MANUAL_FERRAMENTAS.md" "/opt/fazai/" "Manual de ferramentas"; then
+      copy_errors=$((copy_errors+1))
+    else
+      # Mantém o nome esperado pelo CLI
+      cp -f "/opt/fazai/MANUAL_FERRAMENTAS.md" "/opt/fazai/MANUAL_COMPLETO.md" 2>/dev/null || true
+    fi
+  else
+    log "WARNING" "Manual não encontrado no repositório (MANUAL_COMPLETO.md/MANUAL_FERRAMENTAS.md)"
+  fi
   
   if ! copy_with_verification "bin/fazai" "/opt/fazai/bin/" "CLI"; then
     copy_errors=$((copy_errors+1))
@@ -763,6 +818,36 @@ EOF
   chmod 755 /opt/fazai/bin/fazai
   ln -sf /opt/fazai/bin/fazai /usr/local/bin/fazai
   log "SUCCESS" "CLI instalado em /usr/local/bin/fazai"
+
+  # Instala GPT-Web2Shell (utilitário externo, exclusivo - OPT-IN via FAZAI_ENABLE_GPT_WEB2SHELL=1)
+  if [ "${FAZAI_ENABLE_GPT_WEB2SHELL}" = "1" ]; then
+    EXTRA_DIR="${FAZAI_LOCAL_EXTRAS_DIR:-}"
+    # Preferir extras externos
+    if [ -n "$EXTRA_DIR" ] && [ -f "$EXTRA_DIR/gpt-web2shell/bin/gpt-web2shell" ]; then
+      log "INFO" "Instalando GPT-Web2Shell a partir de FAZAI_LOCAL_EXTRAS_DIR=$EXTRA_DIR"
+      mkdir -p /opt/fazai/bin /opt/fazai/tools
+      cp -f "$EXTRA_DIR/gpt-web2shell/bin/gpt-web2shell" /opt/fazai/bin/gpt-web2shell
+      cp -f "$EXTRA_DIR/gpt-web2shell/opt/fazai/tools/gpt-web2shell.js" /opt/fazai/tools/gpt-web2shell.js
+      chmod 755 /opt/fazai/bin/gpt-web2shell /opt/fazai/tools/gpt-web2shell.js || true
+      ln -sf /opt/fazai/bin/gpt-web2shell /usr/local/bin/gpt-web2shell
+      log "SUCCESS" "GPT-Web2Shell instalado em /usr/local/bin/gpt-web2shell (extras externos)"
+    elif [ -f "bin/gpt-web2shell" ] && [ -f "opt/fazai/tools/gpt-web2shell.js" ]; then
+      # fallback: se os arquivos estiverem presentes no diretório do repositório
+      if copy_with_verification "bin/gpt-web2shell" "/opt/fazai/bin/" "GPT-Web2Shell"; then
+        mkdir -p /opt/fazai/tools
+        cp -f "opt/fazai/tools/gpt-web2shell.js" "/opt/fazai/tools/gpt-web2shell.js"
+        chmod 755 /opt/fazai/bin/gpt-web2shell /opt/fazai/tools/gpt-web2shell.js || true
+        ln -sf /opt/fazai/bin/gpt-web2shell /usr/local/bin/gpt-web2shell
+        log "SUCCESS" "GPT-Web2Shell instalado em /usr/local/bin/gpt-web2shell"
+      else
+        log "WARNING" "Falha ao instalar GPT-Web2Shell (arquivos locais)"
+      fi
+    else
+      log "WARNING" "FAZAI_ENABLE_GPT_WEB2SHELL=1 definido, mas arquivos não encontrados. Use scripts/install-web2shell.sh com FAZAI_LOCAL_EXTRAS_DIR."
+    fi
+  else
+    log "INFO" "GPT-Web2Shell não instalado (exclusivo). Para instalar, exporte FAZAI_ENABLE_GPT_WEB2SHELL=1 e forneça os arquivos via FAZAI_LOCAL_EXTRAS_DIR."
+  fi
 
   # Copia ferramentas do bin/tools para /opt/fazai/tools
   if [ -d "bin/tools" ]; then
@@ -808,29 +893,33 @@ EOF
     log "INFO" "Compilando módulo system_mod.c..."
     mkdir -p /opt/fazai/lib/mods/
     cp -r opt/fazai/lib/mods/* /opt/fazai/lib/mods/ 2>/dev/null || true
-    
+
     cd /opt/fazai/lib/mods/
     if [ -f "compile_system_mod.sh" ]; then
       chmod +x compile_system_mod.sh
-      ./compile_system_mod.sh
-      log "SUCCESS" "Módulo system_mod.c compilado com sucesso"
+      # Verifica dependências primeiro (sem instalar)
+      ./compile_system_mod.sh --check || log "WARNING" "Pendências detectadas; tentando auto-instalação e compilação."
+      # Compila (com auto-instalação de pacotes quando necessário)
+      ./compile_system_mod.sh || log "WARNING" "Falha na compilação do system_mod.c"
+      # Publica .so
+      mkdir -p /opt/fazai/mods
+      cp -f /opt/fazai/lib/mods/*.so /opt/fazai/mods/ 2>/dev/null || true
+      if ls /opt/fazai/mods/*.so >/dev/null 2>&1; then
+        log "SUCCESS" "Módulos nativos disponibilizados em /opt/fazai/mods"
+      else
+        log "WARNING" "Nenhum módulo .so encontrado após compilação"
+      fi
     else
       # Compilação manual se o script não existir
       log "WARNING" "Script de compilação não encontrado, tentando compilação manual..."
       gcc -shared -fPIC -o system_mod.so system_mod.c -lclamav -lcurl -ljson-c -lpthread 2>/dev/null || log "WARNING" "Falha na compilação do system_mod.c (dependências podem estar faltando)"
+      mkdir -p /opt/fazai/mods
+      cp -f /opt/fazai/lib/mods/system_mod.so /opt/fazai/mods/ 2>/dev/null || true
     fi
     cd - > /dev/null
   fi
 
-  # Copia fazai-config.js se existir
-  if [ -f "opt/fazai/tools/fazai-config.js" ]; then
-    if ! copy_with_verification "opt/fazai/tools/fazai-config.js" "/opt/fazai/tools/" "FazAI Config JS"; then
-      copy_errors=$((copy_errors+1))
-    else
-      chmod +x /opt/fazai/tools/fazai-config.js
-      log "SUCCESS" "FazAI Config JS copiado e tornado executável"
-    fi
-  fi
+
 
   # Copia novas tools
   for t in \
@@ -846,1175 +935,1162 @@ EOF
     "opt/fazai/tools/rag_ingest.js" \
     "opt/fazai/tools/download_gemma2.sh" \
     "opt/fazai/tools/install_python_deps.sh" \
-    "opt/fazai/tools/fazai_tui.js" \
-    "opt/fazai/tools/alerts.js" \
-    "opt/fazai/tools/blacklist_check.js" \
-    "opt/fazai/tools/email_relay.js" \
-    "opt/fazai/tools/geoip_lookup.js" \
-    "opt/fazai/tools/http_fetch.js" \
-    "opt/fazai/tools/ports_monitor.js" \
-    "opt/fazai/tools/system_info.js" \
-    "opt/fazai/tools/test_complex_tasks.js" \
-    "opt/fazai/tools/weather.js" \
-    "opt/fazai/tools/crowdsec.js" \
-    "opt/fazai/tools/modsecurity.js" \
-    "opt/fazai/tools/spamexperts.js" \
-    "opt/fazai/tools/web_search.js" \
-    "opt/fazai/tools/cloudflare.js"; do
-    if [ -f "$t" ]; then
-      if ! copy_with_verification "$t" "/opt/fazai/tools/" "Tool $(basename $t)"; then
-        copy_errors=$((copy_errors+1))
-      else
-        chmod 755 "/opt/fazai/tools/$(basename $t)" || true
-      fi
-    fi
-  done
+	    "opt/fazai/tools/alerts.js" \
+	    "opt/fazai/tools/blacklist_check.js" \
+	    "opt/fazai/tools/email_relay.js" \
+	    "opt/fazai/tools/geoip_lookup.js" \
+	    "opt/fazai/tools/http_fetch.js" \
+	    "opt/fazai/tools/ports_monitor.js" \
+	    "opt/fazai/tools/system_info.js" \
+	    "opt/fazai/tools/test_complex_tasks.js" \
+	    "opt/fazai/tools/weather.js" \
+	    "opt/fazai/tools/crowdsec.js" \
+	    "opt/fazai/tools/modsecurity.js" \
+	    "opt/fazai/tools/spamexperts.js" \
+	    "opt/fazai/tools/web_search.js" \
+	    "opt/fazai/tools/cloudflare.js"; do
+	    if [ -f "$t" ]; then
+	      if ! copy_with_verification "$t" "/opt/fazai/tools/" "Tool $(basename $t)"; then
+		copy_errors=$((copy_errors+1))
+	      else
+		chmod 755 "/opt/fazai/tools/$(basename $t)" || true
+	      fi
+	    fi
+	  done
 
-  # Instala dependência dialog para TUI ncurses
-  install_dialog
+	  # Instala dependência dialog para alguns scripts
+	  install_dialog
 
-  # Instala fazai-config-tui.sh (TUI ncurses)
-  if [ -f "opt/fazai/tools/fazai-config-tui.sh" ]; then
-    if ! copy_with_verification "opt/fazai/tools/fazai-config-tui.sh" "/opt/fazai/tools/" "TUI ncurses fazai-config"; then
-      copy_errors=$((copy_errors+1))
-    else
-      chmod +x /opt/fazai/tools/fazai-config-tui.sh
-      ln -sf /opt/fazai/tools/fazai-config-tui.sh /usr/local/bin/fazai-config-tui
-      log "SUCCESS" "Interface TUI ncurses instalada em /usr/local/bin/fazai-config-tui"
-    fi
-  fi
-
-  # Instala fazai-tui.sh (Dashboard TUI completo)
-
-  # Copia interface web front-end
-  if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
-    if ! copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"; then
-      copy_errors=$((copy_errors+1))
-    else
-      chmod 644 "/opt/fazai/tools/fazai_web_frontend.html"
-      log "SUCCESS" "Interface web instalada"
-    fi
-  else
-    log "WARNING" "Interface web não encontrado, crio fallback básico..."
-    cat > "/opt/fazai/tools/fazai_web_frontend.html" << 'EOF'
+	  # Copia interface web front-end
+	  if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
+	    if ! copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"; then
+	      copy_errors=$((copy_errors+1))
+	    else
+	      chmod 644 "/opt/fazai/tools/fazai_web_frontend.html"
+	      log "SUCCESS" "Interface web instalada"
+	    fi
+	  else
+	    log "WARNING" "Interface web não encontrado, crio fallback básico..."
+	    cat > "/opt/fazai/tools/fazai_web_frontend.html" << 'EOF'
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FazAI - Interface Web</title>
-</head>
-<body>
-    <h1>FazAI Interface Web</h1>
-    <p>Interface básica gerada automaticamente.</p>
-</body>
-</html>
+	<head>
+	    <meta charset="UTF-8">
+	    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	    <title>FazAI - Interface Web</title>
+    </head>
+    <body>
+	    <h1>FazAI Interface Web</h1>
+	    <p>Interface básica gerada automaticamente.</p>
+	</body>
+	</html>
 EOF
-    log "SUCCESS" "Interface web fallback criada"
-  fi
-  if [ -f "opt/fazai/tools/fazai-tui.sh" ]; then
-    if ! copy_with_verification "opt/fazai/tools/fazai-tui.sh" "/opt/fazai/tools/" "Dashboard TUI completo"; then
-      copy_errors=$((copy_errors+1))
-    else
-      chmod +x /opt/fazai/tools/fazai-tui.sh
-      ln -sf /opt/fazai/tools/fazai-tui.sh /usr/local/bin/fazai-tui
-      log "SUCCESS" "Dashboard TUI completo instalado em /usr/local/bin/fazai-tui"
-    fi
-    if command -v cargo >/dev/null 2>&1; then
-      log "INFO" "Compilando TUI em Rust..."
-      if cargo build --release --manifest-path=tui/Cargo.toml >/tmp/fazai_tui_build.log 2>&1; then
-        cp tui/target/release/fazai-tui /opt/fazai/tools/fazai-tui-rs
-        ln -sf /opt/fazai/tools/fazai-tui-rs /usr/local/bin/fazai-tui
-        log "SUCCESS" "TUI Rust instalado em /usr/local/bin/fazai-tui"
-      else
-        log "WARNING" "Falha ao compilar TUI Rust, utilizando script bash"
-      fi
-    fi
-  else
-    log "WARNING" "Dashboard TUI não encontrado, criando versão básica..."
-    cat > "/opt/fazai/tools/fazai-tui.sh" << 'EOF'
+	    log "SUCCESS" "Interface web fallback criada"
+	  fi
+	  if [ -f "opt/fazai/tools/fazai-tui.sh" ]; then
+	    if ! copy_with_verification "opt/fazai/tools/fazai-tui.sh" "/opt/fazai/tools/" "Dashboard TUI completo"; then
+	      copy_errors=$((copy_errors+1))
+	    else
+	      chmod +x /opt/fazai/tools/fazai-tui.sh
+	      ln -sf /opt/fazai/tools/fazai-tui.sh /usr/local/bin/fazai-tui
+	      log "SUCCESS" "Dashboard TUI completo instalado em /usr/local/bin/fazai-tui"
+	    fi
+	    if command -v cargo >/dev/null 2>&1; then
+	      log "INFO" "Compilando TUI em Rust..."
+	      if cargo build --release --manifest-path=tui/Cargo.toml >/tmp/fazai_tui_build.log 2>&1; then
+		cp tui/target/release/fazai-tui /opt/fazai/tools/fazai-tui-rs
+		ln -sf /opt/fazai/tools/fazai-tui-rs /usr/local/bin/fazai-tui
+		log "SUCCESS" "TUI Rust instalado em /usr/local/bin/fazai-tui"
+	      else
+		log "WARNING" "Falha ao compilar TUI Rust, utilizando script bash"
+	      fi
+	    fi
+		  else
+		    log "WARNING" "Dashboard TUI não encontrado, criando versão básica..."
+		    cat > "/opt/fazai/tools/fazai-tui.sh" << 'EOF'
 #!/bin/bash
 # FazAI Dashboard TUI - Versão Básica
 echo "FazAI Dashboard TUI v2.0.0"
-echo "
-  if [ -f "opt/fazai/tools/fazai_web_frontend.html" ]; then
-    copy_with_verification "opt/fazai/tools/fazai_web_frontend.html" "/opt/fazai/tools/" "Interface web"
-    log "SUCCESS" "Interface web instalada"
-  else
-    log "WARNING" "Interface web não encontrada, criando versão básica..."
-    # Cria uma versão básica se não existir
-    cat > "/opt/fazai/tools/fazai_web_frontend.html" << 'EOF'
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FazAI - Interface Web</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .card { border: 1px solid #ddd; padding: 20px; margin: 10px 0; border-radius: 5px; }
-        button { padding: 10px 20px; margin: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer; }
-        button:hover { background: #005a87; }
-        .log-container { background: #f5f5f5; padding: 10px; border-radius: 3px; max-height: 300px; overflow-y: auto; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>FazAI - Interface Web</h1>
-        <div class="card">
-            <h3>Gerenciamento de Logs</h3>
-            <button onclick="viewLogs()">Ver Logs</button>
-            <button onclick="clearLogs()">Limpar Logs</button>
-            <div id="logContainer" class="log-container" style="display: none;"></div>
-        </div>
-        <div class="card">
-            <h3>Status do Sistema</h3>
-            <button onclick="checkStatus()">Verificar Status</button>
-            <div id="statusContainer"></div>
-        </div>
-    </div>
-    <script>
-        const API_URL = 'http://localhost:3120';
-        
-        async function viewLogs() {
-            try {
-                const response = await fetch(`${API_URL}/logs?lines=20`);
-                const result = await response.json();
-                const container = document.getElementById('logContainer');
-                
-                if (result.success) {
-                    let html = '';
-                    result.logs.forEach(log => {
-                        html += `<div><strong>[${log.level}]</strong> ${log.message}</div>`;
-                    });
-                    container.innerHTML = html;
-                    container.style.display = 'block';
-                } else {
-                    container.innerHTML = `<div>Erro: ${result.error}</div>`;
-                    container.style.display = 'block';
-                }
-            } catch (error) {
-                alert('Erro ao carregar logs: ' + error.message);
-            }
-        }
-        
-        async function clearLogs() {
-            if (!confirm('Tem certeza que deseja limpar os logs?')) return;
-            
-            try {
-                const response = await fetch(`${API_URL}/logs/clear`, { method: 'POST' });
-                const result = await response.json();
-                
-                if (result.success) {
-                    alert('Logs limpos com sucesso!');
-                    document.getElementById('logContainer').style.display = 'none';
-                } else {
-                    alert('Erro ao limpar logs: ' + result.error);
-                }
-            } catch (error) {
-                alert('Erro ao limpar logs: ' + error.message);
-            }
-        }
-        
-        async function checkStatus() {
-            try {
-                const response = await fetch(`${API_URL}/status`);
-                const result = await response.json();
-                const container = document.getElementById('statusContainer');
-                
-                if (result.success) {
-                    container.innerHTML = `<div>Status: ${result.status} | Versão: ${result.version}</div>`;
-                } else {
-                    container.innerHTML = `<div>Erro: ${result.error}</div>`;
-                }
-            } catch (error) {
-                document.getElementById('statusContainer').innerHTML = `<div>Erro: ${error.message}</div>`;
-            }
-        }
+echo "Opções:"
+echo "  [l] Ver logs  |  [s] Status  |  [q] Sair"
+while read -r -n1 -p "Selecione: " k; do
+  echo
+  case "$k" in
+    l) curl -fsS http://localhost:3120/logs | jq . || true ;;
+    s) curl -fsS http://localhost:3120/status | jq . || true ;;
+    q) echo "Saindo..."; exit 0 ;;
+    *) echo "Opção inválida" ;;
+  esac
+done
+EOF
+		    chmod +x "/opt/fazai/tools/fazai-tui.sh"
+		    ln -sf /opt/fazai/tools/fazai-tui.sh /usr/local/bin/fazai-tui
+		    log "SUCCESS" "Dashboard TUI básico instalado em /usr/local/bin/fazai-tui"
+		    
+		    log "WARNING" "Interface web não encontrada, criando versão básica..."
+		    # Cria uma versão básica se não existir
+		    cat > "/opt/fazai/tools/fazai_web_frontend.html" << 'EOF'
+	<!DOCTYPE html>
+	<html lang="pt-BR">
+	<head>
+	    <meta charset="UTF-8">
+	    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	    <title>FazAI - Interface Web</title>
+	    <style>
+		body { font-family: Arial, sans-serif; margin: 20px; }
+		.container { max-width: 800px; margin: 0 auto; }
+		.card { border: 1px solid #ddd; padding: 20px; margin: 10px 0; border-radius: 5px; }
+		button { padding: 10px 20px; margin: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer; }
+		button:hover { background: #005a87; }
+		.log-container { background: #f5f5f5; padding: 10px; border-radius: 3px; max-height: 300px; overflow-y: auto; }
+	    </style>
+	</head>
+	<body>
+	    <div class="container">
+		<h1>FazAI - Interface Web</h1>
+		<div class="card">
+		    <h3>Gerenciamento de Logs</h3>
+		    <button onclick="viewLogs()">Ver Logs</button>
+		    <button onclick="clearLogs()">Limpar Logs</button>
+		    <div id="logContainer" class="log-container" style="display: none;"></div>
+		</div>
+		<div class="card">
+		    <h3>Status do Sistema</h3>
+		    <button onclick="checkStatus()">Verificar Status</button>
+		    <div id="statusContainer"></div>
+		</div>
+	    </div>
+	    <script>
+		const API_URL = 'http://localhost:3120';
+		
+		async function viewLogs() {
+		    try {
+			const response = await fetch(`${API_URL}/logs?lines=20`);
+			const result = await response.json();
+			const container = document.getElementById('logContainer');
+			
+			if (result.success) {
+			    let html = '';
+			    result.logs.forEach(log => {
+				html += `<div><strong>[${log.level}]</strong> ${log.message}</div>`;
+			    });
+			    container.innerHTML = html;
+			    container.style.display = 'block';
+			} else {
+			    container.innerHTML = `<div>Erro: ${result.error}</div>`;
+			    container.style.display = 'block';
+			}
+		    } catch (error) {
+			alert('Erro ao carregar logs: ' + error.message);
+		    }
+		}
+		
+		async function clearLogs() {
+		    if (!confirm('Tem certeza que deseja limpar os logs?')) return;
+		    
+		    try {
+			const response = await fetch(`${API_URL}/logs/clear`, { method: 'POST' });
+			const result = await response.json();
+			
+			if (result.success) {
+			    alert('Logs limpos com sucesso!');
+			    document.getElementById('logContainer').style.display = 'none';
+			} else {
+			    alert('Erro ao limpar logs: ' + result.error);
+			}
+		    } catch (error) {
+			alert('Erro ao limpar logs: ' + error.message);
+		    }
+		}
+		
+		async function checkStatus() {
+		    try {
+			const response = await fetch(`${API_URL}/status`);
+			const result = await response.json();
+			const container = document.getElementById('statusContainer');
+			
+			if (result.success) {
+			    container.innerHTML = `<div>Status: ${result.status} | Versão: ${result.version}</div>`;
+			} else {
+			    container.innerHTML = `<div>Erro: ${result.error}</div>`;
+			}
+		    } catch (error) {
+			document.getElementById('statusContainer').innerHTML = `<div>Erro: ${error.message}</div>`;
+		    }
+		}
     </script>
-</body>
-</html>
+    </body>
+    </html>
 EOF
-    log "SUCCESS" "Interface web básica criada"
-  fi
-  
-  # Copia script de lançamento da interface web
-  if [ -f "opt/fazai/tools/fazai_web.sh" ]; then
-    if ! copy_with_verification "opt/fazai/tools/fazai_web.sh" "/opt/fazai/tools/" "Script de lançamento web"; then
-      copy_errors=$((copy_errors+1))
-    else
-      chmod +x "/opt/fazai/tools/fazai_web.sh"
-      log "SUCCESS" "Script de lançamento web instalado"
-    fi
-  else
-    log "WARNING" "Script de lançamento web não encontrado, criando versão básica..."
+	    log "SUCCESS" "Interface web básica criada"
+	  fi
+	  
+	  # Copia script de lançamento da interface web
+	  if [ -f "opt/fazai/tools/fazai_web.sh" ]; then
+	    if ! copy_with_verification "opt/fazai/tools/fazai_web.sh" "/opt/fazai/tools/" "Script de lançamento web"; then
+	      copy_errors=$((copy_errors+1))
+	    else
+	      chmod +x "/opt/fazai/tools/fazai_web.sh"
+	      log "SUCCESS" "Script de lançamento web instalado"
+	    fi
+	  else
+	    log "WARNING" "Script de lançamento web não encontrado, criando versão básica..."
     cat > "/opt/fazai/tools/fazai_web.sh" << 'EOF'
-#!/bin/bash
-# FazAI Web Frontend Launcher
-# Caminho: /opt/fazai/tools/fazai_web.sh
+	#!/bin/bash
+	# FazAI Web Frontend Launcher
+	# Caminho: /opt/fazai/tools/fazai_web.sh
 
-FRONTEND_FILE="/opt/fazai/tools/fazai_web_frontend.html"
+	FRONTEND_FILE="/opt/fazai/tools/fazai_web_frontend.html"
 
-if [ ! -f "$FRONTEND_FILE" ]; then
-    echo "Erro: Interface web não encontrada: $FRONTEND_FILE"
-    exit 1
-fi
+	if [ ! -f "$FRONTEND_FILE" ]; then
+	    echo "Erro: Interface web não encontrada: $FRONTEND_FILE"
+	    exit 1
+	fi
 
-echo "Iniciando interface web do FazAI..."
+	echo "Iniciando interface web do FazAI..."
 
-# Detecta o sistema e abre o navegador
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    if command -v xdg-open > /dev/null; then
-        xdg-open "$FRONTEND_FILE"
-    elif command -v firefox > /dev/null; then
-        firefox "$FRONTEND_FILE"
-    else
-        echo "Abra manualmente: $FRONTEND_FILE"
-    fi
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-    open "$FRONTEND_FILE"
-elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" ]]; then
-    start "$FRONTEND_FILE"
-else
-    echo "Abra manualmente: $FRONTEND_FILE"
-fi
+	# Detecta o sistema e abre o navegador
+	if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+	    if command -v xdg-open > /dev/null; then
+		xdg-open "$FRONTEND_FILE"
+	    elif command -v firefox > /dev/null; then
+		firefox "$FRONTEND_FILE"
+	    else
+		echo "Abra manualmente: $FRONTEND_FILE"
+	    fi
+	elif [[ "$OSTYPE" == "darwin"* ]]; then
+	    open "$FRONTEND_FILE"
+	elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" ]]; then
+	    start "$FRONTEND_FILE"
+	else
+	    echo "Abra manualmente: $FRONTEND_FILE"
+	fi
 
-echo "Interface web disponível em: file://$FRONTEND_FILE"
+	echo "Interface web disponível em: file://$FRONTEND_FILE"
 EOF
-    chmod +x "/opt/fazai/tools/fazai_web.sh"
-    log "SUCCESS" "Script de lançamento web básico criado"
-  fi
+	    chmod +x "/opt/fazai/tools/fazai_web.sh"
+	    log "SUCCESS" "Script de lançamento web básico criado"
+	  fi
 
-  # Copia gerador de visualização HTML
-  if [ -f "opt/fazai/tools/fazai_html_v1.sh" ]; then
-    if ! copy_with_verification "opt/fazai/tools/fazai_html_v1.sh" "/opt/fazai/tools/" "Gerador HTML"; then
-      copy_errors=$((copy_errors+1))
-    else
-      chmod +x "/opt/fazai/tools/fazai_html_v1.sh"
-      ln -sf /opt/fazai/tools/fazai_html_v1.sh /usr/local/bin/fazai-html
-      log "SUCCESS" "Gerador HTML instalado em /usr/local/bin/fazai-html"
-    fi
-  fi
-  
-  if [ "$copy_errors" -ne 0 ]; then
-    log "ERROR" "$copy_errors falha(s) ao copiar arquivos. Veja $LOG_FILE para detalhes."
-    return 1
-  fi
+	  # Copia gerador de visualização HTML
+	  if [ -f "opt/fazai/tools/fazai_html_v1.sh" ]; then
+	    if ! copy_with_verification "opt/fazai/tools/fazai_html_v1.sh" "/opt/fazai/tools/" "Gerador HTML"; then
+	      copy_errors=$((copy_errors+1))
+	    else
+	      chmod +x "/opt/fazai/tools/fazai_html_v1.sh"
+	      ln -sf /opt/fazai/tools/fazai_html_v1.sh /usr/local/bin/fazai-html
+	      log "SUCCESS" "Gerador HTML instalado em /usr/local/bin/fazai-html"
+	    fi
+	  fi
+	  
+	  if [ "$copy_errors" -ne 0 ]; then
+	    log "ERROR" "$copy_errors falha(s) ao copiar arquivos. Veja $LOG_FILE para detalhes."
+	    return 1
+	  fi
 
-  log "SUCCESS" "Arquivos copiados com sucesso."
-  }
+	  log "SUCCESS" "Arquivos copiados com sucesso."
+	  }
 
-# Função para importar configurações de .env
-import_env_config() {
-  log "INFO" "Verificando configurações de ambiente..."
-  
-  # Locais possíveis do arquivo .env
-  local env_locations=(
-    "/root/.env"
-    "$HOME/.env"
-    "./.env"
-    ".env.example"
-  )
-  
-  local env_file=""
-  
-  # Procura o primeiro arquivo .env disponível
-  for location in "${env_locations[@]}"; do
-    if [ -f "$location" ]; then
-      env_file="$location"
-      log "INFO" "Arquivo .env encontrado em $env_file"
-      break
-    fi
-  done
-  
-  if [ -n "$env_file" ]; then
-    log "INFO" "Arquivo .env encontrado. Importando configurações..."
-    
-    # Extrai chaves de API
-    local api_keys=(
-      "OPENAI_API_KEY"
-      "ANTHROPIC_API_KEY"
-      "GOOGLE_API_KEY"
-      "AZURE_API_KEY"
-    )
-    
-    local fazai_conf="/etc/fazai/fazai.conf"
-    local changes_made=false
-    
-    for key in "${api_keys[@]}"; do
-      local value=$(grep "^$key=" "$env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
-      if [ -n "$value" ]; then
-        local config_key=$(echo "$key" | tr '[:upper:]' '[:lower:]')
-        
-        # Verifica se a chave já existe no arquivo de configuração
-        if grep -q "^$config_key" "$fazai_conf"; then
-          # Substitui o valor existente
-          sed -i "s|^$config_key.*|$config_key = $value|" "$fazai_conf"
-        else
-          # Adiciona nova entrada na seção de APIs
-          if grep -q "^\[apis\]" "$fazai_conf"; then
-            sed -i "/^\[apis\]/a $config_key = $value" "$fazai_conf"
-          else
-            # Se não houver seção de APIs, adiciona ao final do arquivo
-            echo -e "\n[apis]\n$config_key = $value" >> "$fazai_conf"
-          fi
-        fi
-        
-        log "SUCCESS" "Chave $key importada com sucesso."
-        changes_made=true
-      fi
-    done
-    
-    if [ "$changes_made" = true ]; then
-      log "SUCCESS" "Configurações importadas para $fazai_conf"
-    else
-      log "WARNING" "Nenhuma configuração relevante encontrada em $env_file"
-    fi
-  else
-    log "INFO" "Nenhum arquivo .env encontrado nas localizações padrão."
-  fi
-}
+	# Função para importar configurações de .env
+	import_env_config() {
+	  log "INFO" "Verificando configurações de ambiente..."
+	  
+	  # Locais possíveis do arquivo .env
+	  local env_locations=(
+	    "/root/.env"
+	    "$HOME/.env"
+	    "./.env"
+	    ".env.example"
+	  )
+	  
+	  local env_file=""
+	  
+	  # Procura o primeiro arquivo .env disponível
+	  for location in "${env_locations[@]}"; do
+	    if [ -f "$location" ]; then
+	      env_file="$location"
+	      log "INFO" "Arquivo .env encontrado em $env_file"
+	      break
+	    fi
+	  done
+	  
+	  if [ -n "$env_file" ]; then
+	    log "INFO" "Arquivo .env encontrado. Importando configurações..."
+	    
+	    # Extrai chaves de API
+	    local api_keys=(
+	      "OPENAI_API_KEY"
+	      "ANTHROPIC_API_KEY"
+	      "GOOGLE_API_KEY"
+	      "AZURE_API_KEY"
+	    )
+	    
+	    local fazai_conf="/etc/fazai/fazai.conf"
+	    local changes_made=false
+	    
+	    for key in "${api_keys[@]}"; do
+	      local value=$(grep "^$key=" "$env_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+	      if [ -n "$value" ]; then
+		local config_key=$(echo "$key" | tr '[:upper:]' '[:lower:]')
+		
+		# Verifica se a chave já existe no arquivo de configuração
+		if grep -q "^$config_key" "$fazai_conf"; then
+		  # Substitui o valor existente
+		  sed -i "s|^$config_key.*|$config_key = $value|" "$fazai_conf"
+		else
+		  # Adiciona nova entrada na seção de APIs
+		  if grep -q "^\[apis\]" "$fazai_conf"; then
+		    sed -i "/^\[apis\]/a $config_key = $value" "$fazai_conf"
+		  else
+		    # Se não houver seção de APIs, adiciona ao final do arquivo
+		    echo -e "\n[apis]\n$config_key = $value" >> "$fazai_conf"
+		  fi
+		fi
+		
+		log "SUCCESS" "Chave $key importada com sucesso."
+		changes_made=true
+	      fi
+	    done
+	    
+	    if [ "$changes_made" = true ]; then
+	      log "SUCCESS" "Configurações importadas para $fazai_conf"
+	    else
+	      log "WARNING" "Nenhuma configuração relevante encontrada em $env_file"
+	    fi
+	  else
+	    log "INFO" "Nenhum arquivo .env encontrado nas localizações padrão."
+	  fi
+	}
 
-# Função para configurar o serviço systemd
+	# Função para configurar o serviço systemd
 configure_systemd() {
-  log "INFO" "Configurando serviço systemd..."
-  
-  local service_file="/etc/systemd/system/fazai.service"
-  
-  # Gera um arquivo de serviço melhorado
+	  log "INFO" "Configurando serviço systemd..."
+	  
+	  local service_file="/etc/systemd/system/fazai.service"
+	  
+	  # Gera um arquivo de serviço melhorado
   cat > "$service_file" << EOF
+	[Unit]
+	Description=FazAI Service
+	After=network.target fazai-gemma-worker.service fazai-docler.service fazai-qdrant.service fazai-prometheus.service fazai-grafana.service
+	Wants=fazai-gemma-worker.service fazai-docler.service
+	Wants=fazai-qdrant.service fazai-prometheus.service fazai-grafana.service
+	StartLimitIntervalSec=0
+
+	[Service]
+	Type=simple
+	Restart=always
+	RestartSec=1
+	User=root
+	ExecStart=/usr/bin/node /opt/fazai/lib/main.js
+	WorkingDirectory=/opt/fazai
+	Environment=NODE_ENV=production
+	StandardOutput=append:/var/log/fazai/stdout.log
+	StandardError=append:/var/log/fazai/stderr.log
+
+	# Limites de recursos
+	LimitNOFILE=65535
+	LimitMEMLOCK=512M
+
+  		[Install]
+		WantedBy=multi-user.target
+EOF
+	  
+	  chmod 644 "$service_file"
+	  log "SUCCESS" "Arquivo de serviço systemd criado em $service_file"
+	  
+	  systemctl daemon-reload
+	  systemctl enable fazai
+	  log "SUCCESS" "Serviço systemd habilitado."
+
+	  # Instala serviço do Gemma Worker se binário existir
+	  if [ -x "/opt/fazai/bin/fazai-gemma-worker" ]; then
+	    log "INFO" "Configurando serviço fazai-gemma-worker..."
+    cat > "/etc/systemd/system/fazai-gemma-worker.service" << EOF
 [Unit]
-Description=FazAI Service
+Description=FazAI Gemma Worker
 After=network.target
-StartLimitIntervalSec=0
+PartOf=fazai.service
 
 [Service]
 Type=simple
-Restart=always
-RestartSec=1
 User=root
-ExecStart=/usr/bin/node /opt/fazai/lib/main.js
-WorkingDirectory=/opt/fazai
-Environment=NODE_ENV=production
-StandardOutput=append:/var/log/fazai/stdout.log
-StandardError=append:/var/log/fazai/stderr.log
-
-# Limites de recursos
-LimitNOFILE=65535
-LimitMEMLOCK=512M
+Group=root
+ExecStart=/opt/fazai/bin/fazai-gemma-worker
+Restart=always
+RestartSec=5
+Environment=FAZAI_GEMMA_SOCKET=/run/fazai/gemma.sock
+Environment=FAZAI_GEMMA_SOCK=/run/fazai/gemma.sock
 
 [Install]
 WantedBy=multi-user.target
 EOF
-  
-  chmod 644 "$service_file"
-  log "SUCCESS" "Arquivo de serviço systemd criado em $service_file"
-  
-  systemctl daemon-reload
-  systemctl enable fazai
-  log "SUCCESS" "Serviço systemd habilitado."
-}
+	    chmod 644 "/etc/systemd/system/fazai-gemma-worker.service"
+	    systemctl daemon-reload
+	    systemctl enable fazai-gemma-worker || true
+	    log "SUCCESS" "Serviço fazai-gemma-worker preparado."
+	  else
+	    log "WARNING" "Binário fazai-gemma-worker não encontrado; serviço do worker não será criado."
+	  fi
 
-# Função para instalar dependências do Node.js com retry
-install_node_dependencies() {
-  log "INFO" "Instalando dependências do Node.js..."
-  
-  # Cria package.json se não existir
-  if [ ! -f "package.json" ]; then
-    log "INFO" "Criando package.json..."
-    cat > "package.json" << 'EOF'
-{
-  "name": "fazai",
-  "version": "2.0.0",
-  "description": "FazAI - Orquestrador Inteligente de Automação",
-  "main": "main.js",
-  "dependencies": {
-    "axios": ">=0.27.2",
-    "express": ">=4.18.1",
-    "winston": ">=3.8.1",
-    "blessed": ">=0.1.81",
-    "blessed-contrib": ">=4.11.0",
-    "chalk": ">=4.1.2",
-    "figlet": ">=1.5.2",
-    "inquirer": ">=8.2.4"
-  }
-}
+	  # Serviço DOCLER Web (portas 3220/3221 para evitar conflito com daemon 3120)
+	  if [ -f "/opt/fazai/web/docler-server.js" ]; then
+	    log "INFO" "Configurando serviço fazai-docler..."
+    cat > "/etc/systemd/system/fazai-docler.service" << 'EOF'
+[Unit]
+Description=FazAI DOCLER Web Server
+After=network.target
+PartOf=fazai.service
+
+[Service]
+Type=simple
+User=fazai-web
+Group=fazai-web
+Environment=DOCLER_CLIENT_PORT=3220
+Environment=DOCLER_ADMIN_PORT=3221
+WorkingDirectory=/opt/fazai/web
+ExecStart=/usr/bin/node /opt/fazai/web/docler-server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
 EOF
-  fi
-  
-  # Instala no diretório atual primeiro
-  log "INFO" "Instalando dependências no diretório atual..."
-  if ! npm install --no-audit --no-progress; then
-    log "WARNING" "Falha na instalação inicial de dependências. Tentando método alternativo..."
-    
-    # Tenta instalar pacotes críticos individualmente
-    for module in "${DEPENDENCY_MODULES[@]}"; do
-      log "INFO" "Instalando módulo: $module"
-      npm install "$module" --no-audit --no-progress || log "WARNING" "Falha ao instalar $module"
-    done
-  fi
-  
-  # Agora instala em /opt/fazai
-  log "INFO" "Instalando dependências em /opt/fazai..."
-  cp package.json /opt/fazai/
-  cd /opt/fazai
-  
-  if ! npm install --no-audit --no-progress; then
-    log "WARNING" "Falha ao instalar dependências em /opt/fazai. Tentando método alternativo..."
-    
-    # Tenta instalar pacotes críticos individualmente
-    for module in "${DEPENDENCY_MODULES[@]}"; do
-      log "INFO" "Instalando módulo em /opt/fazai: $module"
-      npm install "$module" --no-audit --no-progress || log "WARNING" "Falha ao instalar $module"
-    done
-  fi
-  
-  cd - > /dev/null
+	    chmod 644 "/etc/systemd/system/fazai-docler.service"
+	    systemctl daemon-reload
+	    systemctl enable fazai-docler || true
+	    # Tenta iniciar se dependências foram instaladas
+	    systemctl start fazai-docler || true
+	    log "SUCCESS" "Serviço fazai-docler preparado (portas 3220/3221)."
+	  else
+	    log "WARNING" "docler-server.js não encontrado; serviço DOCLER não será criado."
+	  fi
 
-  # Verifica se os módulos essenciais foram instalados
-  if npm list express winston >> "$LOG_FILE" 2>&1; then
-    log "SUCCESS" "Módulos express e winston instalados corretamente."
-  else
-    log "WARNING" "Módulos express ou winston ausentes. Possível problema de conexão. Execute 'npm install' manualmente."
-  fi
+	  # Detecta runtime de contêiner (Docker/Podman)
+	  local CONTAINER=""
+	  if command -v docker >/dev/null 2>&1; then CONTAINER="docker"; fi
+	  if [ -z "$CONTAINER" ] && command -v podman >/dev/null 2>&1; then CONTAINER="podman"; fi
 
-  log "SUCCESS" "Dependências do Node.js instaladas."
-}
+	  # Serviço Qdrant (via Docker/Podman) se disponível
+  if [ -n "$CONTAINER" ]; then
+	    log "INFO" "Configurando serviço Qdrant ($CONTAINER)..."
+	    mkdir -p /var/lib/fazai/qdrant
+    cat > "/etc/systemd/system/fazai-qdrant.service" << 'EOF'
+[Unit]
+Description=FazAI Qdrant Vector DB (Docker)
+After=network-online.target
+PartOf=fazai.service
 
-# Função para compilar módulos nativos
-compile_native_modules() {
-  log "INFO" "Verificando módulos nativos..."
-  
-  # Cria um módulo nativo básico se não existir
-  if [ ! -d "/opt/fazai/mods" ]; then
-    mkdir -p "/opt/fazai/mods"
-  fi
-  
-  cd /opt/fazai/mods
-  
-  if [ ! -f "system_mod.c" ]; then
-    log "INFO" "Criando módulo nativo básico..."
-    cat > "system_mod.c" << 'EOF'
-#include <stdio.h>
-#include <stdlib.h>
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=-/usr/bin/CONTAINER_BIN rm -f fazai-qdrant
+ExecStart=/usr/bin/CONTAINER_BIN run -d --name fazai-qdrant -p 6333:6333 -v /var/lib/fazai/qdrant:/qdrant/storage qdrant/qdrant:v1.7.3
+ExecStop=/usr/bin/CONTAINER_BIN stop fazai-qdrant
+TimeoutStartSec=120
+TimeoutStopSec=30
 
-// Função básica para teste do módulo nativo
-int fazai_test() {
-    return 42;
-}
+[Install]
+WantedBy=multi-user.target
 EOF
-  fi
-  
-  if [ -f "system_mod.c" ]; then
-    log "DEBUG" "Compilando system_mod.c..."
-    if gcc -shared -fPIC -o system_mod.so system_mod.c; then
-      log "SUCCESS" "Módulos nativos compilados com sucesso."
+	    # Substitui placeholder pelo runtime
+	    sed -i "s|CONTAINER_BIN|$CONTAINER|g" "/etc/systemd/system/fazai-qdrant.service"
+	    chmod 644 "/etc/systemd/system/fazai-qdrant.service"
+	    systemctl daemon-reload
+	    systemctl enable fazai-qdrant || true
+	    systemctl start fazai-qdrant || true
+	    log "SUCCESS" "Serviço Qdrant preparado (porta 6333)."
+	  else
+	    log "WARNING" "Docker/Podman não encontrado; Qdrant não será instalado automaticamente. Instale um runtime de contêiner ou configure Qdrant manualmente."
+	  fi
+
+	  # Prometheus (via Docker/Podman) se disponível
+	  if [ -n "$CONTAINER" ]; then
+	    log "INFO" "Configurando serviço Prometheus ($CONTAINER)..."
+	    mkdir -p /var/lib/fazai/prometheus
+	    if [ ! -f /var/lib/fazai/prometheus/prometheus.yml ]; then
+		      cat > /var/lib/fazai/prometheus/prometheus.yml << 'YML'
+	global:
+	  scrape_interval: 15s
+	scrape_configs:
+	  - job_name: 'fazai'
+	    static_configs:
+		      - targets: ['localhost:3120']
+YML
+	    fi
+    cat > "/etc/systemd/system/fazai-prometheus.service" << 'EOF'
+	[Unit]
+	Description=FazAI Prometheus (Docker/Podman)
+	After=network-online.target
+	PartOf=fazai.service
+
+	[Service]
+	Type=oneshot
+	RemainAfterExit=yes
+	ExecStartPre=-/usr/bin/CONTAINER_BIN rm -f fazai-prometheus
+	ExecStart=/usr/bin/CONTAINER_BIN run -d --name fazai-prometheus -p 9090:9090 -v /var/lib/fazai/prometheus:/etc/prometheus prom/prometheus:latest --config.file=/etc/prometheus/prometheus.yml
+	ExecStop=/usr/bin/CONTAINER_BIN stop fazai-prometheus
+	TimeoutStartSec=120
+	TimeoutStopSec=30
+
+	[Install]
+	WantedBy=multi-user.target
+EOF
+	    sed -i "s|CONTAINER_BIN|$CONTAINER|g" "/etc/systemd/system/fazai-prometheus.service"
+	    chmod 644 "/etc/systemd/system/fazai-prometheus.service"
+	    systemctl daemon-reload
+	    systemctl enable fazai-prometheus || true
+	    systemctl start fazai-prometheus || true
+	    log "SUCCESS" "Serviço Prometheus preparado (porta 9090)."
+	  fi
+
+	  # Grafana (via Docker/Podman) se disponível
+	  if [ -n "$CONTAINER" ]; then
+	    log "INFO" "Configurando serviço Grafana ($CONTAINER)..."
+	    mkdir -p /var/lib/fazai/grafana
+    cat > "/etc/systemd/system/fazai-grafana.service" << 'EOF'
+	[Unit]
+	Description=FazAI Grafana (Docker/Podman)
+	After=network-online.target
+	PartOf=fazai.service
+
+	[Service]
+	Type=oneshot
+	RemainAfterExit=yes
+	ExecStartPre=-/usr/bin/CONTAINER_BIN rm -f fazai-grafana
+	ExecStart=/usr/bin/CONTAINER_BIN run -d --name fazai-grafana -p 3000:3000 -v /var/lib/fazai/grafana:/var/lib/grafana -v /var/lib/fazai/grafana/provisioning:/etc/grafana/provisioning -v /var/lib/fazai/grafana/dashboards:/var/lib/grafana/dashboards grafana/grafana:latest
+	ExecStop=/usr/bin/CONTAINER_BIN stop fazai-grafana
+	TimeoutStartSec=120
+	TimeoutStopSec=30
+
+	[Install]
+	WantedBy=multi-user.target
+EOF
+	    sed -i "s|CONTAINER_BIN|$CONTAINER|g" "/etc/systemd/system/fazai-grafana.service"
+	    chmod 644 "/etc/systemd/system/fazai-grafana.service"
+	    systemctl daemon-reload
+	    systemctl enable fazai-grafana || true
+	    systemctl start fazai-grafana || true
+	    log "SUCCESS" "Serviço Grafana preparado (porta 3000)."
+	  fi
+}
+
+# Compila e instala o Gemma Worker (C++) se fontes estiverem presentes
+build_gemma_worker() {
+  if [ -d "worker" ] && [ -f "worker/CMakeLists.txt" ]; then
+    log "INFO" "Compilando Gemma Worker (C++)..."
+    mkdir -p worker/build
+    pushd worker/build >/dev/null
+    if cmake .. && cmake --build . -j$(nproc) && cmake --install .; then
+      log "SUCCESS" "Gemma Worker compilado e instalado em /opt/fazai/bin"
     else
-      log "WARNING" "Falha ao compilar módulos nativos. Continuando sem eles..."
+      log "WARNING" "Falha ao compilar o Gemma Worker. O agente local poderá não funcionar."
     fi
+    popd >/dev/null
+    # Garante diretório de socket
+    mkdir -p /run/fazai
+    chmod 755 /run/fazai
   else
-    log "INFO" "Nenhum módulo nativo para compilar."
-  fi
-  
-  cd - > /dev/null
-}
-
-# Função opcional para instalar o llama.cpp
-install_llamacpp() {
-  if [ "$WITH_LLAMA" != true ]; then
-    log "INFO" "Instalação do llama.cpp ignorada (--with-llama)"
-    return 0
-  fi
-
-  log "INFO" "Instalando llama.cpp..."
-  local script_dir="$(cd "$(dirname "$0")" && pwd)"
-  if bash "$script_dir/bin/tools/install-llamacpp.sh"; then
-    log "SUCCESS" "llama.cpp instalado"
-    return 0
-  else
-    log "ERROR" "Falha ao instalar llama.cpp"
-    return 1
+    log "INFO" "Fontes do Gemma Worker não encontradas; pulando compilação."
   fi
 }
 
-# Função para instalar interface TUI
-install_tui() {
-  log "INFO" "Instalando interface TUI..."
-  
-  # Cria um arquivo de configuração TUI básico
-  cat > /opt/fazai/tools/fazai-config.js << 'EOF'
-#!/usr/bin/env node
+	# Função para instalar dependências do Node.js com retry
+	install_node_dependencies() {
+	  log "INFO" "Instalando dependências do Node.js..."
+	  
+	  # Cria package.json se não existir
+	  if [ ! -f "package.json" ]; then
+	    log "INFO" "Criando package.json..."
+	    cat > "package.json" << 'EOF'
+	{
+	  "name": "fazai",
+	  "version": "2.0.0",
+	  "description": "FazAI - Orquestrador Inteligente de Automação",
+	  "main": "main.js",
+	  "dependencies": {
+	    "axios": ">=0.27.2",
+	    "express": ">=4.18.1",
+	    "winston": ">=3.8.1",
 
-/**
- * FazAI - Interface de Configuração TUI
- */
-
-const fs = require('fs');
-const path = require('path');
-
-console.log('FazAI - Interface de Configuração TUI v2.0.0');
-console.log('=========================================');
-console.log('');
-console.log('Funcionalidades disponíveis:');
-console.log('1. Verificar status do sistema');
-console.log('2. Configurar chaves de API');
-console.log('3. Verificar logs do sistema');
-console.log('4. Gerenciar serviços');
-console.log('5. Sair');
-console.log('');
-
-const readline = require('readline');
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
-function showMenu() {
-  rl.question('Escolha uma opção (1-5): ', (answer) => {
-    switch(answer) {
-      case '1':
-        checkSystemStatus();
-        break;
-      case '2':
-        configureApiKeys();
-        break;
-      case '3':
-        checkLogs();
-        break;
-      case '4':
-        manageServices();
-        break;
-      case '5':
-        console.log('Saindo...');
-        rl.close();
-        break;
-      default:
-        console.log('Opção inválida!');
-        showMenu();
-    }
-  });
-}
-
-function checkSystemStatus() {
-  console.log('\n=== Status do Sistema ===');
-  
-  const { execSync } = require('child_process');
-  
-  try {
-    const nodeVersion = execSync('node -v', { encoding: 'utf8' }).trim();
-    console.log(`Node.js: ${nodeVersion} ✓`);
-  } catch (error) {
-    console.log('Node.js: ✗ Não instalado');
-  }
-  
-  try {
-    const npmVersion = execSync('npm -v', { encoding: 'utf8' }).trim();
-    console.log(`npm: ${npmVersion} ✓`);
-  } catch (error) {
-    console.log('npm: ✗ Não instalado');
-  }
-  
-  try {
-    const serviceStatus = execSync('systemctl is-active fazai', { encoding: 'utf8' }).trim();
-    console.log(`Serviço FazAI: ${serviceStatus}`);
-  } catch (error) {
-    console.log('Serviço FazAI: ✗ Inativo');
-  }
-  
-  console.log('\nPressione Enter para voltar ao menu...');
-  rl.question('', () => showMenu());
-}
-
-function configureApiKeys() {
-  console.log('\n=== Configuração de API Keys ===');
-  console.log('Configure suas chaves de API para usar o FazAI');
-  
-  rl.question('OpenAI API Key (deixe vazio para pular): ', (openaiKey) => {
-    rl.question('Anthropic API Key (deixe vazio para pular): ', (anthropicKey) => {
-      
-      const configFile = '/etc/fazai/fazai.conf';
-      let configContent = '';
-      
-      if (fs.existsSync(configFile)) {
-        configContent = fs.readFileSync(configFile, 'utf8');
-      }
-      
-      if (openaiKey) {
-        if (configContent.includes('openai_api_key')) {
-          configContent = configContent.replace(/openai_api_key.*/, `openai_api_key = ${openaiKey}`);
-        } else {
-          configContent += `\nopenai_api_key = ${openaiKey}`;
-        }
-        console.log('OpenAI API Key configurada ✓');
-      }
-      
-      if (anthropicKey) {
-        if (configContent.includes('anthropic_api_key')) {
-          configContent = configContent.replace(/anthropic_api_key.*/, `anthropic_api_key = ${anthropicKey}`);
-        } else {
-          configContent += `\nanthropic_api_key = ${anthropicKey}`;
-        }
-        console.log('Anthropic API Key configurada ✓');
-      }
-      
-      try {
-        fs.writeFileSync(configFile, configContent);
-        console.log('\nConfigurações salvas com sucesso!');
-      } catch (error) {
-        console.log('\nErro ao salvar configurações:', error.message);
-      }
-      
-      console.log('\nPressione Enter para voltar ao menu...');
-      rl.question('', () => showMenu());
-    });
-  });
-}
-
-function checkLogs() {
-  console.log('\n=== Logs do Sistema ===');
-  
-  const logFiles = ['/var/log/fazai/fazai.log', '/var/log/fazai/error.log', '/var/log/fazai_install.log'];
-  
-  logFiles.forEach(logFile => {
-    if (fs.existsSync(logFile)) {
-      console.log(`\n--- ${logFile} ---`);
-      try {
-        const logContent = execSync(`tail -n 10 ${logFile}`, { encoding: 'utf8' });
-        console.log(logContent);
-      } catch (error) {
-        console.log('Erro ao ler log:', error.message);
-      }
-    } else {
-      console.log(`${logFile}: Arquivo não encontrado`);
-    }
-  });
-  
-  console.log('\nPressione Enter para voltar ao menu...');
-  rl.question('', () => showMenu());
-}
-
-function manageServices() {
-  console.log('\n=== Gerenciar Serviços ===');
-  console.log('1. Iniciar FazAI');
-  console.log('2. Parar FazAI');
-  console.log('3. Reiniciar FazAI');
-  console.log('4. Status do FazAI');
-  console.log('5. Voltar ao menu principal');
-  
-  rl.question('Escolha uma opção: ', (answer) => {
-    const { execSync } = require('child_process');
-    
-    try {
-      switch(answer) {
-        case '1':
-          execSync('systemctl start fazai');
-          console.log('FazAI iniciado ✓');
-          break;
-        case '2':
-          execSync('systemctl stop fazai');
-          console.log('FazAI parado ✓');
-          break;
-        case '3':
-          execSync('systemctl restart fazai');
-          console.log('FazAI reiniciado ✓');
-          break;
-        case '4':
-          const status = execSync('systemctl status fazai', { encoding: 'utf8' });
-          console.log(status);
-          break;
-        case '5':
-          showMenu();
-          return;
-        default:
-          console.log('Opção inválida!');
-      }
-    } catch (error) {
-      console.log('Erro:', error.message);
-    }
-    
-    console.log('\nPressione Enter para continuar...');
-    rl.question('', () => manageServices());
-  });
-}
-
-showMenu();
+	    "chalk": ">=4.1.2",
+	    "figlet": ">=1.5.2",
+	    "inquirer": ">=8.2.4"
+	  }
+	}
 EOF
-  
-  chmod +x /opt/fazai/tools/fazai-config.js
-  ln -sf /opt/fazai/tools/fazai-config.js /usr/local/bin/fazai-config
-  
-  log "SUCCESS" "Interface TUI instalada em /usr/local/bin/fazai-config"
-}
+	  fi
+	  
+	  # Instala no diretório atual primeiro
+	  log "INFO" "Instalando dependências no diretório atual..."
+	  if ! npm install --no-audit --no-progress; then
+	    log "WARNING" "Falha na instalação inicial de dependências. Tentando método alternativo..."
+	    
+	    # Tenta instalar pacotes críticos individualmente
+	    for module in "${DEPENDENCY_MODULES[@]}"; do
+	      log "INFO" "Instalando módulo: $module"
+	      npm install "$module" --no-audit --no-progress || log "WARNING" "Falha ao instalar $module"
+	    done
+	  fi
+	  
+	  # Agora instala em /opt/fazai
+	  log "INFO" "Instalando dependências em /opt/fazai..."
+	  cp package.json /opt/fazai/
+	  cd /opt/fazai
+	  
+	  if ! npm install --no-audit --no-progress; then
+	    log "WARNING" "Falha ao instalar dependências em /opt/fazai. Tentando método alternativo..."
+	    
+	    # Tenta instalar pacotes críticos individualmente
+	    for module in "${DEPENDENCY_MODULES[@]}"; do
+	      log "INFO" "Instalando módulo em /opt/fazai: $module"
+	      npm install "$module" --no-audit --no-progress || log "WARNING" "Falha ao instalar $module"
+	    done
+	  fi
+	  
+	  cd - > /dev/null
 
-# Função para configurar permissões de segurança
-configure_security() {
-  log "INFO" "Configurando permissões de segurança..."
-  
-  # Cria grupo fazai se não existir
-  if ! getent group fazai > /dev/null 2>&1; then
-    groupadd -r fazai
-    log "SUCCESS" "Grupo 'fazai' criado"
-  fi
-  
-  # Cria usuário fazai se não existir
-  if ! getent passwd fazai > /dev/null 2>&1; then
-    useradd -r -g fazai -s /bin/false -d /opt/fazai fazai
-    log "SUCCESS" "Usuário 'fazai' criado"
-  fi
-  
-  # Define permissões dos diretórios
-  chown -R fazai:fazai /opt/fazai
-  chown -R fazai:fazai /var/log/fazai
-  chown -R fazai:fazai /var/lib/fazai
-  
-  # Permissões específicas
-  chmod 750 /opt/fazai
-  chmod 755 /opt/fazai/bin/fazai
-  chmod 640 /etc/fazai/fazai.conf
-  chmod 755 /opt/fazai/tools/fazai-config.js
-  
-  # Configura sudoers para permitir comandos específicos do fazai
-  if [ ! -f /etc/sudoers.d/fazai ]; then
-    cat > /etc/sudoers.d/fazai << 'EOF'
-# FazAI sudoers configuration
-%fazai ALL=(ALL) NOPASSWD: /bin/systemctl start fazai
-%fazai ALL=(ALL) NOPASSWD: /bin/systemctl stop fazai
-%fazai ALL=(ALL) NOPASSWD: /bin/systemctl restart fazai
-%fazai ALL=(ALL) NOPASSWD: /bin/systemctl status fazai
-%fazai ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
-%fazai ALL=(ALL) NOPASSWD: /usr/bin/apt-get install *
-%fazai ALL=(ALL) NOPASSWD: /usr/sbin/service * *
+	  # Verifica se os módulos essenciais foram instalados
+	  if npm list express winston >> "$LOG_FILE" 2>&1; then
+	    log "SUCCESS" "Módulos express e winston instalados corretamente."
+	  else
+	    log "WARNING" "Módulos express ou winston ausentes. Possível problema de conexão. Execute 'npm install' manualmente."
+	  fi
+
+	  log "SUCCESS" "Dependências do Node.js instaladas."
+	}
+
+	# Função para compilar módulos nativos
+	compile_native_modules() {
+	  log "INFO" "Verificando módulos nativos..."
+	  
+	  # Cria um módulo nativo básico se não existir
+	  if [ ! -d "/opt/fazai/mods" ]; then
+	    mkdir -p "/opt/fazai/mods"
+	  fi
+	  
+	  cd /opt/fazai/mods
+	  
+	  if [ ! -f "system_mod.c" ]; then
+	    log "INFO" "Criando módulo nativo básico..."
+	    cat > "system_mod.c" << 'EOF'
+	#include <stdio.h>
+	#include <stdlib.h>
+
+	// Função básica para teste do módulo nativo
+	int fazai_test() {
+	    return 42;
+	}
 EOF
-    chmod 440 /etc/sudoers.d/fazai
-    log "SUCCESS" "Configuração sudoers criada"
-  fi
-  
-  log "SUCCESS" "Permissões de segurança configuradas"
-}
+	  fi
+	  
+	  if [ -f "system_mod.c" ]; then
+	    log "DEBUG" "Compilando system_mod.c..."
+	    if gcc -shared -fPIC -o system_mod.so system_mod.c; then
+	      log "SUCCESS" "Módulos nativos compilados com sucesso."
+	    else
+	      log "WARNING" "Falha ao compilar módulos nativos. Continuando sem eles..."
+	    fi
+	  else
+	    log "INFO" "Nenhum módulo nativo para compilar."
+	  fi
+	  
+	  cd - > /dev/null
+	}
 
-# Função para criar scripts auxiliares
-create_helper_scripts() {
-  log "INFO" "Criando scripts auxiliares..."
-  
-  # Script de uninstall
-  cat > /opt/fazai/bin/uninstall.sh << 'EOF'
-#!/bin/bash
-# FazAI Uninstall Script
+	# Função opcional para instalar o llama.cpp
+	install_llamacpp() {
+	  if [ "$WITH_LLAMA" != true ]; then
+	    log "INFO" "Instalação do llama.cpp ignorada (--with-llama)"
+	    return 0
+	  fi
 
-echo "Desinstalando FazAI..."
+	  log "INFO" "Instalando llama.cpp..."
+	  local script_dir="$(cd "$(dirname "$0")" && pwd)"
+	  if bash "$script_dir/bin/tools/install-llamacpp.sh"; then
+	    log "SUCCESS" "llama.cpp instalado"
+	    return 0
+	  else
+	    log "ERROR" "Falha ao instalar llama.cpp"
+	    return 1
+	  fi
+	}
 
-# Para o serviço
-systemctl stop fazai 2>/dev/null
-systemctl disable fazai 2>/dev/null
+	# Função para instalar interface TUI
 
-# Remove arquivos de serviço
-rm -f /etc/systemd/system/fazai.service
-systemctl daemon-reload
-
-# Remove links simbólicos
-rm -f /usr/local/bin/fazai
-rm -f /usr/local/bin/fazai-config
-
-# Remove diretórios (com confirmação)
-read -p "Remover todos os dados do FazAI? (logs, configurações, etc.) [s/N]: " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Ss]$ ]]; then
-  rm -rf /opt/fazai
-  rm -rf /etc/fazai
-  rm -rf /var/log/fazai
-  rm -rf /var/lib/fazai
-  echo "Todos os dados removidos."
-else
-  echo "Dados preservados em /etc/fazai, /var/log/fazai e /var/lib/fazai"
-fi
-
-# Remove usuário e grupo
-userdel fazai 2>/dev/null
-groupdel fazai 2>/dev/null
-
-# Remove sudoers
-rm -f /etc/sudoers.d/fazai
-
-echo "FazAI desinstalado com sucesso!"
+	# Função para configurar permissões de segurança
+	configure_security() {
+	  log "INFO" "Configurando permissões de segurança..."
+	  
+	  # Cria grupo fazai se não existir
+	  if ! getent group fazai > /dev/null 2>&1; then
+	    groupadd -r fazai
+	    log "SUCCESS" "Grupo 'fazai' criado"
+	  fi
+	  
+	  # Cria usuário fazai se não existir
+	  if ! getent passwd fazai > /dev/null 2>&1; then
+	    useradd -r -g fazai -s /bin/false -d /opt/fazai fazai
+	    log "SUCCESS" "Usuário 'fazai' criado"
+	  fi
+	  
+	  # Define permissões dos diretórios
+	  chown -R fazai:fazai /opt/fazai
+	  chown -R fazai:fazai /var/log/fazai
+	  chown -R fazai:fazai /var/lib/fazai
+	  
+	  # Permissões específicas
+	  chmod 750 /opt/fazai
+	  chmod 755 /opt/fazai/bin/fazai
+	  chmod 640 /etc/fazai/fazai.conf
+	  chmod 755 /opt/fazai/tools/fazai-config.js
+	  
+	  # Configura sudoers para permitir comandos específicos do fazai
+	  if [ ! -f /etc/sudoers.d/fazai ]; then
+	    cat > /etc/sudoers.d/fazai << 'EOF'
+	# FazAI sudoers configuration
+	%fazai ALL=(ALL) NOPASSWD: /bin/systemctl start fazai
+	%fazai ALL=(ALL) NOPASSWD: /bin/systemctl stop fazai
+	%fazai ALL=(ALL) NOPASSWD: /bin/systemctl restart fazai
+	%fazai ALL=(ALL) NOPASSWD: /bin/systemctl status fazai
+	%fazai ALL=(ALL) NOPASSWD: /usr/bin/apt-get update
+	%fazai ALL=(ALL) NOPASSWD: /usr/bin/apt-get install *
+	%fazai ALL=(ALL) NOPASSWD: /usr/sbin/service * *
 EOF
-  
-  chmod +x /opt/fazai/bin/uninstall.sh
-  ln -sf /opt/fazai/bin/uninstall.sh /usr/local/bin/fazai-uninstall
-  
-  # Script de backup
+	    chmod 440 /etc/sudoers.d/fazai
+	    log "SUCCESS" "Configuração sudoers criada"
+	  fi
+	  
+	  log "SUCCESS" "Permissões de segurança configuradas"
+	}
+
+	# Função para criar scripts auxiliares
+	create_helper_scripts() {
+	  log "INFO" "Criando scripts auxiliares..."
+	  
+	  # Script de uninstall
+	  cat > /opt/fazai/bin/uninstall.sh << 'EOF'
+	#!/bin/bash
+	# FazAI Uninstall Script
+
+	echo "Desinstalando FazAI..."
+
+	# Para o serviço
+	systemctl stop fazai 2>/dev/null
+	systemctl disable fazai 2>/dev/null
+
+	# Remove arquivos de serviço
+	rm -f /etc/systemd/system/fazai.service
+	systemctl daemon-reload
+
+	# Remove links simbólicos
+	rm -f /usr/local/bin/fazai
+	rm -f /usr/local/bin/fazai-config
+
+	# Remove diretórios (com confirmação)
+	read -p "Remover todos os dados do FazAI? (logs, configurações, etc.) [s/N]: " -n 1 -r
+	echo
+	if [[ $REPLY =~ ^[Ss]$ ]]; then
+	  rm -rf /opt/fazai
+	  rm -rf /etc/fazai
+	  rm -rf /var/log/fazai
+	  rm -rf /var/lib/fazai
+	  echo "Todos os dados removidos."
+	else
+	  echo "Dados preservados em /etc/fazai, /var/log/fazai e /var/lib/fazai"
+	fi
+
+	# Remove usuário e grupo
+	userdel fazai 2>/dev/null
+	groupdel fazai 2>/dev/null
+
+	# Remove sudoers
+	rm -f /etc/sudoers.d/fazai
+
+	echo "FazAI desinstalado com sucesso!"
+EOF
+	  
+	  chmod +x /opt/fazai/bin/uninstall.sh
+	  ln -sf /opt/fazai/bin/uninstall.sh /usr/local/bin/fazai-uninstall
+	  
+	  # Script de backup
   cat > /opt/fazai/bin/backup.sh << 'EOF'
-#!/bin/bash
-# FazAI Backup Script
+	#!/bin/bash
+	# FazAI Backup Script
 
-BACKUP_DIR="/tmp/fazai-backup-$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$BACKUP_DIR"
+	BACKUP_DIR="/tmp/fazai-backup-$(date +%Y%m%d-%H%M%S)"
+	mkdir -p "$BACKUP_DIR"
 
-echo "Criando backup em $BACKUP_DIR..."
+	echo "Criando backup em $BACKUP_DIR..."
 
-# Backup de configurações
-cp -r /etc/fazai "$BACKUP_DIR/"
-cp -r /var/lib/fazai "$BACKUP_DIR/"
+	# Backup de configurações
+	cp -r /etc/fazai "$BACKUP_DIR/"
+	cp -r /var/lib/fazai "$BACKUP_DIR/"
 
-# Backup de logs (últimos 7 dias)
-find /var/log/fazai -name "*.log" -mtime -7 -exec cp {} "$BACKUP_DIR/" \;
+	# Backup de logs (últimos 7 dias)
+	find /var/log/fazai -name "*.log" -mtime -7 -exec cp {} "$BACKUP_DIR/" \;
 
-# Compacta o backup
-cd /tmp
-tar -czf "fazai-backup-$(date +%Y%m%d-%H%M%S).tar.gz" "$(basename $BACKUP_DIR)"
-rm -rf "$BACKUP_DIR"
+	# Compacta o backup
+	cd /tmp
+	tar -czf "fazai-backup-$(date +%Y%m%d-%H%M%S).tar.gz" "$(basename $BACKUP_DIR)"
+	rm -rf "$BACKUP_DIR"
 
-echo "Backup criado: /tmp/fazai-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+	echo "Backup criado: /tmp/fazai-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
 EOF
-  
-  chmod +x /opt/fazai/bin/backup.sh
-  ln -sf /opt/fazai/bin/backup.sh /usr/local/bin/fazai-backup
-  
-  log "SUCCESS" "Scripts auxiliares criados"
-}
+	  
+	  chmod +x /opt/fazai/bin/backup.sh
+	  ln -sf /opt/fazai/bin/backup.sh /usr/local/bin/fazai-backup
+	  
+	  log "SUCCESS" "Scripts auxiliares criados"
+	}
 
-# Função para configurar logrotate
-configure_logrotate() {
-  log "INFO" "Configurando rotação de logs..."
-  
-  cat > /etc/logrotate.d/fazai << 'EOF'
-/var/log/fazai/*.log {
-    daily
-    missingok
-    rotate 30
-    compress
-    delaycompress
-    notifempty
-    create 644 fazai fazai
-    postrotate
-        systemctl reload fazai > /dev/null 2>&1 || true
-    endscript
-}
+	# Função para configurar logrotate
+	configure_logrotate() {
+	  log "INFO" "Configurando rotação de logs..."
+	  
+	  cat > /etc/logrotate.d/fazai << 'EOF'
+	/var/log/fazai/*.log {
+	    daily
+	    missingok
+	    rotate 30
+	    compress
+	    delaycompress
+	    notifempty
+	    create 644 fazai fazai
+	    postrotate
+		systemctl reload fazai > /dev/null 2>&1 || true
+	    endscript
+	}
 EOF
-  
-  log "SUCCESS" "Configuração de logrotate criada"
-}
+	  
+	  log "SUCCESS" "Configuração de logrotate criada"
+	}
 
-# Função para validar a instalação
-validate_installation() {
-  log "INFO" "Validando instalação..."
-  
-  local validation_errors=0
-  
-  # Verifica arquivos essenciais
-  local essential_files=(
-    "/opt/fazai/lib/main.js"
-    "/opt/fazai/bin/fazai"
-    "/etc/fazai/fazai.conf"
-    "/etc/fazai/complex_tasks.conf.default"
-    "/etc/systemd/system/fazai.service"
-    "/usr/local/bin/fazai"
-    "/opt/fazai/tools/fazai_web_frontend.html"
-    "/opt/fazai/tools/fazai_web.sh"
-    "/opt/fazai/tools/fazai_html_v1.sh"
-    "/opt/fazai/tools/auto_tool.js"
-    "/opt/fazai/tools/net_qos_monitor.js"
-    "/opt/fazai/tools/agent_supervisor.js"
-    "/opt/fazai/tools/qdrant_setup.js"
-    "/opt/fazai/tools/snmp_monitor.js"
-    "/opt/fazai/tools/modsecurity_setup.js"
-    "/opt/fazai/tools/suricata_setup.js"
-    "/opt/fazai/tools/crowdsec_setup.js"
-    "/opt/fazai/tools/monit_setup.js"
-  )
-  
-  for file in "${essential_files[@]}"; do
-    if [ ! -f "$file" ]; then
-      log "ERROR" "Arquivo essencial não encontrado: $file"
-      validation_errors=$((validation_errors + 1))
-    else
-      log "DEBUG" "Arquivo validado: $file"
-    fi
-  done
-  
-  # Verifica diretórios
-  local essential_dirs=(
-    "/opt/fazai"
-    "/etc/fazai"
-    "/var/log/fazai"
-    "/var/lib/fazai"
-  )
-  
-  for dir in "${essential_dirs[@]}"; do
-    if [ ! -d "$dir" ]; then
-      log "ERROR" "Diretório essencial não encontrado: $dir"
-      validation_errors=$((validation_errors + 1))
-    else
-      log "DEBUG" "Diretório validado: $dir"
-    fi
-  done
-  
-  # Verifica comandos
-  if ! command -v fazai &> /dev/null; then
-    log "ERROR" "Comando 'fazai' não está disponível"
-    validation_errors=$((validation_errors + 1))
-  fi
-  
-  # Verifica serviço systemd
-  if ! systemctl is-enabled fazai &> /dev/null; then
-    log "WARNING" "Serviço fazai não está habilitado"
-  fi
-  
-  # Verifica dependências Node.js críticas
-  cd /opt/fazai
-  local critical_modules=("express" "winston")
-  for module in "${critical_modules[@]}"; do
-    if ! npm list "$module" &> /dev/null; then
-      log "WARNING" "Módulo Node.js crítico não encontrado: $module"
-    fi
-  done
-  
-  if [ $validation_errors -eq 0 ]; then
-    log "SUCCESS" "Validação da instalação concluída com sucesso!"
-    return 0
-  else
-    log "ERROR" "Validação falhou com $validation_errors erro(s)"
-    return 1
-  fi
-}
+	# Função para validar a instalação
+	validate_installation() {
+	  log "INFO" "Validando instalação..."
+	  
+	  local validation_errors=0
+	  
+	  # Verifica arquivos essenciais
+	  local essential_files=(
+	    "/opt/fazai/lib/main.js"
+	    "/opt/fazai/bin/fazai"
+	    "/etc/fazai/fazai.conf"
+	    "/etc/fazai/complex_tasks.conf.default"
+	    "/etc/systemd/system/fazai.service"
+	    "/usr/local/bin/fazai"
+	    "/opt/fazai/tools/fazai_web_frontend.html"
+	    "/opt/fazai/tools/fazai_web.sh"
+	    "/opt/fazai/tools/fazai_html_v1.sh"
+	    "/opt/fazai/tools/auto_tool.js"
+	    "/opt/fazai/tools/net_qos_monitor.js"
+	    "/opt/fazai/tools/agent_supervisor.js"
+	    "/opt/fazai/tools/qdrant_setup.js"
+	    "/opt/fazai/tools/snmp_monitor.js"
+	    "/opt/fazai/tools/modsecurity_setup.js"
+	    "/opt/fazai/tools/suricata_setup.js"
+	    "/opt/fazai/tools/crowdsec_setup.js"
+	    "/opt/fazai/tools/monit_setup.js"
+	  )
+	  
+	  for file in "${essential_files[@]}"; do
+	    if [ ! -f "$file" ]; then
+	      log "ERROR" "Arquivo essencial não encontrado: $file"
+	      validation_errors=$((validation_errors + 1))
+	    else
+	      log "DEBUG" "Arquivo validado: $file"
+	    fi
+	  done
+	  
+	  # Verifica diretórios
+	  local essential_dirs=(
+	    "/opt/fazai"
+	    "/etc/fazai"
+	    "/var/log/fazai"
+	    "/var/lib/fazai"
+	  )
+	  
+	  for dir in "${essential_dirs[@]}"; do
+	    if [ ! -d "$dir" ]; then
+	      log "ERROR" "Diretório essencial não encontrado: $dir"
+	      validation_errors=$((validation_errors + 1))
+	    else
+	      log "DEBUG" "Diretório validado: $dir"
+	    fi
+	  done
+	  
+	  # Verifica comandos
+	  if ! command -v fazai &> /dev/null; then
+	    log "ERROR" "Comando 'fazai' não está disponível"
+	    validation_errors=$((validation_errors + 1))
+	  fi
+	  
+	  # Verifica serviço systemd
+	  if ! systemctl is-enabled fazai &> /dev/null; then
+	    log "WARNING" "Serviço fazai não está habilitado"
+	  fi
+	  
+	  # Verifica dependências Node.js críticas
+	  cd /opt/fazai
+	  local critical_modules=("express" "winston")
+	  for module in "${critical_modules[@]}"; do
+	    if ! npm list "$module" &> /dev/null; then
+	      log "WARNING" "Módulo Node.js crítico não encontrado: $module"
+	    fi
+	  done
+	  
+	  if [ $validation_errors -eq 0 ]; then
+	    log "SUCCESS" "Validação da instalação concluída com sucesso!"
+	    return 0
+	  else
+	    log "ERROR" "Validação falhou com $validation_errors erro(s)"
+	    return 1
+	  fi
+	}
 
-# Função para executar testes pós-instalação
-run_post_install_tests() {
-  log "INFO" "Executando testes pós-instalação..."
-  
-  # Teste 1: Verifica se o CLI responde
-  log "DEBUG" "Testando CLI..."
-  if fazai --version &> /dev/null; then
-    log "SUCCESS" "Teste CLI: OK"
-  else
-    log "WARNING" "Teste CLI: Falhou"
-  fi
-  
-  # Teste 2: Verifica se o serviço pode ser iniciado
-  log "DEBUG" "Testando serviço systemd..."
-  if systemctl start fazai && sleep 2 && systemctl is-active fazai &> /dev/null; then
-    log "SUCCESS" "Teste serviço: OK"
-    systemctl stop fazai
-  else
-    log "WARNING" "Teste serviço: Falhou"
-  fi
-  
-  # Teste 3: Verifica permissões
-  log "DEBUG" "Testando permissões..."
-  if [ -r /etc/fazai/fazai.conf ] && [ -x /opt/fazai/bin/fazai ]; then
-    log "SUCCESS" "Teste permissões: OK"
-  else
-    log "WARNING" "Teste permissões: Falhou"
-  fi
-  
-  log "SUCCESS" "Testes pós-instalação concluídos"
-}
+	# Função para executar testes pós-instalação
+	run_post_install_tests() {
+	  log "INFO" "Executando testes pós-instalação..."
+	  
+	  # Teste 1: Verifica se o CLI responde
+	  log "DEBUG" "Testando CLI..."
+	  if fazai --version &> /dev/null; then
+	    log "SUCCESS" "Teste CLI: OK"
+	  else
+	    log "WARNING" "Teste CLI: Falhou"
+	  fi
+	  
+	  # Teste 2: Verifica se o serviço pode ser iniciado
+	  log "DEBUG" "Testando serviço systemd..."
+	  if systemctl start fazai && sleep 2 && systemctl is-active fazai &> /dev/null; then
+	    log "SUCCESS" "Teste serviço: OK"
+	    systemctl stop fazai
+	  else
+	    log "WARNING" "Teste serviço: Falhou"
+	  fi
+	  
+	  # Teste 3: Verifica permissões
+	  log "DEBUG" "Testando permissões..."
+	  if [ -r /etc/fazai/fazai.conf ] && [ -x /opt/fazai/bin/fazai ]; then
+	    log "SUCCESS" "Teste permissões: OK"
+	  else
+	    log "WARNING" "Teste permissões: Falhou"
+	  fi
+	  
+	  log "SUCCESS" "Testes pós-instalação concluídos"
+	}
 
-# Função para mostrar informações finais
-show_installation_summary() {
-  log "INFO" "====== Resumo da Instalação ======"
-  
-  echo -e "\n${GREEN}✓ FazAI v$VERSION instalado com sucesso!${NC}\n"
-  
-  echo -e "${BLUE}Localização dos arquivos:${NC}"
-  echo "  • Binários: /opt/fazai"
-  echo "  • Configuração: /etc/fazai/fazai.conf"
-  echo "  • Configuração de tarefas complexas: /etc/fazai/complex_tasks.conf.default"
-  echo "  • Logs: /var/log/fazai"
-  echo "  • Dados: /var/lib/fazai"
-  echo ""
-  
-  echo -e "${BLUE}Comandos disponíveis:${NC}"
-  echo "  • fazai --help          - Ajuda do sistema"
-  echo "  • fazai --version       - Versão instalada"
-  echo "  • fazai --status        - Status do daemon"
-  echo "  • fazai web             - Interface web com gerenciamento de logs"
-  echo "  • fazai tui             - Dashboard TUI completo (ncurses)"
-  echo "  • fazai logs [n]        - Ver últimas n entradas de log"
-  echo "  • fazai limpar-logs     - Limpar logs (com backup)"
-  echo "  • fazai-config          - Interface de configuração"
-  echo "  • fazai-config-tui      - Interface TUI de configuração"
-  echo "  • fazai-backup          - Criar backup"
-  echo "  • fazai-uninstall       - Desinstalar"
-  echo ""
-  
-  echo -e "${BLUE}Gerenciamento do serviço:${NC}"
-  echo "  • systemctl start fazai    - Iniciar"
-  echo "  • systemctl stop fazai     - Parar"
-  echo "  • systemctl restart fazai  - Reiniciar"
-  echo "  • systemctl status fazai   - Ver status"
-  echo ""
-  
-  echo -e "${YELLOW}Próximos passos:${NC}"
-  echo "  1. Configure suas API keys: fazai-config"
-  echo "  2. Inicie o serviço: systemctl start fazai"
-  echo "  3. Teste o sistema: fazai --status"
-  echo ""
-  
-  echo -e "${PURPLE}Para suporte e documentação:${NC}"
-  echo "  • GitHub: https://github.com/RLuf/FazAI"
-  echo "  • Logs: /var/log/fazai_install.log"
-  echo ""
-  
-  # Salva estado final
-  save_install_state "installation_complete" "success"
-  
-  log "SUCCESS" "====== Instalação Finalizada ======"
-}
+	# Função para mostrar informações finais
+	show_installation_summary() {
+	  log "INFO" "====== Resumo da Instalação ======"
+	  
+	  echo -e "\n${GREEN}✓ FazAI v$VERSION instalado com sucesso!${NC}\n"
+	  
+	  echo -e "${BLUE}Localização dos arquivos:${NC}"
+	  echo "  • Binários: /opt/fazai"
+	  echo "  • Configuração: /etc/fazai/fazai.conf"
+	  echo "  • Configuração de tarefas complexas: /etc/fazai/complex_tasks.conf.default"
+	  echo "  • Logs: /var/log/fazai"
+	  echo "  • Dados: /var/lib/fazai"
+	  echo ""
+	  
+	  echo -e "${BLUE}Comandos disponíveis:${NC}"
+	  echo "  • fazai --help          - Ajuda do sistema"
+	  echo "  • fazai --version       - Versão instalada"
+	  echo "  • fazai --status        - Status do daemon"
+	  echo "  • fazai web             - Interface web com gerenciamento de logs"
 
-# Função principal de instalação
-main_install() {
-  log "INFO" "Iniciando instalação do FazAI v$VERSION"
-  
-  # Carrega estado anterior se existir
-  load_install_state
-  
-  # Executa etapas de instalação
+	  echo "  • fazai logs [n]        - Ver últimas n entradas de log"
+	  echo "  • fazai limpar-logs     - Limpar logs (com backup)"
+
+	  echo "  • fazai-backup          - Criar backup"
+	  echo "  • fazai-uninstall       - Desinstalar"
+	  echo ""
+	  
+	  echo -e "${BLUE}Gerenciamento do serviço:${NC}"
+	  echo "  • systemctl start fazai    - Iniciar"
+	  echo "  • systemctl stop fazai     - Parar"
+	  echo "  • systemctl restart fazai  - Reiniciar"
+	  echo "  • systemctl status fazai   - Ver status"
+	  echo ""
+	  
+	  echo -e "${YELLOW}Próximos passos:${NC}"
+	  echo "  1. Configure suas API keys editando /etc/fazai/fazai.conf"
+	  echo "  2. Inicie o serviço: systemctl start fazai"
+	  echo "  3. Teste o sistema: fazai --status"
+	  echo ""
+	  
+	  echo -e "${PURPLE}Para suporte e documentação:${NC}"
+	  echo "  • GitHub: https://github.com/RLuf/FazAI"
+	  echo "  • Logs: /var/log/fazai_install.log"
+	  echo ""
+	  
+	  # Salva estado final
+	  save_install_state "installation_complete" "success"
+	  
+	  log "SUCCESS" "====== Instalação Finalizada ======"
+	}
+
+	# Função principal de instalação
+	main_install() {
+	  log "INFO" "Iniciando instalação do FazAI v$VERSION"
+	  
+	  # Carrega estado anterior se existir
+	  load_install_state
+	  
+	  # Executa etapas de instalação
   local install_steps=(
-    "setup_logging:Configurando sistema de logs"
-    "check_root:Verificando permissões"
-    "check_system:Verificando sistema operacional"
-    "convert_files_to_unix:Convertendo arquivos para formato Linux"
-    "install_nodejs:Instalando Node.js"
-    "install_npm:Verificando npm"
-    "install_python:Instalando Python 3"
+	    "setup_logging:Configurando sistema de logs"
+	    "check_root:Verificando permissões"
+	    "check_system:Verificando sistema operacional"
+	    "convert_files_to_unix:Convertendo arquivos para formato Linux"
+	    "install_nodejs:Instalando Node.js"
+	    "install_npm:Verificando npm"
+	    "install_python:Instalando Python 3"
     "install_gcc:Instalando ferramentas de compilação"
     "create_directories:Criando estrutura de diretórios"
+    "build_gemma_worker:Compilando Gemma Worker"
     "copy_files:Copiando arquivos"
-    "import_env_config:Importando configurações"
-    "configure_systemd:Configurando serviço systemd"
-    "install_node_dependencies:Instalando dependências Node.js"
-    "compile_native_modules:Compilando módulos nativos"
-  )
+	    "import_env_config:Importando configurações"
+	    "configure_systemd:Configurando serviço systemd"
+	    "install_node_dependencies:Instalando dependências Node.js"
+	    "compile_native_modules:Compilando módulos nativos"
+	  )
 
-  if [ "$WITH_LLAMA" = true ]; then
-    install_steps+=("install_llamacpp:Instalando llama.cpp")
-  fi
+	  if [ "$WITH_LLAMA" = true ]; then
+	    install_steps+=("install_llamacpp:Instalando llama.cpp")
+	  fi
 
-  install_steps+=(
-    "install_tui:Instalando interface TUI"
-    "configure_security:Configurando segurança"
-    "create_helper_scripts:Criando scripts auxiliares"
-    "configure_logrotate:Configurando rotação de logs"
-    "install_bash_completion:Instalando autocompletar"
-  )
-  
-  local total_steps=${#install_steps[@]}
-  local current_step=0
-  
-  for step_info in "${install_steps[@]}"; do
-    local step_function=$(echo "$step_info" | cut -d: -f1)
-    local step_description=$(echo "$step_info" | cut -d: -f2)
-    
-    current_step=$((current_step + 1))
-    
-    # Verifica se já foi executado
-    if [ "${INSTALL_STATE[$step_function]}" = "completed" ]; then
-      log "INFO" "[$current_step/$total_steps] $step_description (já concluído)"
-      continue
-    fi
-    
-    log "INFO" "[$current_step/$total_steps] $step_description"
+	  install_steps+=(
 
-    # Executa a função
-    if $step_function; then
-      save_install_state "$step_function" "completed"
-      log "SUCCESS" "$step_description - Concluído"
-    else
-      log "ERROR" "$step_description - Falhou"
-      save_install_state "$step_function" "failed"
+	    "configure_security:Configurando segurança"
+	    "create_helper_scripts:Criando scripts auxiliares"
+	    "configure_logrotate:Configurando rotação de logs"
+	    "install_bash_completion:Instalando autocompletar"
+	  )
+	  
+	  local total_steps=${#install_steps[@]}
+	  local current_step=0
+	  
+	  for step_info in "${install_steps[@]}"; do
+	    local step_function=$(echo "$step_info" | cut -d: -f1)
+	    local step_description=$(echo "$step_info" | cut -d: -f2)
+	    
+	    current_step=$((current_step + 1))
+	    
+	    # Verifica se já foi executado
+	    if [ "${INSTALL_STATE[$step_function]}" = "completed" ]; then
+	      log "INFO" "[$current_step/$total_steps] $step_description (já concluído)"
+	      continue
+	    fi
+	    
+	    log "INFO" "[$current_step/$total_steps] $step_description"
 
-      if [ "$step_function" = "copy_files" ]; then
-        log "ERROR" "Falha ao copiar arquivos. Instalação interrompida. Verifique $LOG_FILE para detalhes."
-        ai_help "Falha ao copiar arquivos durante a instalação do FazAI"
-        exit 1
-      fi
+	    # Executa a função
+	    if $step_function; then
+	      save_install_state "$step_function" "completed"
+	      log "SUCCESS" "$step_description - Concluído"
+	    else
+	      log "ERROR" "$step_description - Falhou"
+	      save_install_state "$step_function" "failed"
 
-      # Consulta ajuda da IA e pergunta se deve continuar
-      ai_help "Erro na etapa '$step_description'"
-      read -p "Erro na etapa '$step_description'. Continuar mesmo assim? (s/N): " -n 1 -r
-      echo
-      if [[ ! $REPLY =~ ^[Ss]$ ]]; then
-        log "ERROR" "Instalação interrompida pelo usuário"
-        exit 1
-      fi
-    fi
-  done
-  
-  # Validação e testes finais
-  log "INFO" "Executando validação final..."
-  if validate_installation; then
-    run_post_install_tests
-    show_installation_summary
-    
-    # Inicia o serviço se tudo estiver OK
+	      if [ "$step_function" = "copy_files" ]; then
+		log "ERROR" "Falha ao copiar arquivos. Instalação interrompida. Verifique $LOG_FILE para detalhes."
+		ai_help "Falha ao copiar arquivos durante a instalação do FazAI"
+		exit 1
+	      fi
+
+	      # Consulta ajuda da IA e pergunta se deve continuar
+	      ai_help "Erro na etapa '$step_description'"
+	      read -p "Erro na etapa '$step_description'. Continuar mesmo assim? (s/N): " -n 1 -r
+	      echo
+	      if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+		log "ERROR" "Instalação interrompida pelo usuário"
+		exit 1
+	      fi
+	    fi
+	  done
+	  
+	  # Validação e testes finais
+	  log "INFO" "Executando validação final..."
+	  if validate_installation; then
+	    run_post_install_tests
+	    show_installation_summary
+	    
+	    # Inicia o serviço se tudo estiver OK
     if systemctl start fazai; then
       log "SUCCESS" "Serviço FazAI iniciado com sucesso!"
+      # Resumo da engine/módulo nativo, se o verificador existir
+      if [ -x "scripts/verify-engine.sh" ]; then
+        log "INFO" "Resumo de verificação pós-instalação:"
+        bash scripts/verify-engine.sh || true
+      fi
     else
       log "WARNING" "Falha ao iniciar o serviço. Inicie manualmente: systemctl start fazai"
     fi
-  else
-    log "ERROR" "Validação da instalação falhou. Verifique os logs em $LOG_FILE"
-    exit 1
-  fi
-}
+	  else
+	    log "ERROR" "Validação da instalação falhou. Verifique os logs em $LOG_FILE"
+	    exit 1
+	  fi
+	}
 
-# Função para limpeza em caso de interrupção
-cleanup_on_exit() {
-  local exit_code=$?
-  if [ $exit_code -ne 0 ]; then
-    log "WARNING" "Instalação interrompida (código: $exit_code)"
-    log "INFO" "Estado salvo em $INSTALL_STATE_FILE"
-    log "INFO" "Execute novamente o script para continuar de onde parou"
-  fi
-}
+	# Função para limpeza em caso de interrupção
+	cleanup_on_exit() {
+	  local exit_code=$?
+	  if [ $exit_code -ne 0 ]; then
+	    log "WARNING" "Instalação interrompida (código: $exit_code)"
+	    log "INFO" "Estado salvo em $INSTALL_STATE_FILE"
+	    log "INFO" "Execute novamente o script para continuar de onde parou"
+	  fi
+	}
 
-# Captura sinais para limpeza
-trap cleanup_on_exit EXIT INT TERM
+	# Captura sinais para limpeza
+	trap cleanup_on_exit EXIT INT TERM
 
 
-# Verifica argumentos de linha de comando
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --debug)
-      DEBUG_MODE=true
-      log "INFO" "Modo debug ativado"
-      ;;
-    --clean)
-      rm -f "$INSTALL_STATE_FILE"
-      log "INFO" "Estado de instalação limpo"
-      ;;
-    --with-llama)
-      WITH_LLAMA=true
-      ;;
-    --help)
-      echo "FazAI Installer v$VERSION"
-      echo "Uso: $0 [opções]"
-      echo ""
-      echo "Opções:"
-      echo "  --debug       Ativa modo debug com logs detalhados"
-      echo "  --clean       Remove estado de instalação anterior"
-      echo "  --with-llama  Instala o mecanismo local llama.cpp"
-      echo "  --help        Mostra esta ajuda"
-      exit 0
-      ;;
-  esac
-  shift
-done
+	# Verifica argumentos de linha de comando
+	while [[ $# -gt 0 ]]; do
+	  case "$1" in
+	    --debug)
+	      DEBUG_MODE=true
+	      log "INFO" "Modo debug ativado"
+	      ;;
+	    --clean)
+	      rm -f "$INSTALL_STATE_FILE"
+	      log "INFO" "Estado de instalação limpo"
+	      ;;
+	    --with-llama)
+	      WITH_LLAMA=true
+	      ;;
+	    --help)
+	      echo "FazAI Installer v$VERSION"
+	      echo "Uso: $0 [opções]"
+	      echo ""
+	      echo "Opções:"
+	      echo "  --debug       Ativa modo debug com logs detalhados"
+	      echo "  --clean       Remove estado de instalação anterior"
+	      echo "  --with-llama  Instala o mecanismo local llama.cpp"
+	      echo "  --help        Mostra esta ajuda"
+	      exit 0
+	      ;;
+	  esac
+	  shift
+	done
 
-# Inicia instalação principal
-main_install
+	# Inicia instalação principal
+	main_install
 
-log "SUCCESS" "Instalação do FazAI v2.0 concluída com sucesso!"
-echo -e "\n${GREEN}🎉 FazAI v2.0 - Sistema de Fluxo Inteligente está pronto!${NC}"
-echo -e "${CYAN}Novos recursos disponíveis:${NC}"
-echo -e "  🤖 ${YELLOW}fazai agent${NC} - Agente inteligente cognitivo"
-echo -e "  📊 ${YELLOW}fazai relay${NC} - Sistema de relay SMTP inteligente"
-echo -e "  🔧 ${YELLOW}fazai-config${NC} - Configurar API keys"
-echo -e "  📚 ${YELLOW}fazai manual${NC} - Manual completo"
-echo -e "\n${GREEN}Exemplos de uso:${NC}"
-echo -e "  fazai agent \"configurar servidor de email relay com antispam\""
-echo -e "  fazai relay analyze"
-echo -e "  fazai relay configure"
+	log "SUCCESS" "Instalação do FazAI v2.0 concluída com sucesso!"
+	echo -e "\n${GREEN}🎉 FazAI v2.0 - Sistema de Fluxo Inteligente está pronto!${NC}"
+	echo -e "${CYAN}Novos recursos disponíveis:${NC}"
+	echo -e "  🤖 ${YELLOW}fazai agent${NC} - Agente inteligente cognitivo"
+	echo -e "  📊 ${YELLOW}fazai relay${NC} - Sistema de relay SMTP inteligente"
+	echo -e "  🔧 ${YELLOW}Edite /etc/fazai/fazai.conf${NC} - Configurar API keys"
+	echo -e "  📚 ${YELLOW}fazai manual${NC} - Manual completo"
+	echo -e "\n${GREEN}Exemplos de uso:${NC}"
+	echo -e "  fazai agent \"configurar servidor de email relay com antispam\""
+	echo -e "  fazai relay analyze"
+	echo -e "  fazai relay configure"
 
 exit 0

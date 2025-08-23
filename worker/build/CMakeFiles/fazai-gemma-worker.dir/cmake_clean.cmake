@@ -1,5 +1,4 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/fazai-gemma-worker.dir/link.d"
   "CMakeFiles/fazai-gemma-worker.dir/src/ipc.cpp.o"
   "CMakeFiles/fazai-gemma-worker.dir/src/ipc.cpp.o.d"
   "CMakeFiles/fazai-gemma-worker.dir/src/main.cpp.o"

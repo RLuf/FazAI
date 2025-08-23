@@ -9,34 +9,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <errno.h>
-
-// Implementação simples de nlohmann::json para este exemplo
-namespace nlohmann {
-    class json {
-    public:
-        json() = default;
-        json(const std::string& s) : str_(s) {}
-        json(const char* s) : str_(s) {}
-        
-        std::string dump() const { return str_; }
-        bool contains(const std::string& key) const { return str_.find(key) != std::string::npos; }
-        
-        template<typename T>
-        T value(const std::string& key, T default_val) const {
-            // Implementação simplificada - em produção usar nlohmann/json real
-            return default_val;
-        }
-        
-        template<typename T>
-        T at(const std::string& key) const {
-            // Implementação simplificada
-            return T{};
-        }
-        
-    private:
-        std::string str_;
-    };
-}
+#include <nlohmann/json.hpp>
 
 class IpcConnImpl : public IpcConn {
 public:

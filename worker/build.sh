@@ -154,8 +154,9 @@ Group=root
 ExecStart=/opt/fazai/bin/fazai-gemma-worker
 Restart=always
 RestartSec=5
-Environment=FAZAI_GEMMA_MODEL=/opt/fazai/models/gemma2-2b-it-sfp.bin
+Environment=FAZAI_GEMMA_MODEL=/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
 Environment=FAZAI_GEMMA_SOCKET=/run/fazai/gemma.sock
+Environment=FAZAI_GEMMA_SOCK=/run/fazai/gemma.sock
 
 [Install]
 WantedBy=multi-user.target

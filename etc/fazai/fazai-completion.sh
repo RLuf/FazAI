@@ -1,203 +1,96 @@
 #!/usr/bin/env bash
 
+# FazAI Bash Completion (unificado)
+
 _fazai_completions()
 {
-    local cur prev opts base
+    local cur prev opts
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    # Comandos principais organizados por categoria
-    local system_commands="ajuda help --help -d --debug versao version -v check-deps verificar-deps manual"
-    local service_commands="start stop restart status reload"
-    local log_commands="logs limpar-logs clear-logs web"
-    local system_info_commands="kernel sistema memoria disco processos rede data uptime opnsense"
-    local visualization_commands="html tui interactive web complex"
-    local config_commands="config cache cache-clear"
-    local ai_commands="mcps agent"
+    # Categorias principais
     local flags="-q --question -s --stream -w --web -d --debug --help --completion-help"
+    local system_commands="ajuda help versao version -v manual check-deps verificar-deps query"
+    local service_commands="start stop restart status reload telemetry telemetry-smoke"
+    local log_commands="logs limpar-logs clear-logs web"
+    local system_info_commands="kernel sistema memoria disco processos rede data uptime"
+    local visualization_commands="html interactive tui complex"
+    local config_commands="config cache cache-clear"
+    local ai_commands="agent mcps"
+    local relay_commands="relay docler"
+    local opn_commands="opn nl"
     local net_commands="snmp prometheus grafana qdrant agentes"
     local tool_commands="system-check version-bump sync-changes sync-keys github-setup install-llamacpp"
-    local security_commands="modsecurity suricata crowdsec monit relay"
+    local security_commands="modsecurity suricata crowdsec spamexperts cloudflare monit"
     local monitoring_commands="net-qos-monitor snmp-monitor agent-supervisor"
 
-    # Todos os comandos disponíveis
-    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $net_commands $tool_commands $security_commands $monitoring_commands"
+    opts="$flags $system_commands $service_commands $log_commands $system_info_commands $visualization_commands $config_commands $ai_commands $relay_commands $opn_commands $net_commands $tool_commands $security_commands $monitoring_commands"
 
-    # Opções específicas para cada subcomando
-    case "${prev}" in
+    # Subcomandos específicos
+    case "${COMP_WORDS[1]}" in
         logs)
-            # Sugere números para o comando logs
-            COMPREPLY=( $(compgen -W "5 10 20 50 100" -- ${cur}) )
-            return 0
-            ;;
+            COMPREPLY=( $(compgen -W "5 10 20 50 100 200 500" -- ${cur}) )
+            return 0 ;;
         html)
-            # Sugere tipos de dados para visualização HTML
-            COMPREPLY=( $(compgen -W "memoria disco processos rede sistema" -- ${cur}) )
-            return 0
-            ;;
+            if [[ ${COMP_CWORD} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "memoria disco processos rede sistema" -- ${cur}) )
+            else
+                COMPREPLY=( $(compgen -W "bar line pie doughnut" -- ${cur}) )
+            fi
+            return 0 ;;
         mcps)
-            # Sugere tarefas comuns para MCPS
-            COMPREPLY=( $(compgen -W "atualizar sistema instalar pacote configurar rede monitorar servicos backup dados" -- ${cur}) )
-            return 0
-            ;;
+            COMPREPLY=( $(compgen -W "atualizar sistema instalar pacote configurar rede monitorar servicos backup dados limpar logs verificar seguranca otimizar performance" -- ${cur}) )
+            return 0 ;;
         agent)
-            # Sugere objetivos comuns para o agente
-            COMPREPLY=( $(compgen -W "configurar servidor de email relay com antispam otimizar performance do sistema monitorar logs e detectar ataques" -- ${cur}) )
-            return 0
-            ;;
+            COMPREPLY=() ; return 0 ;;
+        telemetry)
+            COMPREPLY=( $(compgen -W "--enable --disable" -- ${cur}) )
+            return 0 ;;
         relay)
-            # Sugere comandos do relay
             COMPREPLY=( $(compgen -W "analyze configure monitor stats spamexperts zimbra blacklist restart" -- ${cur}) )
-            return 0
-            ;;
+            return 0 ;;
         docler)
-            # Sugere comandos do DOCLER
             COMPREPLY=( $(compgen -W "start stop status admin" -- ${cur}) )
-            return 0
-            ;;
+            return 0 ;;
+        opn)
+            COMPREPLY=( $(compgen -W "add list health interfaces metrics firewall rules apply diagnostics states activity logs" -- ${cur}) )
+            return 0 ;;
         config)
-            # Sugere opções de configuração
             COMPREPLY=( $(compgen -W "show edit reset backup restore test" -- ${cur}) )
-            return 0
-            ;;
-        cache)
-            # Sugere opções de cache
-            COMPREPLY=( $(compgen -W "clear status info" -- ${cur}) )
-            return 0
-            ;;
-        system-check|version-bump|sync-changes|sync-keys|github-setup|install-llamacpp)
-            # Ferramentas de sistema não precisam de argumentos adicionais
-            COMPREPLY=()
-            return 0
-            ;;
-        modsecurity|suricata|crowdsec|monit)
-            # Ferramentas de segurança não precisam de argumentos adicionais
-            COMPREPLY=()
-            return 0
-            ;;
-        start|stop|restart|status)
-            # Comandos de serviço não precisam de argumentos adicionais
-            COMPREPLY=()
-            return 0
-            ;;
-        kernel|sistema|memoria|disco|processos|rede|data|uptime)
-            # Comandos de sistema não precisam de argumentos adicionais
-            COMPREPLY=()
-            return 0
-            ;;
-        web|tui|config|cache-clear|reload|interactive|complex|agent)
-            # Comandos simples não precisam de argumentos adicionais
-            COMPREPLY=()
-            return 0
-            ;;
-        *)
-            ;;
+            return 0 ;;
     esac
 
-    # Se não houver subcomando específico, sugere os comandos principais
-    if [[ ${cur} == * ]] ; then
+    # Primeiro argumento: lista tudo
+    if [[ ${COMP_CWORD} -eq 1 ]]; then
         COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
         return 0
     fi
 }
 
-# Função para completar argumentos de comandos específicos
-_fazai_html_completions()
-{
-    local cur="${COMP_WORDS[COMP_CWORD]}"
-    local prev="${COMP_WORDS[COMP_CWORD-1]}"
-    
-    if [[ "${prev}" == "html" ]]; then
-        # Primeiro argumento: tipo de dados
-        COMPREPLY=( $(compgen -W "memoria disco processos rede sistema" -- ${cur}) )
-    elif [[ "${COMP_WORDS[1]}" == "html" && "${COMP_WORDS[2]}" != "" ]]; then
-        # Segundo argumento: tipo de gráfico
-        COMPREPLY=( $(compgen -W "bar line pie doughnut" -- ${cur}) )
-    fi
-}
+complete -F _fazai_completions fazai
 
-# Função para completar comandos MCPS
-_fazai_mcps_completions()
-{
-    local cur="${COMP_WORDS[COMP_CWORD]}"
-    local prev="${COMP_WORDS[COMP_CWORD-1]}"
-    
-    if [[ "${prev}" == "mcps" ]]; then
-        # Sugere tarefas comuns para MCPS
-        local mcps_tasks="atualizar sistema instalar pacote configurar rede monitorar servicos backup dados limpar logs verificar seguranca otimizar performance"
-        COMPREPLY=( $(compgen -W "${mcps_tasks}" -- ${cur}) )
-    fi
-}
-
-# Função para completar comandos de logs
-_fazai_logs_completions()
-{
-    local cur="${COMP_WORDS[COMP_CWORD]}"
-    local prev="${COMP_WORDS[COMP_CWORD-1]}"
-    
-    if [[ "${prev}" == "logs" ]]; then
-        # Sugere números comuns para visualização de logs
-        COMPREPLY=( $(compgen -W "5 10 20 50 100 200 500" -- ${cur}) )
-    fi
-}
-
-# Função principal de completion
-_fazai_main_completion()
-{
-    local cur="${COMP_WORDS[COMP_CWORD]}"
-    local prev="${COMP_WORDS[COMP_CWORD-1]}"
-    
-    # Se é o primeiro argumento, usa a função principal
-    if [[ ${COMP_CWORD} -eq 1 ]]; then
-        _fazai_completions
-    else
-        # Para argumentos subsequentes, usa funções específicas
-        case "${COMP_WORDS[1]}" in
-            html)
-                _fazai_html_completions
-                ;;
-            mcps)
-                _fazai_mcps_completions
-                ;;
-            logs)
-                _fazai_logs_completions
-                ;;
-            *)
-                _fazai_completions
-                ;;
-        esac
-    fi
-}
-
-# Registra a função de completion
-complete -F _fazai_main_completion fazai
-
-# Função para mostrar ajuda de completion
 _fazai_show_completion_help()
 {
     echo "FazAI Bash Completion v2.0.0"
     echo ""
-    echo "Comandos disponíveis:"
-    echo "  Sistema:     ajuda, help, --help, -d, --debug, versao, version, -v, check-deps"
-    echo "  Serviço:     start, stop, restart, status, reload"
+    echo "Comandos:"
+    echo "  Sistema:     ajuda, help, versao, -v, manual, check-deps"
+    echo "  Serviço:     start, stop, restart, status, reload, telemetry, telemetry-smoke"
     echo "  Logs:        logs [n], limpar-logs, clear-logs, web"
     echo "  Sistema:     kernel, sistema, memoria, disco, processos, rede, data, uptime"
-    echo "  Visualização: html <tipo> [graf], tui, interactive, complex -g <objetivo> [--web]"
-    echo "  Configuração: config, cache, cache-clear"
-    echo "  IA:          mcps <tarefa>, agent <objetivo>, -q/--question, -s/--stream, -w/--web"
-    echo "  Relay:       relay analyze, relay configure, relay monitor, relay stats"
-    echo "  DOCLER:      docler, docler admin, docler start, docler status"
-    echo "  Segurança:   suricata_setup, modsecurity_setup, crowdsec_setup, spamexperts, cloudflare"
+    echo "  Visual:      html <tipo> [graf], interactive, tui, complex"
+    echo "  Config:      config, cache, cache-clear"
+    echo "  IA:          agent <objetivo>, mcps <tarefa>, -q/--question, -s/--stream, -w/--web"
+    echo "  Relay:       relay analyze|configure|monitor|stats|spamexperts|zimbra|blacklist|restart"
+    echo "  DOCLER:      docler start|stop|status|admin (Interface Web DOCLER – não confundir com Docker)"
+    echo "  Segurança:   modsecurity, suricata, crowdsec, spamexperts, cloudflare, monit"
+    echo "  Monitoria:   net-qos-monitor, snmp-monitor, agent-supervisor"
+    echo "  OPNsense:    opn add|list|health|interfaces|metrics|firewall|rules|apply|diagnostics|states|activity|logs"
     echo ""
-    echo "Exemplos:"
-    echo "  fazai html memoria bar"
-    echo "  fazai mcps atualizar sistema"
-    echo "  fazai logs 20"
-    echo "  fazai cache"
+    echo "Notas: [telemetry].enable_ingest / enable_metrics controlam /ingest e /metrics."
 }
 
-# Comando para mostrar ajuda de completion
 if [[ "${1}" == "--completion-help" ]]; then
     _fazai_show_completion_help
 fi
