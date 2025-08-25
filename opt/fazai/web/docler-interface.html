@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOCLER - Oráculo Druídico Digital</title>
+    <style>
+        /* Reset e configurações base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Variáveis CSS para tema DOCLER */
+        :root {
+            --docler-primary: #00ff88;
+            --docler-secondary: #ff0088;
+            --docler-accent: #0088ff;
+            --docler-gold: #ffd700;
+            --docler-purple: #8a2be2;
+            --docler-bg-dark: #0a0a0a;
+            --docler-bg-medium: #1a1a2e;
+            --docler-bg-light: #16213e;
+            --docler-text: #ffffff;
+            --docler-text-dim: #cccccc;
+        }
+
+        /* Container principal */
+        .docler-container {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: 80px 1fr 60px;
+            min-height: 100vh;
+            gap: 1px;
+            background: var(--docler-primary);
+        }
+
+        /* Header */
+        .docler-header {
+            grid-column: 1 / -1;
+            background: rgba(10, 10, 10, 0.95);
+            border-bottom: 2px solid var(--docler-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .docler-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, var(--docler-primary), transparent);
+            animation: scan 3s infinite;
+        }
+
+        @keyframes scan {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .docler-logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--docler-primary);
+            text-shadow: 0 0 20px var(--docler-primary);
+            z-index: 1;
+        }
+
+        .docler-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            z-index: 1;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--docler-primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        /* Sidebar esquerda - Face DOCLER */
+        .docler-face-panel {
+            grid-row: 2;
+            background: rgba(26, 26, 46, 0.9);
+            border-right: 1px solid var(--docler-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
+            position: relative;
+        }
+
+        .docler-face {
+            width: 180px;
+            height: 180px;
+            border: 2px solid var(--docler-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            position: relative;
+            background: linear-gradient(135deg, rgba(0,255,136,0.1) 0%, rgba(0,136,255,0.1) 50%, rgba(255,0,136,0.1) 100%);
+            animation: faceGlow 4s infinite, faceBreathing 3s ease-in-out infinite;
+            overflow: hidden;
+        }
+
+        @keyframes faceBreathing {
+            0%, 100% { 
+                transform: scale(1) rotate(0deg); 
+                border-width: 2px;
+            }
+            50% { 
+                transform: scale(1.05) rotate(1deg); 
+                border-width: 3px;
+            }
+        }
+
+        .docler-face::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: faceShine 6s infinite;
+        }
+
+        @keyframes faceShine {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+        }
+
+        @keyframes faceGlow {
+            0%, 100% { box-shadow: 0 0 30px var(--docler-primary); }
+            50% { box-shadow: 0 0 50px var(--docler-primary), 0 0 100px var(--docler-secondary); }
+        }
+
+        .face-expression {
+            width: 100%;
+            height: 100%;
+            transition: all 0.5s ease;
+            position: relative;
+            z-index: 2;
+        }
+
+        .face-eyes {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 60%;
+            margin: 0 auto;
+            margin-top: 25%;
+        }
+
+        .eye {
+            width: 20px;
+            height: 20px;
+            background: var(--docler-primary);
+            border-radius: 50%;
+            position: relative;
+            animation: eyeBlink 4s infinite;
+        }
+
+        .eye::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 8px;
+            height: 8px;
+            background: #000;
+            border-radius: 50%;
+            animation: eyeLook 3s infinite;
+        }
+
+        @keyframes eyeBlink {
+            0%, 90%, 100% { transform: scaleY(1); }
+            95% { transform: scaleY(0.1); }
+        }
+
+        @keyframes eyeLook {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(2px, -1px); }
+            50% { transform: translate(-1px, 1px); }
+            75% { transform: translate(1px, 0); }
+        }
+
+        .face-mouth {
+            width: 40px;
+            height: 20px;
+            border: 2px solid var(--docler-primary);
+            border-top: none;
+            border-radius: 0 0 40px 40px;
+            margin: 20px auto 0;
+            transition: all 0.3s ease;
+        }
+
+        .face-mouth.happy {
+            border-radius: 0 0 40px 40px;
+            height: 15px;
+        }
+
+        .face-mouth.thinking {
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+        }
+
+        .face-mouth.focused {
+            border-radius: 0 0 20px 20px;
+            height: 10px;
+        }
+
+        .face-mouth.surprised {
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+        }
+
+        .face-mouth.determined {
+            border-radius: 0 0 10px 10px;
+            height: 5px;
+        }
+
+        .face-mouth.satisfied {
+            border-radius: 0 0 30px 30px;
+            height: 12px;
+        }
+
+        .docler-mood {
+            font-size: 1.2rem;
+            color: var(--docler-text-dim);
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .docler-stats {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--docler-accent);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        /* Área principal */
+        .docler-main {
+            grid-row: 2;
+            background: rgba(22, 33, 62, 0.8);
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .docler-welcome {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .welcome-title {
+            font-size: 2.5rem;
+            color: var(--docler-primary);
+            margin-bottom: 1rem;
+            text-shadow: 0 0 20px var(--docler-primary);
+        }
+
+        .welcome-subtitle {
+            font-size: 1.2rem;
+            color: var(--docler-text-dim);
+        }
+
+        .docler-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .action-card {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--docler-accent);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,136,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .action-card:hover::before {
+            left: 100%;
+        }
+
+        .action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,136,255,0.3);
+            border-color: var(--docler-primary);
+        }
+
+        .action-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--docler-accent);
+        }
+
+        .action-title {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            color: var(--docler-text);
+        }
+
+        .action-description {
+            font-size: 0.9rem;
+            color: var(--docler-text-dim);
+            line-height: 1.4;
+        }
+
+        /* Sidebar direita - Controles */
+        .docler-controls {
+            grid-row: 2;
+            background: rgba(26, 26, 46, 0.9);
+            border-left: 1px solid var(--docler-primary);
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .control-section {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--docler-secondary);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .control-title {
+            font-size: 1.1rem;
+            color: var(--docler-secondary);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .control-button {
+            width: 100%;
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            background: transparent;
+            border: 1px solid var(--docler-accent);
+            color: var(--docler-text);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .control-button:hover {
+            background: var(--docler-accent);
+            color: var(--docler-bg-dark);
+            transform: scale(1.02);
+        }
+
+        /* Footer */
+        .docler-footer {
+            grid-column: 1 / -1;
+            background: rgba(10, 10, 10, 0.95);
+            border-top: 2px solid var(--docler-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            font-size: 0.9rem;
+            color: var(--docler-text-dim);
+        }
+
+        /* Responsividade */
+        @media (max-width: 1200px) {
+            .docler-container {
+                grid-template-columns: 250px 1fr 250px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .docler-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 80px auto 1fr auto 60px;
+            }
+            
+            .docler-face-panel, .docler-controls {
+                grid-column: 1;
+            }
+            
+            .docler-face-panel {
+                grid-row: 2;
+            }
+            
+            .docler-main {
+                grid-row: 3;
+            }
+            
+            .docler-controls {
+                grid-row: 4;
+            }
+        }
+
+        /* Animações especiais */
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .matrix-rain {
+            color: var(--docler-primary);
+            font-size: 1rem;
+            position: absolute;
+            animation: matrixFall 10s linear infinite;
+        }
+
+        @keyframes matrixFall {
+            0% { transform: translateY(-100vh); }
+            100% { transform: translateY(100vh); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Matrix -->
+    <div class="matrix-bg" id="matrixBg"></div>
+
+    <!-- Container principal -->
+    <div class="docler-container">
+        <!-- Header -->
+        <header class="docler-header">
+            <div class="docler-logo">DOCLER</div>
+            <div class="docler-status">
+                <div class="status-indicator"></div>
+                <span>Sistema Ativo</span>
+            </div>
+        </header>
+
+        <!-- Sidebar esquerda - Face DOCLER -->
+        <aside class="docler-face-panel">
+            <div class="docler-face floating" id="doclerFace">
+                <div class="face-expression" id="faceExpression">
+                    <div class="face-eyes">
+                        <div class="eye left-eye"></div>
+                        <div class="eye right-eye"></div>
+                    </div>
+                    <div class="face-mouth" id="faceMouth"></div>
+                </div>
+            </div>
+            <div class="docler-mood" id="doclerMood">DOCLER está observando...</div>
+            <div class="docler-stats">
+                <div class="stat-item">
+                    <span>Status:</span>
+                    <span style="color: var(--docler-primary);">Online</span>
+                </div>
+                <div class="stat-item">
+                    <span>Uptime:</span>
+                    <span>2d 5h 32m</span>
+                </div>
+                <div class="stat-item">
+                    <span>Agentes:</span>
+                    <span>12 ativos</span>
+                </div>
+                <div class="stat-item">
+                    <span>Relay:</span>
+                    <span>Operacional</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Área principal -->
+        <main class="docler-main">
+            <div class="main-content">
+                <div class="docler-welcome">
+                    <h1 class="welcome-title">Bem-vindo ao DOCLER</h1>
+                    <p class="welcome-subtitle">Oráculo Druídico para Sabedoria Cósmica e Iluminação</p>
+                </div>
+
+                <div class="docler-actions">
+                    <div class="action-card" onclick="activateAgent()">
+                        <div class="action-icon">🤖</div>
+                        <h3 class="action-title">Agente Inteligente</h3>
+                        <p class="action-description">Ative o agente DOCLER para tarefas complexas e automação inteligente</p>
+                    </div>
+
+                    <div class="action-card" onclick="openRelay()">
+                        <div class="action-icon">📧</div>
+                        <h3 class="action-title">Relay SMTP</h3>
+                        <p class="action-description">Configure e monitore o sistema de relay de email inteligente</p>
+                    </div>
+
+                    <div class="action-card" onclick="openMonitoring()">
+                        <div class="action-icon">📊</div>
+                        <h3 class="action-title">Monitoramento</h3>
+                        <p class="action-description">Acesse dashboards Grafana e métricas Prometheus em tempo real</p>
+                    </div>
+
+                    <div class="action-card" onclick="openAdmin()">
+                        <div class="action-icon">⚙️</div>
+                        <h3 class="action-title">Administração</h3>
+                        <p class="action-description">Painel de controle completo para configurações e gerenciamento</p>
+                    </div>
+
+                    <div class="action-card" onclick="openSecurity()">
+                        <div class="action-icon">🛡️</div>
+                        <h3 class="action-title">Segurança</h3>
+                        <p class="action-description">Monitoramento de segurança e configurações de firewall</p>
+                    </div>
+
+                    <div class="action-card" onclick="openAnalytics()">
+                        <div class="action-icon">📈</div>
+                        <h3 class="action-title">Analytics</h3>
+                        <p class="action-description">Análise avançada de dados e relatórios de produtividade</p>
+                    </div>
+                </div>
+
+
+                <!-- Integrações Cloudflare / SpamExperts -->
+                <section id="integrations" style="background: rgba(0,0,0,0.3); border:1px solid #0088ff; border-radius:12px; padding:1rem;">
+                    <h2 style="color:#0088ff; margin-bottom:10px;">Integrações</h2>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">Cloudflare DNS</h3>
+                            <input id="cfToken" placeholder="API Token" style="width:100%; margin:4px 0;">
+                            <input id="cfZone" placeholder="Zone ID" style="width:100%; margin:4px 0;">
+                            <input id="cfName" placeholder="Record name (ex: host.example.com)" style="width:100%; margin:4px 0;">
+                            <input id="cfType" placeholder="Type (A/CNAME/TXT)" style="width:100%; margin:4px 0;">
+                            <input id="cfContent" placeholder="Content (IP/target)" style="width:100%; margin:4px 0;">
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <button onclick="cfListZones()">Listar Zonas</button>
+                                <button onclick="cfListDns()">Listar DNS</button>
+                                <button onclick="cfCreate()">Criar/Atualizar</button>
+                            </div>
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">SpamExperts</h3>
+                            <input id="seBase" placeholder="Base URL (ex: https://spamlogin.com)" style="width:100%; margin:4px 0;">
+                            <input id="seKey" placeholder="API Key" style="width:100%; margin:4px 0;">
+                            <input id="seDomain" placeholder="Domain (opcional)" style="width:100%; margin:4px 0;">
+                            <input id="seEmail" placeholder="Email (opcional)" style="width:100%; margin:4px 0;">
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <button onclick="seInboundLogs()">Inbound Logs</button>
+                                <button onclick="seOutboundLogs()">Outbound Logs</button>
+                                <button onclick="seQuarantine()">Quarentena</button>
+                            </div>
+                            <div style="margin-top:6px; display:flex; gap:6px;">
+                                <input id="seQId" placeholder="Quarentena ID p/ release" style="flex:1;">
+                                <button onclick="seRelease()">Release</button>
+                            </div>
+                        </div>
+                    </div>
+                    <pre id="intResult" style="margin-top:10px; white-space:pre-wrap;"></pre>
+                </section>
+
+                <!-- Console do Agente (SSE) -->
+                <section id="agentConsole" style="background: rgba(0,0,0,0.3); border:1px solid #27ae60; border-radius:12px; padding:1rem; margin-top:12px;">
+                    <h2 style="color:#27ae60; margin-bottom:10px;">Console do Agente (SSE)</h2>
+                    <div style="display:grid; grid-template-columns: 1fr 280px; gap:10px; align-items:start;">
+                        <div>
+                            <textarea id="agentObjective" placeholder="Descreva o objetivo. Ex: atualizar sistema e listar serviços ativos" style="width:100%; min-height:80px; margin-bottom:8px;"></textarea>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                                <button onclick="agentStart()">Iniciar</button>
+                                <button onclick="agentAbort()">Abortar</button>
+                                <span id="agentSess" style="color:#ccc; font-size:12px;">Sessão: -</span>
+                                <span id="agentStat" style="color:#0f0; font-size:12px;">Status: pronto</span>
+                            </div>
+                            <div style="margin-top:8px; display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:10px;">
+                                <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                                    <div style="font-weight:bold; color:#0ff;">Tokens</div>
+                                    <pre id="agentTokens" style="white-space:pre-wrap; max-height:240px; overflow:auto;"></pre>
+                                </div>
+                                <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                                    <div style="font-weight:bold; color:#0ff;">Ações / Logs</div>
+                                    <pre id="agentLogs" style="white-space:pre-wrap; max-height:240px; overflow:auto;"></pre>
+                                </div>
+                                <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                                    <div style="font-weight:bold; color:#0ff;">Observações</div>
+                                    <pre id="agentObs" style="white-space:pre-wrap; max-height:240px; overflow:auto;"></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                            <div style="font-weight:bold; color:#0ff;">Opções</div>
+                            <label style="display:block; margin-top:6px; font-size:12px; color:#ccc;">API</label>
+                            <input id="agentApi" value="http://localhost:3120" style="width:100%;">
+                            <label style="display:block; margin-top:6px; font-size:12px; color:#ccc;">Sessão</label>
+                            <input id="agentSessionId" placeholder="(auto)" style="width:100%;">
+                            <button style="margin-top:8px; width:100%;" onclick="agentNewSession()">Nova Sessão</button>
+                            <button style="margin-top:6px; width:100%;" onclick="agentStatus()">Status do Agente</button>
+                            <pre id="agentStatusOut" style="white-space:pre-wrap; max-height:160px; overflow:auto; margin-top:6px;"></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Saúde do Sistema -->
+                <section id="health" style="background: rgba(0,0,0,0.3); border:1px solid #16a085; border-radius:12px; padding:1rem; margin-top:12px;">
+                    <h2 style="color:#16a085; margin-bottom:10px;">Saúde do Sistema</h2>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <button onclick="healthCheck()">Verificar Saúde</button>
+                        <span id="hcAgent" style="font-size:12px; color:#ccc;">Agente: -</span>
+                        <span id="hcWorker" style="font-size:12px; color:#ccc;">Worker: -</span>
+                        <span id="hcGrafana" style="font-size:12px; color:#ccc;">Grafana: -</span>
+                        <span id="hcProm" style="font-size:12px; color:#ccc;">Prometheus: -</span>
+                        <span id="hcQdrant" style="font-size:12px; color:#ccc;">Qdrant: -</span>
+                        <span id="hcDoclerC" style="font-size:12px; color:#ccc;">Docler C: -</span>
+                        <span id="hcDoclerA" style="font-size:12px; color:#ccc;">Docler A: -</span>
+                    </div>
+                    <pre id="hcOut" style="white-space:pre-wrap; margin-top:8px; max-height:220px; overflow:auto;"></pre>
+                </section>
+
+                <!-- Agente NL -->
+                <section id="agentNL" style="background: rgba(0,0,0,0.3); border:1px solid #9b59b6; border-radius:12px; padding:1rem; margin-top:12px;">
+                    <h2 style="color:#9b59b6; margin-bottom:10px;">Agente por Linguagem Natural</h2>
+                    <textarea id="nlText" placeholder="Ex: listar regras do firewall opnsense" style="width:100%; min-height:80px; margin-bottom:8px;"></textarea>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:8px;">
+                        <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                            <div style="font-weight:bold; color:#0ff;">Hints OPNsense</div>
+                            <input id="nlOpnId" placeholder="Firewall ID (opcional)" style="width:100%; margin:4px 0;">
+                            <input id="nlOpnName" placeholder="Firewall Nome (opcional)" style="width:100%; margin:4px 0;">
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                            <div style="font-weight:bold; color:#0ff;">Cloudflare</div>
+                            <input id="nlCfToken" placeholder="API Token" style="width:100%; margin:4px 0;">
+                            <input id="nlCfZone" placeholder="Zone ID" style="width:100%; margin:4px 0;">
+                            <input id="nlCfType" placeholder="Tipo (A/CNAME/TXT)" style="width:100%; margin:4px 0;">
+                            <input id="nlCfName" placeholder="Nome (host.example.com)" style="width:100%; margin:4px 0;">
+                            <input id="nlCfContent" placeholder="Conteúdo (IP/target)" style="width:100%; margin:4px 0;">
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:8px;">
+                            <div style="font-weight:bold; color:#0ff;">SpamExperts</div>
+                            <input id="nlSpxBase" placeholder="Base URL (https://spamlogin.com)" style="width:100%; margin:4px 0;">
+                            <input id="nlSpxKey" placeholder="API Key" style="width:100%; margin:4px 0;">
+                            <input id="nlSpxDomain" placeholder="Domínio (opcional)" style="width:100%; margin:4px 0;">
+                            <input id="nlSpxEmail" placeholder="Email (opcional)" style="width:100%; margin:4px 0;">
+                            <input id="nlSpxQid" placeholder="Quarantine ID (release)" style="width:100%; margin:4px 0;">
+                        </div>
+                    </div>
+                    <div style="margin-top:8px; display:flex; gap:8px;">
+                        <button onclick="nlRoute()">Analisar</button>
+                        <button onclick="nlExec()">Executar</button>
+                    </div>
+                    <pre id="nlOut" style="margin-top:10px; white-space:pre-wrap;"></pre>
+                </section>
+
+                <!-- Segurança Proativa -->
+                <section id="secPolicies" style="background: rgba(0,0,0,0.3); border:1px solid #e67e22; border-radius:12px; padding:1rem; margin-top:12px;">
+                    <h2 style="color:#e67e22; margin-bottom:10px;">Segurança Proativa</h2>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px;">
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">Políticas</h3>
+                            <div style="margin-bottom:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                                <button onclick="secLoad()">Carregar</button>
+                                <button onclick="secSave()">Salvar</button>
+                                <button onclick="secTemplate('suricata')">Template Suricata</button>
+                                <button onclick="secTemplate('clamav')">Template ClamAV</button>
+                                <button onclick="secTemplate('policy')">Template ET POLICY</button>
+                                <button onclick="secTemplate('shellcode')">Template SHELLCODE</button>
+                                <button onclick="secTemplate('spx_quarantine')">Template SPX Quarantine</button>
+                                <button onclick="secTemplate('spx_allow')">Template SPX Allowlist</button>
+                                <button onclick="secTemplate('spx_block')">Template SPX Blocklist</button>
+                            </div>
+                            <textarea id="secJson" style="width:100%; min-height:220px; font-family: monospace;"></textarea>
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">ModSecurity</h3>
+                            <select id="modSecServer" style="width:100%; margin:4px 0;">
+                                <option value="nginx">Nginx</option>
+                                <option value="apache">Apache</option>
+                            </select>
+                            <select id="modSecMode" style="width:100%; margin:4px 0;">
+                                <option value="detection">Detection Only</option>
+                                <option value="blocking">Blocking</option>
+                            </select>
+                            <button onclick="modSecSetup()">Instalar/Configurar</button>
+                            <pre id="modSecOut" style="white-space:pre-wrap; margin-top:8px;"></pre>
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">Grafana</h3>
+                            <input id="gfBase" placeholder="Base (ex: http://127.0.0.1:3000)" style="width:100%; margin:4px 0;">
+                            <input id="gfUser" placeholder="User (ex: admin)" style="width:100%; margin:4px 0;">
+                            <input id="gfPass" placeholder="Pass (ex: admin)" style="width:100%; margin:4px 0;">
+                            <input id="gfTok" placeholder="Token (opcional)" style="width:100%; margin:4px 0;">
+                            <input id="gfProm" placeholder="Prometheus URL (ex: http://127.0.0.1:9090)" style="width:100%; margin:4px 0;">
+                            <button onclick="gfProvision()">Provisionar</button>
+                            <pre id="gfOut" style="white-space:pre-wrap; margin-top:8px;"></pre>
+                        </div>
+                        <div style="border:1px solid #444; border-radius:8px; padding:10px;">
+                            <h3 style="color:#0ff;">Config (runtime)</h3>
+                            <input id="udpPort" placeholder="UDP Port (ex: 5514)" style="width:100%; margin:4px 0;">
+                            <div style="display:flex; gap:6px;">
+                                <button onclick="cfgReload(true)">Reload de disco</button>
+                                <button onclick="cfgSetUdp()">Salvar UDP & Reiniciar</button>
+                            </div>
+                            <pre id="cfgOut" style="white-space:pre-wrap; margin-top:8px;"></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- OPNsense Fleet -->
+                <section id="opnFleet" style="background: rgba(0,0,0,0.3); border:1px solid #00ff88; border-radius:12px; padding:1rem;">
+                    <h2 style="color:#00ff88; margin-bottom:10px;">OPNsense Fleet</h2>
+                    <div style="margin-bottom:10px;">
+                        <button onclick="openOpnAdd()" style="padding:6px 10px;">Adicionar Firewall</button>
+                    </div>
+                    <div id="opnAgg" style="margin-bottom:10px; color:#ccc;">Carregando agregados...</div>
+                    <table id="opnTable" style="width:100%; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th style="border-bottom:1px solid #00ff88; text-align:left; padding:6px;">Nome</th>
+                                <th style="border-bottom:1px solid #00ff88; text-align:left; padding:6px;">Versão</th>
+                                <th style="border-bottom:1px solid #00ff88; text-align:left; padding:6px;">Último Contato</th>
+                                <th style="border-bottom:1px solid #00ff88; text-align:left; padding:6px;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="opnTableBody"></tbody>
+                    </table>
+                    <div id="opnDetails" style="margin-top:15px; display:none;">
+                        <h3 id="opnDetailTitle" style="color:#00ff88;">Detalhes</h3>
+                        <div>
+                            <button onclick="showTab('dash')">Dashboard</button>
+                            <button onclick="showTab('if')">Interfaces</button>
+                            <button onclick="showTab('fw')">Firewall</button>
+                            <button onclick="showTab('diag')">Diagnostics</button>
+                        </div>
+                        <div id="tabDash" style="display:none; margin-top:10px;">
+                            <pre id="opnMetrics" style="white-space:pre-wrap;"></pre>
+                        </div>
+                        <div id="tabIf" style="display:none; margin-top:10px;">
+                            <pre id="opnIfaces" style="white-space:pre-wrap;"></pre>
+                        </div>
+                        <div id="tabFw" style="display:none; margin-top:10px;">
+                            <button onclick="loadOpnFwRules()">Atualizar Regras</button>
+                            <pre id="opnFwRules" style="white-space:pre-wrap; max-height:280px; overflow:auto;"></pre>
+                        </div>
+                        <div id="tabDiag" style="display:none; margin-top:10px;">
+                            <div style="display:flex; gap:8px;">
+                                <button onclick="loadOpnStates()">Estados</button>
+                                <button onclick="loadOpnActivity()">Atividade</button>
+                                <button onclick="loadOpnFwLogs()">Logs Firewall</button>
+                            </div>
+                            <pre id="opnDiagOut" style="white-space:pre-wrap; max-height:280px; overflow:auto;"></pre>
+                        </div>
+                    </div>
+                </section>
+                <!-- Modal Adicionar Firewall -->
+                <div id="opnAddModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); align-items:center; justify-content:center;">
+                    <div style="background:#111; border:1px solid #00ff88; border-radius:8px; padding:16px; width:520px;">
+                        <h3 style="color:#00ff88; margin-top:0;">Adicionar OPNsense</h3>
+                        <div style="display:grid; grid-template-columns: 120px 1fr; gap:6px; align-items:center;">
+                            <label>Nome</label><input id="opnName" placeholder="Ex: Firewall-01">
+                            <label>Base URL</label><input id="opnUrl" placeholder="https://host:port">
+                            <label>API Key</label><input id="opnKey" placeholder="...">
+                            <label>API Secret</label><input id="opnSec" placeholder="...">
+                            <label>Verificar TLS</label><select id="opnTLS"><option value="true">true</option><option value="false">false</option></select>
+                            <label>Tags</label><input id="opnTags" placeholder="ex: prod,edge">
+                        </div>
+                        <div style="margin-top:10px; display:flex; gap:8px;">
+                            <button onclick="submitOpnAdd()">Testar & Salvar</button>
+                            <button onclick="closeOpnAdd()">Cancelar</button>
+                        </div>
+                        <pre id="opnAddResult" style="margin-top:10px; white-space:pre-wrap;"></pre>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Sidebar direita - Controles -->
+        <aside class="docler-controls">
+            <div class="control-section">
+                <h3 class="control-title">Controles Rápidos</h3>
+                <button class="control-button" onclick="quickCommand('status')">Status Sistema</button>
+                <button class="control-button" onclick="quickCommand('logs')">Ver Logs</button>
+                <button class="control-button" onclick="quickCommand('restart')">Reiniciar</button>
+                <button class="control-button" onclick="quickCommand('backup')">Backup</button>
+            </div>
+
+            <div class="control-section">
+                <h3 class="control-title">Agentes IA</h3>
+                <button class="control-button" onclick="agentCommand('start')">Iniciar Agente</button>
+                <button class="control-button" onclick="agentCommand('stop')">Parar Agente</button>
+                <button class="control-button" onclick="agentCommand('status')">Status Agentes</button>
+                <button class="control-button" onclick="agentCommand('config')">Configurar</button>
+            </div>
+
+            <div class="control-section">
+                <h3 class="control-title">Relay SMTP</h3>
+                <button class="control-button" onclick="relayCommand('analyze')">Analisar</button>
+                <button class="control-button" onclick="relayCommand('configure')">Configurar</button>
+                <button class="control-button" onclick="relayCommand('monitor')">Monitorar</button>
+                <button class="control-button" onclick="relayCommand('stats')">Estatísticas</button>
+            </div>
+
+            <div class="control-section">
+                <h3 class="control-title">Tema</h3>
+                <button class="control-button" onclick="changeTheme('cyberpunk')">Cyberpunk</button>
+                <button class="control-button" onclick="changeTheme('matrix')">Matrix</button>
+                <button class="control-button" onclick="changeTheme('cosmic')">Cósmico</button>
+                <button class="control-button" onclick="changeTheme('druidic')">Druídico</button>
+            </div>
+        </aside>
+
+        <!-- Footer -->
+        <footer class="docler-footer">
+            <div>DOCLER v2.0.0 - Oráculo Druídico Digital</div>
+            <div>Roger Luft - Andarilho dos Véus</div>
+            <div>Conectado via: 192.168.1.100:3120</div>
+        </footer>
+    </div>
+
+    <script>
+        // Configuração inicial
+        const API = (function(){ try { return `${location.protocol}//${location.hostname}:3120`; } catch(_) { return 'http://localhost:3120'; } })();
+        let currentTheme = 'cyberpunk';
+        let doclerMood = 'observing';
+        let faceExpressions = {
+            observing: '🤖',
+            thinking: '🤔',
+            happy: '😊',
+            focused: '😤',
+            surprised: '😲',
+            determined: '😠',
+            satisfied: '😌'
+        };
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMatrix();
+            updateDoclerFace();
+            startFaceAnimation();
+            loadOpnFleet();
+            setInterval(loadOpnFleet, 10000);
+            refreshAlertFw();
+        });
+
+        // Integrações
+        async function cfListZones() {
+            const token = document.getElementById('cfToken').value.trim();
+            const url = `${API}/cf/zones?api_token=${encodeURIComponent(token)}`;
+            const t = await fetch(url).then(r=>r.json());
+            document.getElementById('intResult').textContent = JSON.stringify(t, null, 2);
+        }
+        async function cfListDns() {
+            const token = document.getElementById('cfToken').value.trim();
+            const zoneId = document.getElementById('cfZone').value.trim();
+            const name = document.getElementById('cfName').value.trim();
+            const url = `${API}/cf/dns?api_token=${encodeURIComponent(token)}&zone_id=${encodeURIComponent(zoneId)}${name?`&name=${encodeURIComponent(name)}`:''}`;
+            const t = await fetch(url).then(r=>r.json());
+            document.getElementById('intResult').textContent = JSON.stringify(t, null, 2);
+        }
+        async function cfCreate() {
+            const token = document.getElementById('cfToken').value.trim();
+            const zone = document.getElementById('cfZone').value.trim();
+            const name = document.getElementById('cfName').value.trim();
+            const type = document.getElementById('cfType').value.trim();
+            const content = document.getElementById('cfContent').value.trim();
+            const body = { api_token: token, zone_id: zone, type, name, content };
+            const r = await fetch(`${API}/cf/dns`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const t = await r.json();
+            document.getElementById('intResult').textContent = JSON.stringify(t, null, 2);
+        }
+        async function seInboundLogs(){ const base_url = seBase.value.trim(); const api_key = seKey.value.trim(); const domain = seDomain.value.trim(); const email = seEmail.value.trim(); const url = `${API}/spx/logs/inbound?base_url=${encodeURIComponent(base_url)}&api_key=${encodeURIComponent(api_key)}${domain?`&domain=${encodeURIComponent(domain)}`:''}${email?`&recipient=${encodeURIComponent(email)}`:''}`; const t = await fetch(url).then(r=>r.json()); intResult.textContent = JSON.stringify(t, null, 2); }
+        async function seOutboundLogs(){ const base_url = seBase.value.trim(); const api_key = seKey.value.trim(); const domain = seDomain.value.trim(); const email = seEmail.value.trim(); const url = `${API}/spx/logs/outbound?base_url=${encodeURIComponent(base_url)}&api_key=${encodeURIComponent(api_key)}${domain?`&domain=${encodeURIComponent(domain)}`:''}${email?`&sender=${encodeURIComponent(email)}`:''}`; const t = await fetch(url).then(r=>r.json()); intResult.textContent = JSON.stringify(t, null, 2); }
+        async function seQuarantine(){ const base_url = seBase.value.trim(); const api_key = seKey.value.trim(); const domain = seDomain.value.trim(); const email = seEmail.value.trim(); const url = `${API}/spx/quarantine?base_url=${encodeURIComponent(base_url)}&api_key=${encodeURIComponent(api_key)}${domain?`&domain=${encodeURIComponent(domain)}`:''}${email?`&email=${encodeURIComponent(email)}`:''}`; const t = await fetch(url).then(r=>r.json()); intResult.textContent = JSON.stringify(t, null, 2); }
+        async function seRelease(){ const base_url = seBase.value.trim(); const api_key = seKey.value.trim(); const id = document.getElementById('seQId').value.trim(); const body = { base_url, api_key, id }; const t = await fetch(`${API}/spx/quarantine/release`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r=>r.json()); intResult.textContent = JSON.stringify(t, null, 2); }
+
+        // NL Agent helpers
+        async function nlRoute(){
+            const text = document.getElementById('nlText').value;
+            const hints = buildNlHints();
+            const t = await fetch(`${API}/nl/route`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, hints }) }).then(r=>r.json());
+            document.getElementById('nlOut').textContent = JSON.stringify(t, null, 2);
+        }
+        async function nlExec(){
+            const text = document.getElementById('nlText').value;
+            const hints = buildNlHints();
+            const auth = {};
+            const cfToken = document.getElementById('nlCfToken').value.trim(); if (cfToken) auth.cloudflare_token = cfToken;
+            const t = await fetch(`${API}/nl/execute`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, hints, auth }) }).then(r=>r.json());
+            document.getElementById('nlOut').textContent = JSON.stringify(t, null, 2);
+        }
+        function buildNlHints(){
+            const opn = {}; const opnId = document.getElementById('nlOpnId').value.trim(); if (opnId) opn.id = opnId; const opnName = document.getElementById('nlOpnName').value.trim(); if (opnName) opn.name = opnName;
+            const cf = {}; const z=document.getElementById('nlCfZone').value.trim(); if(z) cf.zone_id=z; const ty=document.getElementById('nlCfType').value.trim(); if(ty) cf.type=ty; const nm=document.getElementById('nlCfName').value.trim(); if(nm) cf.name=nm; const ct=document.getElementById('nlCfContent').value.trim(); if(ct) cf.content=ct;
+            const spx = {}; const sb=document.getElementById('nlSpxBase').value.trim(); if(sb) spx.base_url=sb; const sk=document.getElementById('nlSpxKey').value.trim(); if(sk) spx.api_key=sk; const sd=document.getElementById('nlSpxDomain').value.trim(); if(sd) spx.domain=sd; const se=document.getElementById('nlSpxEmail').value.trim(); if(se) spx.email=se; const qi=document.getElementById('nlSpxQid').value.trim(); if(qi) spx.id=qi;
+            const hints = {}; if(Object.keys(opn).length) hints.opn=opn; if(Object.keys(cf).length) hints.cf=cf; if(Object.keys(spx).length) hints.spx=spx; return hints;
+        }
+
+        // Segurança Proativa
+        async function secLoad(){ const t = await fetch(`${API}/sec/policies`).then(r=>r.json()); document.getElementById('secJson').value = JSON.stringify(t.policies||t, null, 2); }
+        async function secSave(){ try{ const obj = JSON.parse(document.getElementById('secJson').value); const r = await fetch(`${API}/sec/policies`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(obj) }).then(r=>r.json()); alert('Salvo: '+JSON.stringify(r)); } catch(e){ alert('JSON inválido: '+e.message); } }
+        function secTemplate(which){
+            if (which==='suricata'){
+                const tpl = { interval_sec: 30, rules: [ { type:'suricata_signature', signature_contains:'ET TROJAN', threshold:3, window_sec:300, action:{ type:'opn_block_ip', fw_id:'<FW_ID>', ip_side:'src', interface:'wan', description:'AutoBlock TROJAN' } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='clamav'){
+                const tpl = { interval_sec: 30, rules: [ { type:'clamav_virus', name_contains:'Eicar', threshold:1, window_sec:300, action:{ type:'ai_decide', ai:{ opn:{ fw_id:'<FW_ID>', ip_side:'src', interface:'wan', description:'AutoBlock ClamAV' } } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='policy'){
+                const tpl = { interval_sec: 30, rules: [ { type:'suricata_signature', signature_contains:'ET POLICY', threshold:5, window_sec:600, action:{ type:'ai_decide', ai:{ threshold_ip:3, threshold_subnet:15, opn:{ fw_id:'<FW_ID>', ip_side:'src', interface:'wan', description:'AutoBlock POLICY' } } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='shellcode'){
+                const tpl = { interval_sec: 30, rules: [ { type:'suricata_signature', signature_contains:'SHELLCODE', threshold:1, window_sec:300, action:{ type:'ai_decide', ai:{ opn:{ fw_id:'<FW_ID>', ip_side:'src', interface:'wan', description:'AutoBlock SHELLCODE' } } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='spx_quarantine'){
+                const tpl = { interval_sec: 30, rules: [ { type:'clamav_virus', name_contains:'', threshold:1, window_sec:300, action:{ type:'spx_quarantine', base_url:'https://spamlogin.com', api_key:'<SPX_KEY>', params:{ id:'<MESSAGE_ID>', deliver:1 } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='spx_allow'){
+                const tpl = { interval_sec: 30, rules: [ { type:'suricata_signature', signature_contains:'', threshold:10, window_sec:3600, action:{ type:'spx_allowlist', base_url:'https://spamlogin.com', api_key:'<SPX_KEY>', params:{ domain:'example.com', entry:'sender@example.com' } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            } else if (which==='spx_block'){
+                const tpl = { interval_sec: 30, rules: [ { type:'suricata_signature', signature_contains:'', threshold:10, window_sec:3600, action:{ type:'spx_blocklist', base_url:'https://spamlogin.com', api_key:'<SPX_KEY>', params:{ domain:'example.com', entry:'bad@example.com' } } } ] };
+                document.getElementById('secJson').value = JSON.stringify(tpl, null, 2);
+            }
+        }
+        async function modSecSetup(){
+            const server = document.getElementById('modSecServer').value; const mode = document.getElementById('modSecMode').value;
+            const t = await fetch(`${API}/security/modsecurity/setup`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ server, mode }) }).then(r=>r.json());
+            document.getElementById('modSecOut').textContent = JSON.stringify(t, null, 2);
+        }
+        async function cfgReload(fromDisk){ const t = await fetch(`${API}/config/reload`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reload: !!fromDisk }) }).then(r=>r.json()); document.getElementById('cfgOut').textContent = JSON.stringify(t, null, 2); }
+        async function cfgSetUdp(){ const udp = parseInt(document.getElementById('udpPort').value)||0; const t = await fetch(`${API}/config/reload`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ telemetry:{ udp_port: udp } }) }).then(r=>r.json()); document.getElementById('cfgOut').textContent = JSON.stringify(t, null, 2); }
+        async function gfProvision(){ const base=gfBase.value||'http://127.0.0.1:3000'; const user=gfUser.value||'admin'; const pass=gfPass.value||'admin'; const token=gfTok.value||''; const prom=gfProm.value||'http://127.0.0.1:9090'; const body={ base, user, pass, token, prom }; const t=await fetch(`${API}/grafana/provision`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r=>r.json()); gfOut.textContent=JSON.stringify(t,null,2); }
+
+        // Matrix background
+        function initializeMatrix() {
+            const matrixBg = document.getElementById('matrixBg');
+            for (let i = 0; i < 50; i++) {
+                const rain = document.createElement('div');
+                rain.className = 'matrix-rain';
+                rain.textContent = String.fromCharCode(0x30A0 + Math.random() * 96);
+                rain.style.left = Math.random() * 100 + '%';
+                rain.style.animationDelay = Math.random() * 10 + 's';
+                rain.style.animationDuration = (Math.random() * 10 + 5) + 's';
+                matrixBg.appendChild(rain);
+            }
+        }
+
+        // OPNsense Fleet
+        async function loadOpnFleet() {
+            try {
+                const list = await fetch(`${API}/opn/list`) .then(r=>r.json());
+                const items = list.items || [];
+                const agg = await fetch(`${API}/services`) .then(r=>r.json());
+                const s = agg.statuses?.opnsense_fleet || { ok:0, degraded:0, down:0, total:0 };
+                document.getElementById('opnAgg').textContent = `Fleet: OK=${s.ok} Degraded=${s.degraded} Down=${s.down} Total=${s.total}`;
+                const tb = document.getElementById('opnTableBody');
+                tb.innerHTML='';
+                items.forEach(fw=>{
+                    const tr = document.createElement('tr');
+                    const st = fw.last_error ? 'Down' : (fw.last_seen ? 'OK' : 'Degraded');
+                    tr.innerHTML = `<td style="padding:6px; border-bottom:1px solid #333; cursor:pointer; color:#0ff;">${fw.name}</td>
+                                    <td style="padding:6px; border-bottom:1px solid #333;">${fw.version||'-'}</td>
+                                    <td style="padding:6px; border-bottom:1px solid #333;">${fw.last_seen||'-'}</td>
+                                    <td style="padding:6px; border-bottom:1px solid #333;">${st}</td>`;
+                    tr.onclick = ()=> openOpnDetails(fw);
+                    tb.appendChild(tr);
+                });
+            } catch(e) {
+                document.getElementById('opnAgg').textContent = 'Falha ao carregar fleet';
+            }
+        }
+
+        // Modal Adicionar Firewall
+        function openOpnAdd(){ document.getElementById('opnAddModal').style.display='flex'; document.getElementById('opnAddResult').textContent=''; }
+        function closeOpnAdd(){ document.getElementById('opnAddModal').style.display='none'; }
+        async function submitOpnAdd(){
+            const name = document.getElementById('opnName').value.trim();
+            const base_url = document.getElementById('opnUrl').value.trim();
+            const api_key = document.getElementById('opnKey').value.trim();
+            const api_secret = document.getElementById('opnSec').value.trim();
+            const verify_tls = document.getElementById('opnTLS').value === 'true';
+            const tags = document.getElementById('opnTags').value.split(',').map(s=>s.trim()).filter(Boolean);
+            const body = { name, base_url, api_key, api_secret, verify_tls, tags };
+            try{
+                const r = await fetch(`${API}/opn/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                const t = await r.json();
+                document.getElementById('opnAddResult').textContent = JSON.stringify(t, null, 2);
+                if (t.success){ await loadOpnFleet(); setTimeout(() => closeOpnAdd(), 800); }
+            } catch(e){ document.getElementById('opnAddResult').textContent = String(e); }
+        }
+
+        let currentFw = null;
+        async function openOpnDetails(fw) {
+            currentFw = fw;
+            document.getElementById('opnDetails').style.display = 'block';
+            document.getElementById('opnDetailTitle').textContent = `Detalhes: ${fw.name}`;
+            // Load metrics e interfaces
+            try {
+                const m = await fetch(`${API}/opn/${fw.id}/metrics`).then(r=>r.json());
+                document.getElementById('opnMetrics').textContent = JSON.stringify(m.metrics||m, null, 2);
+            } catch (_) {}
+            try {
+                const ifs = await fetch(`${API}/opn/${fw.id}/interfaces`).then(r=>r.json());
+                document.getElementById('opnIfaces').textContent = JSON.stringify(ifs.data||ifs, null, 2);
+            } catch (_) {}
+            showTab('dash');
+        }
+
+        function showTab(which) {
+            document.getElementById('tabDash').style.display = (which==='dash')?'block':'none';
+            document.getElementById('tabIf').style.display = (which==='if')?'block':'none';
+            document.getElementById('tabFw').style.display = (which==='fw')?'block':'none';
+            document.getElementById('tabDiag').style.display = (which==='diag')?'block':'none';
+        }
+
+        async function loadOpnFwRules(){ if(!currentFw) return; const r = await fetch(`${API}/opn/${currentFw.id}/firewall/rules`).then(r=>r.json()); document.getElementById('opnFwRules').textContent = JSON.stringify(r.data||r, null, 2); showTab('fw'); }
+        async function loadOpnStates(){ if(!currentFw) return; const r = await fetch(`${API}/opn/${currentFw.id}/diagnostics/states`).then(r=>r.json()); document.getElementById('opnDiagOut').textContent = JSON.stringify(r.data||r, null, 2); showTab('diag'); }
+        async function loadOpnActivity(){ if(!currentFw) return; const r = await fetch(`${API}/opn/${currentFw.id}/diagnostics/activity`).then(r=>r.json()); document.getElementById('opnDiagOut').textContent = JSON.stringify(r.data||r, null, 2); showTab('diag'); }
+        async function loadOpnFwLogs(){ if(!currentFw) return; const r = await fetch(`${API}/opn/${currentFw.id}/logs/firewall?limit=200`).then(r=>r.json()); document.getElementById('opnDiagOut').textContent = JSON.stringify(r.data||r, null, 2); showTab('diag'); }
+
+        // Atualizar face DOCLER
+        function updateDoclerFace() {
+            const faceExpression = document.getElementById('faceExpression');
+            const doclerMoodElement = document.getElementById('doclerMood');
+            
+            faceExpression.textContent = faceExpressions[doclerMood];
+            
+            const moods = {
+                observing: 'DOCLER está observando...',
+                thinking: 'DOCLER está processando...',
+                happy: 'DOCLER está satisfeito!',
+                focused: 'DOCLER está focado...',
+                surprised: 'DOCLER está surpreso!',
+                determined: 'DOCLER está determinado!',
+                satisfied: 'DOCLER está satisfeito!'
+            };
+            
+            doclerMoodElement.textContent = moods[doclerMood];
+        }
+
+        // Animação da face
+        function startFaceAnimation() {
+            setInterval(() => {
+                const moods = Object.keys(faceExpressions);
+                doclerMood = moods[Math.floor(Math.random() * moods.length)];
+                updateDoclerFace();
+            }, 5000);
+        }
+
+        // Funções de ação
+        function activateAgent() {
+            doclerMood = 'focused';
+            updateDoclerFace();
+            alert('🤖 Agente DOCLER ativado! Pronto para tarefas inteligentes.');
+        }
+
+        // ===== Console do Agente (SSE) =====
+        let agentSession = '';
+        let agentStreamCtrl = null;
+        const agentTokens = document.getElementById('agentTokens');
+        const agentLogs = document.getElementById('agentLogs');
+        const agentObs = document.getElementById('agentObs');
+        const agentSess = document.getElementById('agentSess');
+        const agentStat = document.getElementById('agentStat');
+        const agentApiEl = document.getElementById('agentApi');
+        const agentSessionEl = document.getElementById('agentSessionId');
+
+        async function agentNewSession(){
+            const api = agentApiEl.value || API;
+            try {
+                const r = await fetch(`${api}/agent/sessions`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ params:{} }) });
+                const t = await r.json();
+                agentSession = t.session_id || '';
+                agentSessionEl.value = agentSession;
+                agentSess.textContent = `Sessão: ${agentSession||'-'}`;
+                agentStat.textContent = 'Status: sessão criada';
+            } catch(e) {
+                agentStat.textContent = 'Status: falha ao criar sessão';
+            }
+        }
+
+        async function agentStatus(){
+            const api = agentApiEl.value || API;
+            try { const t = await fetch(`${api}/agent/status`).then(r=>r.json()); agentStatusOut.textContent = JSON.stringify(t,null,2); }
+            catch(e){ agentStatusOut.textContent = String(e); }
+        }
+
+        async function agentStart(){
+            const api = agentApiEl.value || API;
+            const objective = (document.getElementById('agentObjective').value||'').trim();
+            if (!objective){ agentStat.textContent = 'Status: informe um objetivo'; return; }
+            if (!agentSession) { await agentNewSession(); }
+            const sid = agentSessionEl.value.trim() || agentSession;
+            if (!sid){ agentStat.textContent = 'Status: sessão ausente'; return; }
+
+            agentTokens.textContent=''; agentLogs.textContent=''; agentObs.textContent='';
+            agentStat.textContent = 'Status: executando...';
+
+            try {
+                agentStreamCtrl = new AbortController();
+                const res = await fetch(`${api}/agent/generate`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ session_id: sid, objective }), signal: agentStreamCtrl.signal });
+                if (!res.ok) { agentStat.textContent = `Status: erro HTTP ${res.status}`; return; }
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buf = '';
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buf += decoder.decode(value, { stream: true });
+                    // Processar eventos SSE (separados por \n\n)
+                    let idx;
+                    while ((idx = buf.indexOf('\n\n')) >= 0) {
+                        const evt = buf.slice(0, idx).trim();
+                        buf = buf.slice(idx+2);
+                        const line = evt.split('\n').find(l=>l.startsWith('data:')) || '';
+                        const jsonStr = line.replace(/^data:\s*/, '');
+                        if (!jsonStr) continue;
+                        try {
+                            const ev = JSON.parse(jsonStr);
+                            handleAgentEvent(ev);
+                        } catch(_) {
+                            // Ignora
+                        }
+                    }
+                }
+                agentStat.textContent = 'Status: concluído';
+            } catch(e){
+                agentStat.textContent = 'Status: interrupção/erro';
+            }
+        }
+
+        function handleAgentEvent(ev){
+            if (!ev || !ev.type) return;
+            switch(ev.type){
+                case 'token':
+                    agentTokens.textContent += ev.text || '';
+                    agentTokens.scrollTop = agentTokens.scrollHeight;
+                    break;
+                case 'action':
+                    agentLogs.textContent += `> action ${ev.action} ${ev.command||ev.name||''}\n`;
+                    agentLogs.scrollTop = agentLogs.scrollHeight;
+                    break;
+                case 'exec_log':
+                    agentLogs.textContent += `[${ev.stream}] ${ev.chunk}\n`;
+                    agentLogs.scrollTop = agentLogs.scrollHeight;
+                    break;
+                case 'observe':
+                    agentObs.textContent += `${ev.note||''}\n`;
+                    agentObs.scrollTop = agentObs.scrollHeight;
+                    break;
+                case 'plan':
+                    agentLogs.textContent += `plan: ${(ev.steps||[]).join(' -> ')}\n`;
+                    break;
+                case 'done':
+                    agentLogs.textContent += `done: ${JSON.stringify(ev.result||null)}\n`;
+                    break;
+                case 'error':
+                    agentLogs.textContent += `ERROR: ${ev.message}\n`;
+                    break;
+            }
+        }
+
+        async function agentAbort(){
+            const api = agentApiEl.value || API;
+            const sid = agentSessionEl.value.trim() || agentSession;
+            try {
+                if (agentStreamCtrl) { agentStreamCtrl.abort(); }
+                await fetch(`${api}/agent/abort`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ session_id: sid }) });
+                agentStat.textContent = 'Status: abortado';
+            } catch(_){ agentStat.textContent = 'Status: erro ao abortar'; }
+        }
+
+        // ===== Health Check =====
+        function badge(el, status){
+            const s = String(status||'-').toLowerCase();
+            let color = '#ccc';
+            if (s === 'available' || s === 'online' || s === 'running' || s === 'ok' || s === 'true') color = '#0f0';
+            else if (s === 'degraded' || s === 'unknown') color = '#ff0';
+            else if (s === 'unavailable' || s === 'offline' || s === 'false') color = '#f33';
+            el.style.color = color;
+            el.textContent = el.textContent.replace(/:.*/, `: ${status}`);
+        }
+        async function healthCheck(){
+            const api = API;
+            try {
+                const [svcRes, agRes] = await Promise.all([
+                    fetch(`${api}/services`).then(r=>r.json()).catch(()=>({})),
+                    fetch(`${api}/agent/status`).then(r=>r.json()).catch(()=>({}))
+                ]);
+                document.getElementById('hcOut').textContent = JSON.stringify({ services: svcRes, agent: agRes }, null, 2);
+                const st = (svcRes && svcRes.statuses) || {};
+                const ag = agRes || {};
+                badge(document.getElementById('hcAgent'), ag.ok ? 'ok' : 'offline');
+                badge(document.getElementById('hcWorker'), ag.gemma_worker || 'unknown');
+                badge(document.getElementById('hcGrafana'), st.grafana || 'unknown');
+                badge(document.getElementById('hcProm'), st.prometheus || 'unknown');
+                badge(document.getElementById('hcQdrant'), st.qdrant || 'unknown');
+                badge(document.getElementById('hcDoclerC'), st.docler_client || 'unknown');
+                badge(document.getElementById('hcDoclerA'), st.docler_admin || 'unknown');
+            } catch(e){
+                document.getElementById('hcOut').textContent = String(e);
+            }
+        }
+
+        function openRelay() {
+            doclerMood = 'thinking';
+            updateDoclerFace();
+            alert('📧 Sistema Relay SMTP aberto! Configuração e monitoramento disponíveis.');
+        }
+
+        function openMonitoring() {
+            doclerMood = 'observing';
+            updateDoclerFace();
+            alert('📊 Monitoramento Grafana/Prometheus aberto! Dashboards em tempo real.');
+        }
+
+        function openAdmin() {
+            doclerMood = 'determined';
+            updateDoclerFace();
+            alert('⚙️ Painel Administrativo aberto! Controle total do sistema.');
+        }
+
+        function openSecurity() {
+            doclerMood = 'focused';
+            updateDoclerFace();
+            alert('🛡️ Painel de Segurança aberto! Monitoramento de ameaças ativo.');
+        }
+
+        function openAnalytics() {
+            doclerMood = 'thinking';
+            updateDoclerFace();
+            alert('📈 Analytics avançado aberto! Análise de dados e relatórios.');
+        }
+
+        // Comandos rápidos
+        function quickCommand(command) {
+            doclerMood = 'focused';
+            updateDoclerFace();
+            console.log(`Comando rápido executado: ${command}`);
+            alert(`⚡ Comando executado: ${command}`);
+        }
+
+        function agentCommand(command) {
+            doclerMood = 'determined';
+            updateDoclerFace();
+            console.log(`Comando agente: ${command}`);
+            alert(`🤖 Agente: ${command}`);
+        }
+
+        function relayCommand(command) {
+            doclerMood = 'thinking';
+            updateDoclerFace();
+            console.log(`Comando relay: ${command}`);
+            alert(`📧 Relay: ${command}`);
+        }
+
+        // Mudança de tema
+        function changeTheme(theme) {
+            currentTheme = theme;
+            doclerMood = 'surprised';
+            updateDoclerFace();
+            
+            const root = document.documentElement;
+            
+            switch(theme) {
+                case 'cyberpunk':
+                    root.style.setProperty('--docler-primary', '#00ff88');
+                    root.style.setProperty('--docler-secondary', '#ff0088');
+                    root.style.setProperty('--docler-accent', '#0088ff');
+                    break;
+                case 'matrix':
+                    root.style.setProperty('--docler-primary', '#00ff00');
+                    root.style.setProperty('--docler-secondary', '#00cc00');
+                    root.style.setProperty('--docler-accent', '#009900');
+                    break;
+                case 'cosmic':
+                    root.style.setProperty('--docler-primary', '#8a2be2');
+                    root.style.setProperty('--docler-secondary', '#ffd700');
+                    root.style.setProperty('--docler-accent', '#ff69b4');
+                    break;
+                case 'druidic':
+                    root.style.setProperty('--docler-primary', '#228b22');
+                    root.style.setProperty('--docler-secondary', '#daa520');
+                    root.style.setProperty('--docler-accent', '#8b4513');
+                    break;
+            }
+            
+            alert(`🎨 Tema alterado para: ${theme}`);
+        }
+
+        // WebSocket para comunicação em tempo real
+        function connectWebSocket() {
+            const ws = new WebSocket('ws://localhost:3120/ws');
+            
+            ws.onopen = function() {
+                console.log('DOCLER conectado via WebSocket');
+                doclerMood = 'happy';
+                updateDoclerFace();
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+            
+            ws.onclose = function() {
+                console.log('DOCLER desconectado');
+                doclerMood = 'surprised';
+                updateDoclerFace();
+            };
+        }
+
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'face_update':
+                    doclerMood = data.mood;
+                    updateDoclerFace();
+                    break;
+                case 'system_status':
+                    updateSystemStatus(data.status);
+                    break;
+                case 'alert':
+                    showAlert(data.message, data.level);
+                    break;
+            }
+        }
+
+        function updateSystemStatus(status) {
+            // Atualizar status do sistema
+            console.log('Status atualizado:', status);
+        }
+
+        function showAlert(message, level) {
+            doclerMood = 'surprised';
+            updateDoclerFace();
+            alert(`🚨 ${message}`);
+        }
+
+        // Conectar WebSocket quando disponível
+        setTimeout(connectWebSocket, 1000);
+    
+
+        // Alertas (UI visual)
+        let alRules = [];
+        async function refreshAlertFw() {
+            try {
+                const list = await fetch(`${API}/opn/list`).then(r=>r.json());
+                const sel = document.getElementById('alFw'); sel.innerHTML='';
+                (list.items||[]).forEach(fw=>{ const opt=document.createElement('option'); opt.value = fw.id; opt.textContent = `${fw.name} (${fw.id})`; sel.appendChild(opt); });
+            } catch (_) {}
+        }
+        async function alAddRule() {
+            const id = document.getElementById('alFw').value;
+            const cpu = parseInt(document.getElementById('alCpu').value||0) || undefined;
+            const mem = parseInt(document.getElementById('alMem').value||0) || undefined;
+            const ses = parseInt(document.getElementById('alSess').value||0) || undefined;
+            const ifn = document.getElementById('alIf').value.trim();
+            const rx = parseInt(document.getElementById('alRx').value||0) || undefined;
+            const tx = parseInt(document.getElementById('alTx').value||0) || undefined;
+            const ch = document.getElementById('alChannel').value;
+            const tgt = document.getElementById('alTarget').value.trim();
+            const rule = { id, channel: ch, target: {} };
+            if (cpu) rule.cpu_percent = cpu; if (mem) rule.mem_percent = mem; if (ses) rule.sessions = ses;
+            if (ifn) rule.ifaces = [{ name: ifn, rx_bps: rx, tx_bps: tx }];
+            if (ch==='email') rule.target.to = tgt; else if (ch==='telegram') rule.target.chatId = tgt; else if (ch==='whatsapp') rule.target.webhookUrl = tgt;
+            alRules.push(rule);
+            renderAlRules();
+        }
+        function renderAlRules() {
+            document.getElementById('alList').textContent = JSON.stringify(alRules, null, 2);
+        }
+        async function alSave() {
+            const interval = parseInt(document.getElementById('alInterval').value) || 60;
+            await fetch(`${API}/alerts/config`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ interval_sec: interval, rules: alRules }) });
+            alert('Salvo!');
+        }
+        async function alTest() {
+            await loadOpnFleet();
+            alert('Scheduler acionado, verifique seus canais.');
+        }
+</script>
+</body>
+</html>

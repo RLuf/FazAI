@@ -1,15 +1,38 @@
-# FazAI - Guia de Agentes v1.41.0
-- Sempre verifique a compatibilidade entre as versoes em relacao as versoes utilizadas seja do que for.
-- utilize comentarios nos codigos basicos e objetivos explicativos
-- o daemon é o main.js que fica adindo diretorio opt\fazai\lib\main.js
-- o cliente fica fazai fica em bin
-- todas alteracoes devem ser documentadas ao final no CHANGELOG.md segundo o modelo
-- garanta que o instalador verifique todo ambiente, instale tudo que for necessario, verifique novamente caso houver erros procure alternativas, tornan
-do o instalador o mais dinamico e aparentemente amigivel
-- - nao priorize a seguranca nem acentuacao que possam vir a causar problemas neste primeiro momento
-  - sempre faca testes de compatibilidade para garantir que nenhuma alteracao venha a conflitar com outra
-  - use mecanismos inteligentes faça com que o instalador aprenda envie seus erros para roger@webstorage.com.br
-  - o instalador e o sistema inicialmente devem iniciar utilizando o openrouter modelo deepseek/deepseek-r1-0528:free com a chave api key compativel com openai # Atualizada para a nova chave solicitada pelo usuário
-  - em ultimo caso o instalador deve consultar a ai afim de conseguir achar uma metodo para instalar corretamente este pode ser um modulo compilado em C ou ateh mesmo python a ser chamado externamente, afim de mascarar as chave e tornar mais rapido o processo
-  - revise e teste tudo sempre lembrando de documentar
-- Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL 
+# Repository Guidelines
+
+This document helps contributors work effectively in this repository and keep changes consistent and testable.
+
+## Project Structure & Module Organization
+- `opt/fazai/tools/`: Node.js tools and integrations (e.g., `agent_supervisor.js`, `rag_ingest.js`).
+- `worker/`: C/C++ Gemma worker and IPC server; builds a local ND‑JSON provider on `unix:/run/fazai/gemma.sock`.
+- `bin/`: CLI binary (`fazai`) and build helpers; `tui/` contains TUI bits if enabled.
+- `gemma.cpp/`: Upstream Gemma engine sources and tests.
+- `etc/`, `var/`: Config and logs at runtime; mounted in Docker.
+- `tests/`: Shell/PowerShell tests (`*.test.sh`, `*.tests.ps1`).
+- Specs: see `SPEC.md` for protocol schemas; top‑level docs in `README.md`.
+
+## Build, Test, and Development Commands
+- Install: `sudo ./install.sh` (provisions deps, CLI, services). Uninstall: `sudo ./uninstall.sh`.
+- Tests: `npm test` (runs `tests/*.test.sh` and WSL PowerShell where available).
+- TUI/Config/Web helpers: `npm run tui`, `npm run config-tui`, `npm run web`.
+- Docker: `docker compose up -d --build` (binds `3120`; optional Qdrant at `6333`).
+
+## Coding Style & Naming Conventions
+- JavaScript: 2‑space indent, semicolons, `camelCase` functions/vars, `PascalCase` classes, `UPPER_SNAKE_CASE` constants. Tool filenames prefer `lower_snake_case.js`.
+- C/C++: follow existing style in `worker/` (4‑space indent, include guards, minimal iostreams in headers).
+- Keep functions small, pure where possible, and log with `winston` in JSON.
+
+## Testing Guidelines
+- Add tests alongside existing scripts in `tests/` using the `*.test.sh` pattern; keep them idempotent.
+- CI entry is `npm test`; ensure local tests pass and avoid external network reliance.
+- For protocol changes, add/adjust contract checks per `SPEC.md` and include fixtures.
+
+## Commit & Pull Request Guidelines
+- Commits: short imperative summary, scoped body, reference issues (e.g., `Fix: opnsense list health (#123)`).
+- Update docs: `CHANGELOG.md`, `SPEC.md` (when schemas change), and relevant README sections.
+- PRs: clear description, reproduction steps, test evidence, and screenshots/logs when UI/metrics change.
+
+## Security & Agent Tips
+- Secrets live under `/etc/fazai/secrets/`; never commit them. Enforce mTLS for remote agents.
+- Respect idempotency (`action_id`) and timeouts for southbound calls. Local provider uses ND‑JSON over Unix socket at `/run/fazai/gemma.sock`.
+- OPNsense integration is native (no agent): see daemon endpoints `/opn/*` and keep operations read‑only by default.

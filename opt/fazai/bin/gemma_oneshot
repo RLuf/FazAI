@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# FazAI gemma_oneshot wrapper
+# - Reads stdin prompt and forwards to a real gemma_oneshot binary
+# - Accepts flags: --weights, --model, --tokenizer, --verbosity
+# - Defaults from /etc/fazai/fazai.conf [gemma_cpp]
+
+CONF_FILE="/etc/fazai/fazai.conf"
+WEIGHTS=""
+MODEL=""
+TOKENIZER=""
+VERBOSITY="0"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --weights)
+      WEIGHTS="${2:-}"; shift 2;;
+    --model)
+      MODEL="${2:-}"; shift 2;;
+    --tokenizer)
+      TOKENIZER="${2:-}"; shift 2;;
+    --verbosity)
+      VERBOSITY="${2:-0}"; shift 2;;
+    *)
+      # Ignore unknown flags to remain compatible
+      shift;;
+  esac
+done
+
+read_conf_key() {
+  local section="$1" key="$2"
+  [[ -r "$CONF_FILE" ]] || return 1
+  awk -v sec="[$section]" -v key="$key" '
+    $0==sec {f=1; next}
+    /^\[/{f=0}
+    f && $1==key {print $3; exit 0}
+  ' "$CONF_FILE"
+}
+
+if [[ -z "$WEIGHTS" ]]; then
+  WEIGHTS="$(read_conf_key gemma_cpp weights || true)"
+fi
+if [[ -z "$MODEL" ]]; then
+  MODEL="$(read_conf_key gemma_cpp default_model || true)"
+fi
+if [[ -z "$TOKENIZER" ]]; then
+  TOKENIZER="$(read_conf_key gemma_cpp tokenizer || true)"
+fi
+
+# Fallbacks
+WEIGHTS="${WEIGHTS:-/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs}"
+MODEL="${MODEL:-gemma2-2b-it}"
+
+# Locate real binary
+CANDIDATES=(
+  "/opt/fazai/bin/gemma_oneshot.real"
+  "/usr/local/bin/gemma_oneshot"
+  "/usr/bin/gemma_oneshot"
+  "/root/gemma.cpp/build/gemma_oneshot"
+)
+
+REAL_BIN=""
+for b in "${CANDIDATES[@]}"; do
+  if [[ -x "$b" ]]; then REAL_BIN="$b"; break; fi
+done
+
+if [[ -z "$REAL_BIN" ]]; then
+  echo "[gemma_oneshot wrapper] ERRO: binário real não encontrado." >&2
+  echo "Procure instalar/compilar gemma.cpp e disponibilizar um dos caminhos:" >&2
+  printf '  - %s\n' "${CANDIDATES[@]}" >&2
+  exit 127
+fi
+
+# Build args
+ARGS=("$REAL_BIN" --weights "$WEIGHTS" --model "$MODEL" --verbosity "$VERBOSITY")
+if [[ -n "$TOKENIZER" ]]; then
+  ARGS+=(--tokenizer "$TOKENIZER")
+fi
+
+cat - | "${ARGS[@]}"
+

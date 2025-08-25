@@ -1,327 +1,450 @@
-# Módulos FazAI - Tarefas Complexas e MCP OPNsense
+# FazAI - Módulo de Sistema Modular com Proteção Avançada
 
-## Visão Geral
+## 📋 Visão Geral
 
-Este diretório contém módulos especializados para o FazAI que implementam funcionalidades avançadas:
+O `system_mod.c` é um módulo nativo do FazAI que fornece wrappers de kernel para proteção avançada contra malware, ataques e ameaças de segurança. Este módulo atua como uma camada de segurança entre os serviços e o sistema operacional.
 
-- **Complex Tasks Manager**: Sistema completo para geração de gráficos, publicação HTTP e automação de workflows
-- **MCP OPNsense**: Integração com firewall OPNsense via Model Context Protocol
+## 🛡️ Funcionalidades Principais
 
-## Complex Tasks Manager
+### 1. **Filtragem de Malware com ClamAV**
+- Escaneamento em tempo real de arquivos e buffers
+- Integração direta com o ClamAV
+- Detecção de vírus, trojans e malware conhecidos
 
-### Funcionalidades Principais
+### 2. **Verificação de RBLs (Real-time Blackhole Lists)**
+- Verificação automática de IPs em listas negras
+- Suporte a múltiplos servidores RBL
+- Bloqueio proativo de IPs maliciosos
 
-#### 1. Geração de Gráficos
-- **Tipos suportados**: Linha, barras, pizza, área, dispersão
-- **Formatos de saída**: PNG, JPG, SVG, PDF
-- **Bibliotecas**: Python + matplotlib, numpy
-- **Estilos**: Seaborn, personalizável
+### 3. **Assinaturas de Malware Customizáveis**
+- Banco de assinaturas extensível
+- Detecção de padrões de ataques conhecidos
+- Suporte a regex para assinaturas complexas
 
-#### 2. Servidor HTTP Integrado
-- **Porta configurável** (padrão: 8080)
-- **APIs REST** para todas as operações
-- **Interface web** para visualização
-- **CORS habilitado** para integração externa
+### 4. **Proteção para Portas Críticas**
+- **HTTP (80/443)**: Filtragem de ataques web
+- **SMTP (25)**: Proteção contra spam e malware
+- **SSH (22)**: Proteção contra brute force
+- **Banco de Dados**: Proteção contra SQL injection
+- **Email (110/143)**: Filtragem de ameaças
 
-#### 3. Sistema de Publicação
-- **Web**: Upload para servidores HTTP/FTP
-- **Email**: Envio automático de gráficos
-- **API**: Integração com sistemas externos
-- **FTP/SFTP**: Upload para servidores de arquivos
+### 5. **Integração com LLM**
+- Acionamento automático do mecanismo inteligente
+- Análise contextual de ameaças
+- Respostas proativas baseadas em IA
 
-#### 4. Extração de Dados
-- **URLs**: APIs REST, páginas web
-- **Arquivos**: CSV, JSON, XML, Excel
-- **Bancos de dados**: MySQL, PostgreSQL, SQLite
-- **Sistema**: Métricas, logs, processos
+### 6. **Bloqueio Automático no Firewall**
+- Bloqueio automático de IPs maliciosos
+- Integração com iptables
+- Logs detalhados de ações
 
-#### 5. Dashboards Interativos
-- **Layouts**: Grid, flexbox, responsivo
-- **Temas**: Claro, escuro, personalizado
-- **Widgets**: Gráficos, tabelas, métricas
-- **Exportação**: PDF, HTML, imagem
-
-#### 6. Monitoramento do Sistema
-- **Métricas**: CPU, memória, disco, rede
-- **Intervalos configuráveis** (padrão: 60s)
-- **Duração limitada** para evitar sobrecarga
-- **Alertas**: Notificações por email/webhook
-
-#### 7. Geração de Relatórios
-- **Tipos**: Status do sistema, performance, segurança
-- **Templates**: HTML, Markdown, LaTeX
-- **Formatos**: PDF, HTML, JSON, CSV
-- **Automação**: Agendamento, triggers
-
-### API REST
-
-#### Endpoints Principais
+## 🏗️ Arquitetura
 
 ```
-GET  /api/charts          - Lista todos os gráficos
-GET  /api/charts/:id      - Obtém gráfico específico
-POST /api/tasks           - Executa tarefa complexa
-GET  /api/data            - Lista fontes de dados
-GET  /api/data/:source    - Obtém dados específicos
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Cliente Web   │    │   Cliente SMTP  │    │   Cliente DB    │
+└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
+          │                      │                      │
+          ▼                      ▼                      ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  HTTP Wrapper   │    │  SMTP Wrapper   │    │  DB Wrapper     │
+│   (Porta 80)    │    │   (Porta 25)    │    │  (Porta 3306)   │
+└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
+          │                      │                      │
+          └──────────┬───────────┴──────────┬───────────┘
+                     │                      │
+                     ▼                      ▼
+        ┌─────────────────────────┐    ┌─────────────────┐
+        │   Módulo system_mod.c   │    │   FazAI LLM     │
+        │                         │    │                 │
+        │ • ClamAV Scanner        │    │ • Análise IA    │
+        │ • RBL Checker           │    │ • Respostas     │
+        │ • Signature Matcher     │    │ • Ações         │
+        │ • Event Queue           │    │ • Bloqueios     │
+        └─────────┬───────────────┘    └─────────┬───────┘
+                  │                              │
+                  ▼                              ▼
+        ┌─────────────────┐    ┌─────────────────────────┐
+        │   iptables      │    │   Logs & Alerts         │
+        │   (Firewall)    │    │                         │
+        └─────────────────┘    └─────────────────────────┘
 ```
 
-#### Exemplo de Uso
+## 📦 Instalação
+
+### Pré-requisitos
 
 ```bash
-# Gerar gráfico
-curl -X POST http://localhost:8080/api/tasks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "generate_chart",
-    "params": {
-      "type": "line",
-      "title": "Vendas Mensais",
-      "xLabel": "Mês",
-      "yLabel": "Vendas (milhares)"
-    }
-  }'
+# Dependências do sistema
+apt-get update
+apt-get install -y build-essential libclamav-dev libcurl4-openssl-dev libjson-c-dev libpthread-stubs0-dev
 
-# Publicar gráfico
-curl -X POST http://localhost:8080/api/tasks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "publish_chart",
-    "params": {
-      "chartId": "chart_123",
-      "publishType": "web",
-      "destination": "https://exemplo.com/charts"
-    }
-  }'
+# ClamAV
+apt-get install -y clamav clamav-daemon
+systemctl enable clamav-daemon
+systemctl start clamav-daemon
+freshclam
 ```
 
-### Configuração
+### Compilação
 
-```ini
-[complex_tasks]
-enabled = true
-enable_server = true
-port = 8080
-host = 0.0.0.0
-static_dir = /var/www/fazai
-charts_dir = /var/cache/fazai/charts
-data_dir = /var/lib/fazai/data
-default_chart_format = png
-chart_dpi = 300
+```bash
+# Método 1: Script automático
+cd /opt/fazai/lib/mods/
+chmod +x compile_system_mod.sh
+./compile_system_mod.sh
+
+# Método 2: Compilação manual
+gcc -shared -fPIC -o system_mod.so system_mod.c -lclamav -lcurl -ljson-c -lpthread
 ```
 
-## MCP OPNsense
+## ⚙️ Configuração
 
-### Funcionalidades
+### 1. Arquivo de Assinaturas (`/etc/fazai/malware_signatures.txt`)
 
-#### 1. Autenticação
-- **Username/Password**: Autenticação tradicional
-- **API Key**: Autenticação segura para produção
-- **SSL/TLS**: Suporte a certificados
-- **Timeout configurável**: Evita travamentos
+```bash
+# Formato: assinatura,descrição,nível_risco,ação
+eval(,Execução de código malicioso,9,block
+SELECT.*FROM.*WHERE.*OR.*1=1,SQL Injection,9,block
+script.*alert,XSS Script Alert,8,block
+```
 
-#### 2. Gerenciamento de Firewall
-- **Listar regras**: Obter todas as regras ativas
-- **Criar regras**: Adicionar novas regras de firewall
-- **Atualizar regras**: Modificar regras existentes
-- **Deletar regras**: Remover regras obsoletas
+### 2. Lista de RBLs (`/etc/fazai/rbl_list.txt`)
 
-#### 3. Controle de Interfaces
-- **Status**: Verificar estado das interfaces
-- **Configuração**: Obter configurações de rede
-- **Estatísticas**: Bytes enviados/recebidos
-- **Monitoramento**: Latência, perda de pacotes
+```bash
+# Formato: domínio,descrição,nível_risco,códigos_resposta
+zen.spamhaus.org,Spamhaus ZEN,9,127.0.0.2-127.0.0.11
+bl.spamcop.net,SpamCop,8,127.0.0.2
+```
 
-#### 4. Gerenciamento de Serviços
-- **Iniciar/Parar**: Controle de serviços do sistema
-- **Status**: Verificar estado dos serviços
-- **Configuração**: Aplicar mudanças
-- **Logs**: Acesso aos logs de sistema
+## 🚀 Uso
 
-#### 5. Backup e Restauração
-- **Configuração**: Backup das configurações
-- **Histórico**: Versões anteriores
-- **Restauração**: Rollback para versão anterior
-- **Exportação**: Backup para sistemas externos
+### Via FazAI
 
-### Comandos MCP
+```bash
+# Verificar status do módulo
+curl -X POST http://localhost:3120/command -d '{"command":"system_mod status"}'
+
+# Testar wrapper HTTP
+curl -X POST http://localhost:3120/command -d '{"command":"system_mod http_wrapper <dados_http>"}'
+
+# Verificar assinaturas
+curl -X POST http://localhost:3120/command -d '{"command":"system_mod check_signatures <conteúdo>"}'
+
+# Verificar IP em RBLs
+curl -X POST http://localhost:3120/command -d '{"command":"system_mod check_rbl <ip>"}'
+
+# Escanear arquivo com ClamAV
+curl -X POST http://localhost:3120/command -d '{"command":"system_mod scan_file <caminho>"}'
+```
+
+### Via Node.js Direto
 
 ```javascript
-// Informações do sistema
-await mcp.executeMCPCommand('get_system_info', {});
+const ffi = require('ffi-napi');
 
-// Listar regras do firewall
-await mcp.executeMCPCommand('get_firewall_rules', {});
-
-// Criar regra de firewall
-await mcp.executeMCPCommand('create_firewall_rule', {
-  interface: 'WAN',
-  direction: 'in',
-  protocol: 'tcp',
-  source: 'any',
-  destination: '192.168.1.100',
-  port: '80',
-  description: 'Web Server Access'
+const systemMod = ffi.Library('./system_mod.so', {
+    'fazai_mod_init': ['int', []],
+    'fazai_mod_exec': ['int', ['string', 'string', 'string', 'int']],
+    'fazai_mod_cleanup': ['void', []]
 });
 
-// Iniciar serviço
-await mcp.executeMCPCommand('start_service', {
-  service: 'unbound'
-});
+// Inicializar módulo
+systemMod.fazai_mod_init();
 
-// Aplicar configuração
-await mcp.executeMCPCommand('apply_config', {});
+// Executar comando
+const output = Buffer.alloc(4096);
+systemMod.fazai_mod_exec('test', '', output, output.length);
+console.log(output.toString());
+
+// Finalizar módulo
+systemMod.fazai_mod_cleanup();
 ```
 
-### Configuração
+## 🔧 Comandos Disponíveis
 
-```ini
-[opnsense]
-enabled = true
-host = 192.168.1.1
-port = 443
-use_ssl = true
-username = admin
-password = your_password_here
-# OU
-api_key = your_api_key_here
-timeout = 30000
-retry_attempts = 3
-cache_enabled = true
+| Comando | Descrição | Parâmetros |
+|---------|-----------|------------|
+| `help` | Mostra ajuda | - |
+| `test` | Testa o módulo | - |
+| `status` | Status do módulo | - |
+| `http_wrapper` | Testa wrapper HTTP | `<dados_http>` |
+| `smtp_wrapper` | Testa wrapper SMTP | `<ip> <dados>` |
+| `db_wrapper` | Testa wrapper de banco | `<ip> <porta> <dados>` |
+| `check_signatures` | Verifica assinaturas | `<conteúdo>` |
+| `check_rbl` | Verifica IP em RBLs | `<ip>` |
+| `scan_file` | Escaneia arquivo | `<caminho>` |
+| `reload_signatures` | Recarrega assinaturas | - |
+| `reload_rbls` | Recarrega RBLs | - |
+| `block_ip` | Bloqueia IP | `<ip> <motivo>` |
+
+## 🛡️ Wrappers Específicos
+
+### HTTP Wrapper (Porta 80/443)
+
+```c
+// Intercepta requisições HTTP
+int http_wrapper(const char* request_data, char* response, int response_len);
+
+// Verifica:
+// - Assinaturas de malware
+// - XSS, SQL Injection
+// - File uploads maliciosos
+// - Directory traversal
 ```
 
-## Integração com FazAI
+### SMTP Wrapper (Porta 25)
 
-### Carregamento Automático
+```c
+// Intercepta tráfego SMTP
+int smtp_wrapper(const char* source_ip, const char* mail_data, char* response, int response_len);
 
-Os módulos são carregados automaticamente pelo sistema principal:
-
-1. **Inicialização**: Durante o startup do daemon
-2. **Recarregamento**: Via endpoint `/reload`
-3. **Configuração**: Baseada em arquivos .conf
-
-### Ferramentas Disponíveis
-
-Após o carregamento, as seguintes ferramentas ficam disponíveis:
-
-- `complex_tasks`: Gerenciador de tarefas complexas
-- `opnsense`: Integração MCP com OPNsense
-
-### Exemplo de Uso no FazAI
-
-```bash
-# Via CLI
-fazai "gere um gráfico de linha com dados de vendas mensais"
-
-# Via API
-curl -X POST http://localhost:3000/command \
-  -H "Content-Type: application/json" \
-  -d '{
-    "command": "crie um dashboard com métricas do sistema e publique na web"
-  }'
+// Verifica:
+// - IPs em RBLs
+// - Spam patterns
+// - Malware em anexos
 ```
 
-## Testes
+### Database Wrapper (Portas 3306, 5432, etc.)
 
-### Executar Testes
+```c
+// Intercepta queries de banco
+int database_wrapper(const char* source_ip, int port, const char* query_data, char* response, int response_len);
 
-```bash
-# Teste completo
-node opt/fazai/tools/test_complex_tasks.js
-
-# Teste específico
-node -e "
-const { testComplexTasks } = require('./opt/fazai/tools/test_complex_tasks.js');
-testComplexTasks();
-"
+// Verifica:
+// - SQL Injection
+// - NoSQL Injection
+// - Ataques de força bruta
 ```
 
-### Verificar Funcionamento
-
-1. **Servidor HTTP**: http://localhost:8080
-2. **APIs**: http://localhost:8080/api/charts
-3. **Dashboards**: http://localhost:8080/dashboard/
-4. **Gráficos**: http://localhost:8080/charts/
-
-## Dependências
-
-### Python
-- matplotlib >= 3.5.0
-- numpy >= 1.21.0
-- seaborn >= 0.11.0
-
-### Node.js
-- express >= 4.18.1
-- axios >= 0.27.2
-- winston >= 3.8.1
-
-### Sistema
-- Python 3.8+
-- Node.js 18+
-- Acesso a diretórios de sistema
-
-## Troubleshooting
-
-### Problemas Comuns
-
-1. **Erro de permissão**: Verificar acesso aos diretórios
-2. **Porta em uso**: Alterar porta na configuração
-3. **Dependências Python**: Instalar matplotlib/numpy
-4. **SSL OPNsense**: Verificar certificados
+## 📊 Monitoramento
 
 ### Logs
 
-- **Complex Tasks**: `/var/log/fazai/complex_tasks.log`
-- **FazAI Principal**: `/var/log/fazai/fazai.log`
-- **Sistema**: `journalctl -u fazai`
+- **Principal**: `/var/log/fazai.log`
+- **Firewall**: `/var/log/fazai_firewall.log`
 
-### Debug
+### Métricas
 
 ```bash
-# Habilitar logs detalhados
-export LOG_LEVEL=debug
+# Eventos de segurança
+grep "ALERT" /var/log/fazai.log
 
-# Testar módulo específico
-node -e "
-const { ComplexTasksManager } = require('./opt/fazai/lib/complex_tasks.js');
-const manager = new ComplexTasksManager({ port: 8082 });
-manager.initializeServer().then(() => console.log('OK'));
-"
+# IPs bloqueados
+grep "bloqueado" /var/log/fazai_firewall.log
+
+# Estatísticas do módulo
+curl -X POST http://localhost:3120/command -d '{"command":"system_mod status"}'
 ```
 
-## Contribuição
+## 🔄 Integração com FazAI
 
-### Estrutura de Arquivos
+### Endpoints
 
+- **Comando**: `http://localhost:3120/command`
+- **Alerta**: `http://localhost:3120/alert`
+
+### Formato de Alerta
+
+```json
+{
+    "timestamp": 1234567890,
+    "source_ip": "192.168.1.100",
+    "dest_ip": "192.168.1.1",
+    "source_port": 12345,
+    "dest_port": 80,
+    "service": "HTTP",
+    "threat_type": "malware_signature",
+    "description": "SQL Injection detectado",
+    "risk_level": 9,
+    "action": "block"
+}
 ```
-opt/fazai/lib/mods/
-├── complex_tasks.js      # Módulo principal de tarefas complexas
-├── mcp_opnsense.js      # Integração MCP com OPNsense
-├── README.md            # Esta documentação
-└── build.sh            # Script de compilação (se aplicável)
+
+## 🚨 Respostas Automáticas
+
+### Níveis de Risco
+
+| Nível | Ação | Descrição |
+|-------|------|-----------|
+| 1-3 | Log | Apenas registro |
+| 4-6 | Alert | Alerta + registro |
+| 7-8 | Block | Bloqueio temporário |
+| 9-10 | Block + AI | Bloqueio + IA |
+
+### Ações Automáticas
+
+1. **Detecção de Malware**
+   - Bloqueio imediato do IP
+   - Notificação para FazAI
+   - Log detalhado
+
+2. **IP em RBL**
+   - Bloqueio no firewall
+   - Rejeição de conexão
+   - Monitoramento contínuo
+
+3. **Ataque a Banco**
+   - Bloqueio do IP atacante
+   - Acionamento do LLM
+   - Análise de padrões
+
+## 🔧 Personalização
+
+### Adicionar Assinaturas
+
+```bash
+# Editar arquivo de assinaturas
+nano /etc/fazai/malware_signatures.txt
+
+# Recarregar
+curl -X POST http://localhost:3120/command -d '{"command":"system_mod reload_signatures"}'
 ```
 
-### Padrões de Código
+### Adicionar RBLs
 
-- **ES6+**: Usar sintaxe moderna do JavaScript
-- **Async/Await**: Preferir promises assíncronas
-- **Error Handling**: Tratar erros adequadamente
-- **Logging**: Usar winston para logs estruturados
-- **Documentação**: Comentar funções complexas
+```bash
+# Editar lista de RBLs
+nano /etc/fazai/rbl_list.txt
+
+# Recarregar
+curl -X POST http://localhost:3120/command -d '{"command":"system_mod reload_rbls"}'
+```
+
+### Configurar Portas Críticas
+
+Edite o array `critical_ports` no código fonte:
+
+```c
+static CriticalPort critical_ports[] = {
+    {80, "HTTP", "Hypertext Transfer Protocol", 5},
+    {443, "HTTPS", "HTTP Secure", 5},
+    {3306, "MySQL", "MySQL Database", 8},
+    // Adicione suas portas aqui
+    {0, "", "", 0} // Terminador
+};
+```
+
+## 🐛 Troubleshooting
+
+### Problemas Comuns
+
+1. **ClamAV não encontrado**
+   ```bash
+   apt-get install -y clamav clamav-daemon
+   systemctl start clamav-daemon
+   freshclam
+   ```
+
+2. **Falha na compilação**
+   ```bash
+   apt-get install -y build-essential libclamav-dev libcurl4-openssl-dev libjson-c-dev
+   ```
+
+3. **Permissões negadas**
+   ```bash
+   chmod 755 system_mod.so
+   chown root:root system_mod.so
+   ```
+
+4. **Módulo não carrega**
+   ```bash
+   ldd system_mod.so  # Verificar dependências
+   node -e "const ffi = require('ffi-napi'); console.log(ffi)"  # Testar FFI
+   ```
+
+### Logs de Debug
+
+```bash
+# Ativar debug
+export FAZAI_DEBUG=1
+
+# Ver logs em tempo real
+tail -f /var/log/fazai.log
+
+# Ver logs do firewall
+tail -f /var/log/fazai_firewall.log
+```
+
+## 📈 Performance
+
+### Otimizações
+
+1. **Cache de RBLs**: Resultados são cacheados por 5 minutos
+2. **Thread Pool**: Processamento assíncrono de eventos
+3. **Compilação Otimizada**: Flags `-O2` para performance
+4. **Memory Pool**: Reutilização de buffers
+
+### Métricas de Performance
+
+```bash
+# Tempo de resposta médio
+time curl -X POST http://localhost:3120/command -d '{"command":"system_mod test"}'
+
+# Uso de memória
+ps aux | grep system_mod
+
+# Eventos por segundo
+grep "ALERT" /var/log/fazai.log | wc -l
+```
+
+## 🔒 Segurança
+
+### Considerações
+
+1. **Execução como Root**: Necessário para iptables
+2. **Permissões de Arquivo**: Apenas root pode modificar
+3. **Validação de Input**: Todos os inputs são validados
+4. **Buffer Overflow**: Proteção contra overflow
+5. **Memory Leaks**: Cleanup automático de recursos
+
+### Auditoria
+
+```bash
+# Verificar integridade
+md5sum system_mod.so
+
+# Verificar permissões
+ls -la system_mod.so
+
+# Verificar dependências
+ldd system_mod.so
+```
+
+## 🤝 Contribuição
+
+### Desenvolvimento
+
+1. Fork o repositório
+2. Crie uma branch para sua feature
+3. Implemente as mudanças
+4. Teste extensivamente
+5. Submeta um pull request
 
 ### Testes
 
-- **Unitários**: Testar funções individuais
-- **Integração**: Testar módulos completos
-- **E2E**: Testar fluxos completos
-- **Performance**: Verificar escalabilidade
+```bash
+# Teste unitário
+make test
 
-## Licença
+# Teste de integração
+make integration-test
 
-Creative Commons Attribution 4.0 International (CC BY 4.0)
+# Teste de performance
+make performance-test
+```
 
-## Suporte
+## 📄 Licença
 
+Este módulo faz parte do projeto FazAI e está sob a mesma licença.
+
+## 🆘 Suporte
+
+- **Documentação**: Este arquivo
 - **Issues**: GitHub Issues
-- **Documentação**: Este README
-- **Exemplos**: Scripts de teste incluídos
-- **Comunidade**: Contribuições bem-vindas
+- **Discord**: Canal #fazai-support
+- **Email**: support@fazai.dev
+
+---
+
+**⚠️ Aviso**: Este módulo executa com privilégios de root e pode afetar o funcionamento do sistema. Teste em ambiente de desenvolvimento antes de usar em produção.

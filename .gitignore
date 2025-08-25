@@ -76,3 +76,7 @@ pesquisa*
 
 # Diretórios do sistema
 /mnt/
+# Exclusivos (não versionar)
+bin/gpt-web2shell
+opt/fazai/tools/gpt-web2shell.js
+local-extras/gpt-web2shell/

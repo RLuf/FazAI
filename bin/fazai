@@ -53,8 +53,294 @@ if (!fs.existsSync(mainJsPath)) {
   process.exit(1);
 }
 
-// Configuração do cliente
+// API base (daemon)
 const API_URL = process.env.FAZAI_API_URL || 'http://localhost:3120';
+
+// ===== Funções utilitárias de documentação e ferramentas =====
+function showDocumentation() {
+  const manual = '/opt/fazai/MANUAL_FERRAMENTAS.md';
+  const usage = '/opt/fazai/USAGE.md';
+  const { exec } = require('child_process');
+  const paths = [manual, usage].filter(p => fs.existsSync(p));
+  if (paths.length === 0) {
+    console.log('Documentação não encontrada em /opt/fazai.');
+    return;
+  }
+  const toOpen = paths.join(' ');
+  exec(`xdg-open ${toOpen} 2>/dev/null || open ${toOpen} 2>/dev/null || cat ${toOpen}`);
+}
+
+function showAvailableTools(dir = '/opt/fazai/tools') {
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const tools = entries
+      .filter(e => e.isFile() && /\.(js|sh)$/.test(e.name) && !e.name.startsWith('.'))
+      .map(e => e.name)
+      .sort();
+    console.log('Ferramentas disponíveis:');
+    tools.forEach(t => console.log('  -', t));
+  } catch (e) {
+    console.error('Não foi possível listar ferramentas em', dir, e.message);
+  }
+}
+
+function showToolHelp(name, dir = '/opt/fazai/tools') {
+  if (!name) { console.error('Informe o nome da ferramenta.'); return; }
+  const file = `${dir}/${name}`;
+  if (fs.existsSync(file)) {
+    console.log(`Ajuda para ${name}:`);
+    try {
+      const content = fs.readFileSync(file, 'utf8');
+      const lines = content.split('\n').slice(0, 60).join('\n');
+      console.log(lines);
+    } catch (e) {
+      console.error('Erro ao ler a ferramenta:', e.message);
+    }
+  } else {
+    console.error('Ferramenta não encontrada:', name);
+  }
+}
+
+// Função para executar comandos do relay
+async function runRelayCommand(command, args = []) {
+  try {
+    const endpoint = `/relay/${command}`;
+    let response;
+    
+    switch (command) {
+      case 'analyze':
+        response = await axios.post(`${API_URL}${endpoint}`);
+        break;
+      case 'configure':
+        response = await axios.post(`${API_URL}${endpoint}`, {});
+        break;
+      case 'monitor':
+        response = await axios.get(`${API_URL}${endpoint}`);
+        break;
+      case 'stats':
+        response = await axios.get(`${API_URL}${endpoint}`);
+        break;
+      case 'spamexperts':
+        response = await axios.post(`${API_URL}${endpoint}`, {});
+        break;
+      case 'zimbra':
+        response = await axios.post(`${API_URL}${endpoint}`, {});
+        break;
+      case 'blacklist':
+        if (args.length === 0) {
+          printError('IP é obrigatório para o comando blacklist');
+          process.exit(1);
+        }
+        response = await axios.post(`${API_URL}${endpoint}`, { ip: args[0] });
+        break;
+      case 'restart':
+        response = await axios.post(`${API_URL}${endpoint}`);
+        break;
+      default:
+        printError(`Comando relay desconhecido: ${command}`);
+        process.exit(1);
+    }
+    
+    if (response.data.ok) {
+      console.log('\x1b[32m✓ Sucesso:\x1b[0m', response.data.message || 'Comando executado');
+      if (response.data.config) {
+        console.log('\x1b[36mConfiguração:\x1b[0m', JSON.stringify(response.data.config, null, 2));
+      }
+      if (response.data.stats) {
+        console.log('\x1b[36mEstatísticas:\x1b[0m', JSON.stringify(response.data.stats, null, 2));
+      }
+      if (response.data.recommendations) {
+        console.log('\x1b[33mRecomendações:\x1b[0m');
+        response.data.recommendations.forEach(rec => {
+          console.log(`  • ${rec}`);
+        });
+      }
+    } else {
+      console.error('\x1b[31m❌ Erro:\x1b[0m', response.data.error);
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error('\x1b[31m❌ Erro ao executar comando relay:\x1b[0m', error.message);
+    process.exit(1);
+  }
+}
+
+// Função para executar comandos DOCLER
+async function runDoclerCommand(command, args = []) {
+  try {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    switch (command) {
+      case 'start':
+        console.log('\x1b[36m🚀 Iniciando servidor web DOCLER...\x1b[0m');
+        try {
+          const result = await execAsync('node /opt/fazai/web/docler-server.js');
+          console.log('\x1b[32m✓ Servidor DOCLER iniciado com sucesso!\x1b[0m');
+          console.log('\x1b[36m📱 Cliente: http://localhost:3220\x1b[0m');
+          console.log('\x1b[36m🔧 Admin: http://localhost:3221\x1b[0m');
+        } catch (error) {
+          console.error('\x1b[31m❌ Erro ao iniciar servidor DOCLER:\x1b[0m', error.message);
+        }
+        break;
+        
+      case 'stop':
+        console.log('\x1b[36m🛑 Parando servidor web DOCLER...\x1b[0m');
+        try {
+          await execAsync('pkill -f "docler-server.js"');
+          console.log('\x1b[32m✓ Servidor DOCLER parado com sucesso!\x1b[0m');
+        } catch (error) {
+          console.error('\x1b[31m❌ Erro ao parar servidor DOCLER:\x1b[0m', error.message);
+        }
+        break;
+        
+      case 'status':
+        console.log('\x1b[36m📊 Verificando status do servidor DOCLER...\x1b[0m');
+        try {
+          const result = await execAsync('pgrep -f "docler-server.js"');
+          if (result.stdout.trim()) {
+            console.log('\x1b[32m✓ Servidor DOCLER está rodando!\x1b[0m');
+            console.log('\x1b[36m📱 Cliente: http://localhost:3220\x1b[0m');
+            console.log('\x1b[36m🔧 Admin: http://localhost:3221\x1b[0m');
+          } else {
+            console.log('\x1b[33m⚠️ Servidor DOCLER não está rodando\x1b[0m');
+          }
+        } catch (error) {
+          console.log('\x1b[33m⚠️ Servidor DOCLER não está rodando\x1b[0m');
+        }
+        break;
+        
+      case 'admin':
+        console.log('\x1b[36m🔧 Abrindo painel administrativo DOCLER...\x1b[0m');
+        try {
+          await execAsync('xdg-open http://localhost:3121 2>/dev/null || open http://localhost:3121 2>/dev/null || echo "Abra manualmente: http://localhost:3121"');
+          console.log('\x1b[32m✓ Painel administrativo aberto!\x1b[0m');
+        } catch (error) {
+          console.log('\x1b[36m📱 Abra manualmente: http://localhost:3121\x1b[0m');
+        }
+        break;
+        
+      default:
+        // Comando padrão: abrir interface cliente
+        console.log('\x1b[36m📱 Abrindo interface DOCLER...\x1b[0m');
+        try {
+          await execAsync('xdg-open http://localhost:3120 2>/dev/null || open http://localhost:3120 2>/dev/null || echo "Abra manualmente: http://localhost:3120"');
+          console.log('\x1b[32m✓ Interface DOCLER aberta!\x1b[0m');
+        } catch (error) {
+          console.log('\x1b[36m📱 Abra manualmente: http://localhost:3120\x1b[0m');
+        }
+        break;
+    }
+  } catch (error) {
+    console.error('\x1b[31m❌ Erro ao executar comando DOCLER:\x1b[0m', error.message);
+    process.exit(1);
+  }
+}
+
+// Função para executar agente inteligente (com suporte a perguntas interativas)
+async function runAgent(objective) {
+  try {
+    console.log('\x1b[36m🤖 FazAI Agent iniciando...\x1b[0m');
+    console.log('\x1b[33mObjetivo:\x1b[0m', objective);
+    console.log('');
+
+    // Criar sessão
+    const sessionResponse = await axios.post(`${API_URL}/agent/sessions`, {});
+    if (!sessionResponse.data.ok) throw new Error('Falha ao criar sessão');
+    const sessionId = sessionResponse.data.session_id;
+    console.log('\x1b[32m✓ Sessão criada:\x1b[0m', sessionId);
+
+    // Ctrl+C aborta a sessão atual
+    process.on('SIGINT', async () => {
+      console.log('\n\x1b[33m🛑 Interrompendo agente...\x1b[0m');
+      try { await axios.post(`${API_URL}/agent/abort`, { session_id: sessionId }); } catch {}
+      process.exit(130);
+    });
+
+    // Loop de geração com histórico acumulado
+    async function streamWithHistory(history) {
+      const response = await axios.post(`${API_URL}/agent/generate`, {
+        session_id: sessionId,
+        objective,
+        history
+      }, {
+        responseType: 'stream',
+        headers: { 'Accept': 'text/event-stream', 'Cache-Control': 'no-cache' }
+      });
+
+      let buffer = '';
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+      // Encapsula handler com acesso ao history
+      const handleAgentEvent = async (event) => {
+        switch (event.type) {
+          case 'token':
+            process.stdout.write(event.text);
+            break;
+          case 'plan':
+            console.log('\n\x1b[35m📋 Plano:\x1b[0m', (event.steps||[]).join(' → '));
+            break;
+          case 'action':
+            console.log('\n\x1b[34m⚡ Ação:\x1b[0m', event.action, event.command || event.name || '');
+            break;
+          case 'exec_log':
+            process.stdout.write(event.chunk);
+            break;
+          case 'observe':
+            console.log('\n\x1b[36m👁️  Observação:\x1b[0m', event.note);
+            break;
+          case 'ask': {
+            console.log('\n\x1b[33m❓ Pergunta:\x1b[0m', event.question);
+            if (Array.isArray(event.options) && event.options.length) {
+              console.log('\x1b[33mOpções:\x1b[0m');
+              event.options.forEach((opt, i) => console.log(`  ${i+1}. ${opt}`));
+            }
+            const answer = await new Promise((res) => rl.question('> ', (ans) => res(ans)));
+            // Aborta geração atual e continua com resposta no mesmo session_id
+            try { await axios.post(`${API_URL}/agent/abort`, { session_id: sessionId }); } catch {}
+            rl.close();
+            console.log('\x1b[36m↪️ Continuando com a resposta fornecida...\x1b[0m');
+            // Reencadeia stream com histórico atualizado
+            await streamWithHistory([...(history||[]), { answer }]);
+            break;
+          }
+          case 'done':
+            console.log('\n\x1b[32m✅ Iteração concluída\x1b[0m');
+            if (event.result) console.log('\x1b[32mResultado:\x1b[0m', event.result);
+            break;
+          case 'error':
+            console.error('\n\x1b[31m❌ Erro:\x1b[0m', event.message);
+            break;
+        }
+      };
+
+      response.data.on('data', (chunk) => {
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try { handleAgentEvent(JSON.parse(line.slice(6))); } catch {}
+        }
+      });
+
+      await new Promise((resolve) => {
+        response.data.on('end', resolve);
+        response.data.on('error', resolve);
+      });
+    }
+
+    // Inicia primeira iteração
+    await streamWithHistory([]);
+    console.log('\n\x1b[32m✅ Agente concluído\x1b[0m');
+  } catch (error) {
+    console.error('\x1b[31m❌ Erro ao executar agente:\x1b[0m', error.message);
+    process.exit(1);
+  }
+}
+
+// Configuração do cliente
 const LOG_FILE = '/var/log/fazai/fazai.log';
 const STREAM_URL = `${API_URL}/command/stream`;
 
@@ -136,12 +422,14 @@ function printWarning(message) {
  * @returns {Promise<object>} - Resposta do daemon
  */
 async function sendCommand(command) {
+  // Aceita string (comando) ou objeto ({ command, question, mcps, cwd })
+  const body = (command && typeof command === 'object' && !Array.isArray(command)) ? command : { command };
   // Debug: mostra detalhes da requisição
-  printDebug(`[sendCommand] POST ${API_URL}/command payload: ${JSON.stringify({command})}`);
+  printDebug(`[sendCommand] POST ${API_URL}/command payload: ${JSON.stringify(body)}`);
   try {
     printInfo(`Conectando ao daemon em ${API_URL}...`);
-    const response = await axios.post(`${API_URL}/command`, { command }, {
-      timeout: 30000 // 30 segundos de timeout
+    const response = await axios.post(`${API_URL}/command`, body, {
+      timeout: body && body.question ? 180000 : 30000 // 3min para perguntas, 30s padrão
     });
     // Debug: mostra detalhes da resposta HTTP
     printDebug(`[sendCommand] HTTP ${response.status} ${response.statusText}`);
@@ -497,7 +785,7 @@ async function main() {
   
   if (args[0] === 'ajuda' || args[0] === 'help' || args[0] === '--help') {
     console.log(`
-${colors.bright}${colors.fg.cyan}FazAI v1.42.2${colors.reset}
+${colors.bright}${colors.fg.cyan}FazAI v2.0.0${colors.reset}
 
 ${colors.bright}Compatível com:${colors.reset}
   • Debian/Ubuntu
@@ -506,10 +794,14 @@ ${colors.bright}Compatível com:${colors.reset}
 
 ${colors.bright}Uso:${colors.reset}
   fazai [-d|--debug] [--stream|-s] [-q] <comando>
+  fazai agent <objetivo>
 
 ${colors.bright}Comandos de Sistema:${colors.reset}
   ajuda, help, --help         Exibe esta mensagem de ajuda
   manual                      Abre o manual completo de utilização
+  docs                        Abre documentação (manual e uso)
+  tools                       Lista ferramentas disponíveis
+  query "<termo>"             Pesquisa técnica (Context7 quando disponível)
   -d, --debug                 Ativa modo debug com verbose em tempo real
   versao, version, -v         Exibe a versão do FazAI
   -q, --question              Pergunta direta (sem executar comandos)
@@ -521,6 +813,10 @@ ${colors.bright}Comandos de Serviço:${colors.reset}
   restart                     Reinicia o serviço FazAI
   status                      Mostra o status do serviço FazAI
   reload                      Recarrega plugins e módulos
+  check-deps                  Verifica dependências (inclui Gemma e flags de telemetria)
+  telemetry --enable|--disable Ajusta flags [telemetry] no config e reinicia
+  telemetry-smoke             Valida /ingest e /metrics conforme flags
+  docler start|stop|status    Controla o serviço web DOCLER (portas 3220/3221)
 
 ${colors.bright}Comandos de Logs:${colors.reset}
   logs [n]                    Exibe as últimas n entradas de log (padrão: 10)
@@ -553,16 +849,38 @@ ${colors.bright}Comandos de Pesquisa:${colors.reset}
   -w, --web                   Força pesquisa web (tool web_search)
   complex -g <objetivo>       Objetivo de alto nível; usa /complex_flow
 
+${colors.bright}Modo Agent (Agente Inteligente):${colors.reset}
+  agent <objetivo>            Exemplo: fazai agent "configurar servidor de email relay"
+                              Executa agente inteligente com fluxo iterativo
+
+${colors.bright}Modo Relay (Sistema SMTP):${colors.reset}
+  relay analyze               Analisa configuração atual do relay SMTP
+  relay configure             Configura relay automaticamente com IA
+  relay monitor               Monitora logs em tempo real e detecta ataques
+  relay stats                 Mostra estatísticas completas do sistema
+  relay spamexperts           Integra com SpamExperts (whitelist/blacklist)
+  relay zimbra                Integra com Zimbra (usuários/domínios)
+  relay blacklist <ip>        Adiciona IP malicioso à blacklist
+  relay restart               Reinicia o relay com novas configurações
+
+${colors.bright}Interface DOCLER (Web):${colors.reset}
+  docler                      Abre interface web DOCLER (cliente)
+  docler admin                Abre painel administrativo DOCLER
+  docler start                Inicia servidor web DOCLER
+  docler stop                 Para servidor web DOCLER
+  docler status               Mostra status do servidor web
+
 ${colors.bright}Modo MCPS (Planejamento Passo a Passo):${colors.reset}
   mcps <tarefa>               Exemplo: fazai mcps atualizar o sistema
   mcps --stream <tarefa>      Executa MCPS com saída em tempo real
 
 ${colors.bright}Provedores de IA Suportados:${colors.reset}
-  • OpenRouter (padrão)       - Múltiplos modelos via OpenRouter
+  • Gemma local (padrão)      - Binário gemma.cpp via gemma_oneshot
+  • Llama Server              - Servidor compatível OpenAI (llama.cpp server)
+  • OpenRouter                - Gateway multi-modelos
   • OpenAI                    - GPT-4, GPT-3.5-turbo
   • Anthropic (Claude)        - Claude 3 Opus, Sonnet, Haiku
   • Google Gemini             - Gemini Pro, Pro Vision
-  • OpenRouter                - Gateway multi-modelos
   • Ollama                    - Modelos locais (llama3.2, mixtral, etc.)
 
 ${colors.bright}Sistema de Fallback:${colors.reset}
@@ -578,6 +896,13 @@ ${colors.bright}Exemplos de Uso:${colors.reset}
   fazai cria um usuario com nome teste com a senha teste321 no grupo printers
   fazai instale os modulos mod_security do apache
   fazai altere a porta do ssh de 22 para 31052
+                fazai agent "configurar servidor de email relay com antispam"
+              fazai relay analyze                    # Analisa configuração do relay
+              fazai relay configure                  # Configura automaticamente
+              fazai relay monitor                    # Monitora em tempo real
+              fazai docler                           # Abre interface web DOCLER
+              fazai docler admin                     # Abre painel administrativo
+              fazai docler start                     # Inicia servidor web
   fazai mcps atualizar sistema
   fazai config                 # Configurar provedores de IA
   fazai cache                  # Verificar status do cache
@@ -590,7 +915,7 @@ ${colors.bright}Exemplos de Uso:${colors.reset}
 ${colors.bright}Para mais informações:${colors.reset}
   • Documentação: README.md, USAGE.md
   • Logs: /var/log/fazai/fazai.log
-  • Configuração: /etc/fazai/fazai.conf
+  • Configuração: /etc/fazai/fazai.conf (telemetria: [telemetry].enable_ingest/enable_metrics)
   • GitHub: https://github.com/RLuf/FazAI
     `);
     process.exit(0);
@@ -646,10 +971,191 @@ ${colors.bright}Para mais informações:${colors.reset}
     }
   }
   
+  // Abrir documentação (manual + uso)
+  if (args[0] === 'docs') {
+    showDocumentation();
+    process.exit(0);
+  }
+
+  // Listar ferramentas disponíveis
+  if (args[0] === 'tools') {
+    showAvailableTools();
+    process.exit(0);
+  }
+
+  // Ajuda específica para ferramenta: fazai help <ferramenta>
+  if (args[0] === 'help' && args[1]) {
+    showToolHelp(args[1]);
+    process.exit(0);
+  }
+
+  // Pesquisa técnica: fazai query "termo"
+  if (args[0] === 'query') {
+    const q = args.slice(1).join(' ').trim().replace(/^"|"$/g, '');
+    if (!q) {
+      console.error('Uso: fazai query "<termo>"');
+      process.exit(1);
+    }
+    (async () => {
+      try {
+        const resp = await axios.get(`${API_URL}/research`, { params: { q, max: 5 } });
+        if (!resp.data || !resp.data.success) {
+          console.error('Falha na pesquisa:', resp.data && resp.data.error);
+          process.exit(1);
+        }
+        const results = resp.data.results || [];
+        if (!results.length) {
+          console.log('Nenhum resultado.');
+          process.exit(0);
+        }
+        console.log(`Resultados para: ${q}`);
+        results.forEach((r, i) => {
+          console.log(`\n[${i+1}] ${r.title || ''}`);
+          if (r.url) console.log(`URL: ${r.url}`);
+          if (r.snippet) console.log(r.snippet);
+        });
+        process.exit(0);
+      } catch (e) {
+        console.error('Erro ao consultar pesquisa:', e.message);
+        process.exit(1);
+      }
+    })();
+    return; // evita continuar fluxo
+  }
+  
   if (args[0] === 'logs') {
     const lines = args[1] ? parseInt(args[1], 10) : 10;
     showLogs(isNaN(lines) ? 10 : lines);
     process.exit(0);
+  }
+
+  // Smoke test de telemetria
+  if (args[0] === 'telemetry-smoke') {
+    try {
+      const confPath = '/etc/fazai/fazai.conf';
+      let ingestFlag = 'false', metricsFlag = 'false';
+      if (fs.existsSync(confPath)) {
+        const content = fs.readFileSync(confPath, 'utf8');
+        let sec = '';
+        content.split(/\r?\n/).forEach(line => {
+          const t = line.trim();
+          if (!t || t.startsWith('#')) return;
+          if (t.startsWith('[') && t.endsWith(']')) { sec = t.slice(1, -1); return; }
+          const eq = t.indexOf('=');
+          if (eq > 0 && sec === 'telemetry') {
+            const key = t.slice(0, eq).trim();
+            const val = t.slice(eq + 1).trim().toLowerCase();
+            if (key === 'enable_ingest') ingestFlag = val;
+            if (key === 'enable_metrics') metricsFlag = val;
+          }
+        });
+      }
+
+      printInfo(`Flags lidas: enable_ingest=${ingestFlag}, enable_metrics=${metricsFlag}`);
+
+      // Testa /ingest
+      try {
+        const resp = await axios.post(`${API_URL}/ingest`, { hostname: 'smoke', timestamp: new Date().toISOString() });
+        if (ingestFlag === 'true') printSuccess('/ingest: OK (200)');
+        else printWarning('/ingest: esperado 404 pois enable_ingest != true');
+      } catch (e) {
+        const status = e?.response?.status;
+        if (status === 404 && ingestFlag !== 'true') printSuccess('/ingest: 404 conforme esperado (desabilitado)');
+        else printError(`/ingest: falha (${status || e.message})`);
+      }
+
+      // Testa /metrics
+      try {
+        const resp = await axios.get(`${API_URL}/metrics`);
+        if (metricsFlag === 'true') printSuccess('/metrics: OK (200)');
+        else printWarning('/metrics: esperado 404 pois enable_metrics != true');
+      } catch (e) {
+        const status = e?.response?.status;
+        if (status === 404 && metricsFlag !== 'true') printSuccess('/metrics: 404 conforme esperado (desabilitado)');
+        else printError(`/metrics: falha (${status || e.message})`);
+      }
+
+      process.exit(0);
+    } catch (err) {
+      printError(`Erro no smoke test: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  // Telemetry toggle command
+  if (args[0] === 'telemetry') {
+    const enable = args.includes('--enable');
+    const disable = args.includes('--disable');
+    if (!(enable ^ disable)) {
+      console.log(`${colors.fg.cyan}Uso:${colors.reset} fazai telemetry --enable | --disable`);
+      process.exit(1);
+    }
+    const desired = enable ? 'true' : 'false';
+    try {
+      const confPath = '/etc/fazai/fazai.conf';
+      if (!fs.existsSync(confPath)) {
+        printError('Config não encontrado: /etc/fazai/fazai.conf');
+        process.exit(1);
+      }
+      // backup rápido do conf
+      try {
+        const bdir = '/var/backups/fazai/config';
+        fs.mkdirSync(bdir, { recursive: true });
+        const stamp = new Date().toISOString().replace(/[:-]/g,'').replace(/\..+/, '').replace('T','_');
+        fs.copyFileSync(confPath, `${bdir}/fazai.conf.${stamp}.bak`);
+      } catch (_) {}
+      let lines = fs.readFileSync(confPath, 'utf8').split(/\r?\n/);
+      let out = [];
+      let inSec = false;
+      let seenIngest = false;
+      let seenMetrics = false;
+      let hadSection = false;
+
+      for (let i = 0; i < lines.length; i++) {
+        const raw = lines[i];
+        const t = raw.trim();
+        if (t.startsWith('[') && t.endsWith(']')) {
+          if (inSec) {
+            // leaving [telemetry]; append missing keys
+            if (!seenIngest) out.push(`enable_ingest = ${desired}`);
+            if (!seenMetrics) out.push(`enable_metrics = ${desired}`);
+          }
+          inSec = t === '[telemetry]';
+          if (inSec) { hadSection = true; seenIngest = false; seenMetrics = false; }
+          out.push(raw);
+          continue;
+        }
+        if (inSec) {
+          if (t.startsWith('enable_ingest')) { out.push(`enable_ingest = ${desired}`); seenIngest = true; continue; }
+          if (t.startsWith('enable_metrics')) { out.push(`enable_metrics = ${desired}`); seenMetrics = true; continue; }
+        }
+        out.push(raw);
+      }
+      if (inSec) {
+        if (!seenIngest) out.push(`enable_ingest = ${desired}`);
+        if (!seenMetrics) out.push(`enable_metrics = ${desired}`);
+        inSec = false;
+      }
+      if (!hadSection) {
+        out.push('', '[telemetry]', `enable_ingest = ${desired}`, `enable_metrics = ${desired}`);
+      }
+
+      fs.writeFileSync(confPath, out.join('\n'));
+      printSuccess(`Flags de telemetria ajustados para ${desired}. Reiniciando serviço...`);
+
+      const { spawnSync } = require('child_process');
+      const r = spawnSync('systemctl', ['restart', 'fazai'], { encoding: 'utf8' });
+      if (r.status === 0) {
+        printSuccess('Serviço fazai reiniciado.');
+      } else {
+        printWarning('Falha ao reiniciar via systemctl. Reinicie manualmente se necessário.');
+        if (r.stderr) console.error(r.stderr);
+      }
+      process.exit(0);
+    } catch (e) {
+      printError(`Erro ao ajustar telemetria: ${e.message}`);
+      process.exit(1);
+    }
   }
   
   if (args[0] === 'limpar-logs' || args[0] === 'clear-logs') {
@@ -669,7 +1175,7 @@ ${colors.bright}Para mais informações:${colors.reset}
   }
   
   if (args[0] === 'versao' || args[0] === 'version' || args[0] === '--version' || args[0] === '-v') {
-    console.log('FazAI v1.42.2');
+    console.log('FazAI v2.0.0');
     process.exit(0);
   }
 
@@ -707,7 +1213,7 @@ ${colors.bright}Para mais informações:${colors.reset}
 
   // Comando de configuração
   if (args[0] === 'config') {
-    const config_tool = '/opt/fazai/tools/fazai-config.js';
+
     
     if (!fs.existsSync(config_tool)) {
       printError('Ferramenta de configuração não encontrada');
@@ -742,7 +1248,7 @@ ${colors.bright}Para mais informações:${colors.reset}
     'uptime': 'uptime',
     'html': 'fazai_html_v1.sh',  // Adiciona comando html como invocação direta
     'web': 'fazai_web.sh',       // Adiciona comando web para interface web
-    'tui': 'fazai_tui.sh'        // Adiciona comando tui para dashboard TUI
+
   };
   
   if (basicCommands[args[0]] || args[0] === 'interactive' || args[0] === 'doctor' || args[0] === 'complex') {
@@ -786,24 +1292,7 @@ ${colors.bright}Para mais informações:${colors.reset}
           console.log(`\n${colors.bright}${colors.fg.yellow}${stdout}${colors.reset}\n`);
           process.exit(0);
         });
-      } else if (args[0] === 'tui') {
-        // Se o comando for 'tui', executa o dashboard TUI
-        const script_path = '/opt/fazai/tools/fazai-tui.sh';
-        
-        const { exec } = require('child_process');
-        printInfo('Iniciando dashboard TUI do FazAI...');
-        
-        exec(`chmod +x ${script_path} && ${script_path}`, (error, stdout, stderr) => {
-          if (error) {
-            printError(`Erro ao executar dashboard TUI: ${error.message}`);
-            process.exit(1);
-          }
-          if (stderr) {
-            console.error(`${colors.fg.yellow}${stderr}${colors.reset}`);
-          }
-          console.log(`\n${colors.bright}${colors.fg.yellow}${stdout}${colors.reset}\n`);
-          process.exit(0);
-        });
+
       } else if (args[0] === 'interactive') {
         // Novo modo: agente. Use --pty para o shell interativo antigo
         const usePty = args.includes('--pty');
@@ -1009,6 +1498,110 @@ ${colors.bright}Para mais informações:${colors.reset}
       }
     });
     
+    // Verificação do gemma_oneshot e binário real
+    try {
+      const wrapperPath = '/opt/fazai/bin/gemma_oneshot';
+      if (fs.existsSync(wrapperPath)) {
+        const st = fs.statSync(wrapperPath);
+        if ((st.mode & 0o111) !== 0) {
+          printSuccess(`Wrapper gemma_oneshot: OK (${wrapperPath})`);
+        } else {
+          printWarning(`Wrapper gemma_oneshot existe mas pode não ser executável: ${wrapperPath}`);
+        }
+      } else {
+        printWarning('Wrapper gemma_oneshot: não encontrado em /opt/fazai/bin');
+      }
+
+      const candidates = [
+        '/opt/fazai/bin/gemma_oneshot.real',
+        '/usr/local/bin/gemma_oneshot',
+        '/usr/bin/gemma_oneshot',
+        '/root/gemma.cpp/build/gemma_oneshot'
+      ];
+      const found = candidates.find(p => { try { return fs.existsSync(p) && (fs.statSync(p).mode & 0o111) !== 0; } catch { return false; } });
+      if (found) {
+        printSuccess(`Binário real do Gemma: encontrado (${found})`);
+      } else {
+        printWarning('Binário real do Gemma não encontrado. Compile/instale gemma.cpp e disponibilize gemma_oneshot.');
+        console.log('  Candidatos verificados:');
+        candidates.forEach(c => console.log(`   - ${c}`));
+        console.log('\nSugestão:');
+        console.log('  1) Compilar gemma.cpp e instalar o binário:');
+        console.log('     git clone https://github.com/google/gemma.cpp && cd gemma.cpp');
+        console.log('     cmake -S . -B build && cmake --build build -j$(nproc)');
+        console.log('     sudo install -m 0755 build/gemma_oneshot /usr/local/bin/gemma_oneshot');
+        console.log('  2) Ou aponte o caminho real em /opt/fazai/bin/gemma_oneshot (wrapper procura candidatos listados).');
+      }
+
+      // Leitura simples do fazai.conf para validar [gemma_cpp] e [telemetry]
+      const confPath = '/etc/fazai/fazai.conf';
+      if (fs.existsSync(confPath)) {
+        const content = fs.readFileSync(confPath, 'utf8');
+        let sec = '';
+        const gemma = {};
+        const telemetry = {};
+        content.split(/\r?\n/).forEach(line => {
+          const t = line.trim();
+          if (!t || t.startsWith('#')) return;
+          if (t.startsWith('[') && t.endsWith(']')) { sec = t.slice(1, -1); return; }
+          const eq = t.indexOf('=');
+          if (eq > 0) {
+            const key = t.slice(0, eq).trim();
+            const val = t.slice(eq + 1).trim();
+            if (sec === 'gemma_cpp') gemma[key] = val;
+            if (sec === 'telemetry') telemetry[key] = val;
+          }
+        });
+        if (gemma.weights) {
+          if (fs.existsSync(gemma.weights)) {
+            printSuccess(`[gemma_cpp].weights: OK (${gemma.weights})`);
+          } else {
+            printWarning(`[gemma_cpp].weights: caminho não encontrado (${gemma.weights})`);
+            console.log('\nSugestão:');
+            console.log('  • Se usar arquivo único (.sbs), baixe/coloque em /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs');
+            console.log('  • Execute: sudo /opt/fazai/tools/gemma_bootstrap.sh (aceitar EULA)');
+            console.log('  • Ajuste [gemma_cpp].weights em /etc/fazai/fazai.conf');
+          }
+        } else {
+          printWarning('[gemma_cpp].weights: não definido em fazai.conf');
+          console.log('\nSugestão: adicionar no /etc/fazai/fazai.conf:');
+          console.log('[gemma_cpp]');
+          console.log('weights = /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs');
+        }
+        if (gemma.default_model) {
+          printSuccess(`[gemma_cpp].default_model: ${gemma.default_model}`);
+        } else {
+          printWarning('[gemma_cpp].default_model: não definido em fazai.conf');
+          console.log('\nSugestão: adicionar no /etc/fazai/fazai.conf:');
+          console.log('[gemma_cpp]');
+          console.log('default_model = gemma2-2b-it');
+        }
+
+        const ingestFlag = (telemetry.enable_ingest || '').toLowerCase();
+        const metricsFlag = (telemetry.enable_metrics || '').toLowerCase();
+        if (ingestFlag === 'true' || ingestFlag === 'false') {
+          printSuccess(`[telemetry].enable_ingest: ${ingestFlag}`);
+        } else {
+          printWarning('[telemetry].enable_ingest: não definido (padrão: desabilitado)');
+          console.log('\nSugestão: para habilitar ingestão, adicione no /etc/fazai/fazai.conf:');
+          console.log('[telemetry]');
+          console.log('enable_ingest = true');
+        }
+        if (metricsFlag === 'true' || metricsFlag === 'false') {
+          printSuccess(`[telemetry].enable_metrics: ${metricsFlag}`);
+        } else {
+          printWarning('[telemetry].enable_metrics: não definido (padrão: desabilitado)');
+          console.log('\nSugestão: para habilitar métricas, adicione no /etc/fazai/fazai.conf:');
+          console.log('[telemetry]');
+          console.log('enable_metrics = true');
+        }
+      } else {
+        printWarning('Config não encontrado: /etc/fazai/fazai.conf');
+      }
+    } catch (err) {
+      printError(`Erro na verificação de Gemma/telemetria: ${err.message}`);
+    }
+
     // Verifica serviço systemd
     try {
       const systemctl = spawn('systemctl', ['status', 'fazai']);
@@ -1038,6 +1631,142 @@ ${colors.bright}Para mais informações:${colors.reset}
       });
     } catch (err) {
       printError(`Erro ao verificar serviço systemd: ${err.message}`);
+    }
+
+    // Verifica DOCLER e Qdrant
+    try {
+      const svc = spawn('systemctl', ['status', 'fazai-docler']);
+      let out = '';
+      svc.stdout.on('data', d => out += d.toString());
+      svc.stderr.on('data', d => out += d.toString());
+      svc.on('close', (code) => {
+        if (code === 0 && out.includes('active (running)')) {
+          printSuccess('Serviço fazai-docler: Ativo (3220/3221)');
+        } else {
+          printWarning('Serviço fazai-docler: Inativo ou ausente');
+        }
+      });
+    } catch (_) {}
+
+    try {
+      const svc = spawn('systemctl', ['status', 'fazai-qdrant']);
+      let out = '';
+      svc.stdout.on('data', d => out += d.toString());
+      svc.stderr.on('data', d => out += d.toString());
+      svc.on('close', async (code) => {
+        if (code === 0 && out.includes('active (exited)')) {
+          // oneshot RemainAfterExit: container deve estar rodando
+          try {
+            const resp = await axios.get('http://127.0.0.1:6333/collections');
+            if (resp.status === 200) printSuccess('Qdrant: Disponível em 127.0.0.1:6333');
+            else printWarning('Qdrant: Resposta inesperada');
+          } catch (e) {
+            printWarning(`Qdrant: não responde (${e.message})`);
+          }
+        } else {
+          printWarning('Serviço fazai-qdrant: Inativo ou ausente');
+        }
+      });
+    } catch (_) {}
+
+    // Teste HTTP das portas Docler 3220/3221
+    try {
+      const res1 = await axios.get('http://127.0.0.1:3220', { timeout: 2000 });
+      if (res1.status === 200) printSuccess('Docler porta 3220: OK'); else printWarning('Docler 3220: resposta inesperada');
+    } catch (e) {
+      printWarning(`Docler porta 3220: indisponível (${e.message})`);
+    }
+    try {
+      const res2 = await axios.get('http://127.0.0.1:3221', { timeout: 2000 });
+      if (res2.status === 200) printSuccess('Docler porta 3221: OK'); else printWarning('Docler 3221: resposta inesperada');
+    } catch (e) {
+      printWarning(`Docler porta 3221: indisponível (${e.message})`);
+    }
+
+    // Teste Qdrant: criar coleção temporária, upsert e search
+    try {
+      const base = 'http://127.0.0.1:6333';
+      const cname = `fazai_check_${Date.now()}`;
+      await axios.put(`${base}/collections/${cname}`, { vectors: { size: 4, distance: 'Cosine' } }, { timeout: 5000 });
+      await axios.put(`${base}/collections/${cname}/points`, { points: [{ id: 1, vector: [1,0,0,0], payload: { hello: 'world' } }] }, { timeout: 5000 });
+      const sr = await axios.post(`${base}/collections/${cname}/points/search`, { vector: [1,0,0,0], limit: 1 }, { timeout: 5000 });
+      const ok = Array.isArray(sr.data?.result) && sr.data.result.length > 0;
+      if (ok) printSuccess('Qdrant teste (create/upsert/search): OK'); else printWarning('Qdrant teste: sem resultados');
+      await axios.delete(`${base}/collections/${cname}`, { timeout: 5000 });
+    } catch (e) {
+      printWarning(`Qdrant teste: falhou (${e.message})`);
+    }
+
+    // Dependências obrigatórias
+    const reqs = [
+      { name: 'express', type: 'node' },
+      { name: 'winston', type: 'node' },
+      { name: 'axios', type: 'node' },
+      { name: 'multer', type: 'node' },
+    ];
+    reqs.forEach(r => { try { require(`${r.name}`); printSuccess(`Dependência Node: ${r.name}`); } catch { printWarning(`Dependência Node ausente: ${r.name}`); } });
+    if (require('fs').existsSync('/opt/fazai/web/package.json')) {
+      try { require('/opt/fazai/web/node_modules/ws'); printSuccess('Web dep: ws'); } catch { printWarning('Web dep ausente: ws'); }
+      try { require('/opt/fazai/web/node_modules/express'); printSuccess('Web dep: express'); } catch { printWarning('Web dep ausente: express'); }
+    }
+    // Container runtime
+    const hasDocker = (()=>{ try { return !!require('child_process').spawnSync('docker',['--version']).status===0; } catch { return false; }})();
+    const hasPodman = (()=>{ try { return !!require('child_process').spawnSync('podman',['--version']).status===0; } catch { return false; }})();
+    if (hasDocker) printSuccess('Docker: disponível'); else printInfo('Docker: não encontrado');
+    if (hasPodman) printSuccess('Podman: disponível'); else printInfo('Podman: não encontrado');
+    // Prometheus/Grafana HTTP checks
+    try { const r = await axios.get('http://127.0.0.1:9090/-/healthy', { timeout: 2000 }); if (r.status===200) printSuccess('Prometheus: OK'); else printWarning('Prometheus: resposta inesperada'); } catch(e){ printWarning(`Prometheus: indisponível (${e.message})`); }
+    try { const r = await axios.get('http://127.0.0.1:3000/api/health', { timeout: 2000 }); if (r.status===200 && r.data?.database==='ok') printSuccess('Grafana: OK'); else printWarning('Grafana: resposta inesperada'); } catch(e){ printWarning(`Grafana: indisponível (${e.message})`); }
+
+    // OPNsense multiserver checks via daemon
+    try {
+      const list = await axios.get(`${API_URL}/opn/list`, { timeout: 5000 }).then(r => r.data.items || []);
+      if (Array.isArray(list) && list.length > 0) {
+        printInfo(`OPNsense cadastrados: ${list.length}`);
+        for (const fw of list) {
+          try {
+            const t0 = Date.now();
+            const hr = await axios.get(`${API_URL}/opn/${fw.id}/health`, { timeout: 8000 });
+            const lat = Date.now() - t0;
+            if (hr.data?.success) printSuccess(`OPNsense ${fw.name} (${fw.id}): OK (${lat}ms)`);
+            else printWarning(`OPNsense ${fw.name}: falha`);
+          } catch (e) {
+            printWarning(`OPNsense ${fw.name}: erro de health (${e.message})`);
+          }
+        }
+      } else {
+        printInfo('Nenhum OPNsense cadastrado no registro');
+      }
+    } catch (e) {
+      printInfo('Registro OPNsense: endpoint indisponível');
+    }
+    
+    // Verifica geração de logs
+    try {
+      const logFile = '/var/log/fazai/fazai.log';
+      const errFile = '/var/log/fazai/fazai-error.log';
+      const outFile = '/var/log/fazai/stdout.log';
+      const seFile = '/var/log/fazai/stderr.log';
+      const sizeOrZero = (p) => { try { return fs.existsSync(p) ? fs.statSync(p).size : 0; } catch { return 0; } };
+      const before = sizeOrZero(logFile);
+      // Dispara um endpoint que loga
+      try { await axios.get(`${API_URL}/status`); } catch (_) {}
+      const after = sizeOrZero(logFile);
+      if (fs.existsSync(logFile)) {
+        if (after >= before) {
+          printSuccess(`${logFile}: OK (${after} bytes)`);
+        } else {
+          printWarning(`${logFile}: presente mas sem crescimento detectado`);
+        }
+      } else {
+        printWarning(`${logFile}: não encontrado`);
+      }
+      // Arquivos de saída do systemd
+      if (fs.existsSync(outFile)) printSuccess(`${outFile}: OK (${sizeOrZero(outFile)} bytes)`); else printInfo(`${outFile}: (opcional) não encontrado`);
+      if (fs.existsSync(seFile)) printSuccess(`${seFile}: OK (${sizeOrZero(seFile)} bytes)`); else printInfo(`${seFile}: (opcional) não encontrado`);
+      if (fs.existsSync(errFile)) printSuccess(`${errFile}: OK (${sizeOrZero(errFile)} bytes)`);
+    } catch (err) {
+      printWarning(`Falha ao verificar logs: ${err.message}`);
     }
     
     process.exit(0);
@@ -1078,6 +1807,64 @@ ${colors.bright}Para mais informações:${colors.reset}
     process.exit(0);
   }
 
+  // Verificar se é o subcomando agent
+  if (args[0] === 'agent') {
+    if (args.length < 2) {
+      printError('Objetivo é obrigatório para o comando agent');
+      console.log(`${colors.fg.cyan}Uso: fazai agent "seu objetivo aqui"${colors.reset}`);
+      process.exit(1);
+    }
+    
+    const objective = args.slice(1).join(' ');
+    await runAgent(objective);
+    process.exit(0);
+  }
+
+  // Verificar se é o subcomando relay
+  if (args[0] === 'relay') {
+    if (args.length < 2) {
+      printError('Comando é obrigatório para o subcomando relay');
+      console.log(`${colors.fg.cyan}Uso: fazai relay <comando> [args...]${colors.reset}`);
+      process.exit(1);
+    }
+    
+    const command = args[1];
+    const commandArgs = args.slice(2);
+    await runRelayCommand(command, commandArgs);
+    process.exit(0);
+  }
+
+  // Subcomando OPNsense (linguagem natural)
+  if (args[0] === 'opn') {
+    const phrase = args.slice(1).join(' ').trim();
+    if (!phrase) {
+      printError('Forneça a frase, ex: fazai opn "listar interfaces do fw-01"');
+      process.exit(1);
+    }
+    try {
+      const r = await axios.post(`${API_URL}/opn/nl`, { query: phrase });
+      console.log(JSON.stringify(r.data, null, 2));
+      process.exit(0);
+    } catch (e) {
+      printError(`Erro no comando OPNsense: ${e.response?.data?.error || e.message}`);
+      process.exit(1);
+    }
+  }
+
+  // Verificar se é o subcomando docler
+  if (args[0] === 'docler') {
+    if (args.length < 2) {
+      printError('Comando é obrigatório para o subcomando docler');
+      console.log(`${colors.fg.cyan}Uso: fazai docler <comando> [args...]${colors.reset}`);
+      process.exit(1);
+    }
+    
+    const command = args[1];
+    const commandArgs = args.slice(2);
+    await runDoclerCommand(command, commandArgs);
+    process.exit(0);
+  }
+
   // Comando normal para o FazAI
   const command = args.join(' ');
   
@@ -1107,14 +1894,17 @@ ${colors.bright}Para mais informações:${colors.reset}
     const result = await sendCommand(questionMode ? { question: true, command } : command);
     
     if (result.success) {
-      printSuccess('Comando executado com sucesso.');
-      
-      if (result.interpretation) {
-        console.log(`\n${colors.bright}${colors.fg.yellow}Interpretação:${colors.reset} ${result.interpretation}\n`);
-      }
-      
-      if (result.result) {
-        console.log(`\n${colors.bright}${colors.fg.yellow}Resultado:${colors.reset}\n${result.result}\n`);
+      if (result.type === 'question' && result.answer) {
+        console.log(`\n${colors.bright}${colors.fg.yellow}Resposta:${colors.reset}\n${result.answer}\n`);
+        printSuccess('Pergunta respondida.');
+      } else {
+        printSuccess('Comando executado com sucesso.');
+        if (result.interpretation) {
+          console.log(`\n${colors.bright}${colors.fg.yellow}Interpretação:${colors.reset} ${result.interpretation}\n`);
+        }
+        if (result.result) {
+          console.log(`\n${colors.bright}${colors.fg.yellow}Resultado:${colors.reset}\n${result.result}\n`);
+        }
       }
     } else {
       if (result.interpretation) {

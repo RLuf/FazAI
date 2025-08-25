@@ -1,0 +1,11 @@
+Analise os seguintes arquivos para referentecia: repo= /home/rluft/fazai AGENTS.md CONTEXT.md PR_DESCRIPTION.md prioridades.txt fazai-inteligente.txt FLUXO_INTELIGENTE.md o que ja foi feito esta em codex2008.context e CHANGELOG.md
+
+Você está programando o FazAI.
+
+o ultimo retorno solitcitado esta em "retorno"
+
+o context7 deve ser retirado do -q nao ficou bom
+o fallback esta sendo ativado mesmo quando false
+agora o fonte do gemma.cpp e os pessos estao no repositorio local /home/rluft/fazai/gemma.cpp (pesos e tokenizer dentro) 
+coloque flag para nao usar context7 na consulta de comandos complexos se é isso que esta impactando.
+analise novamente agora com os fontes.

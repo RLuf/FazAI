@@ -180,8 +180,9 @@ function showConfigStatus(config) {
   logInfo('Status da Configuração Atual');
   log('─'.repeat(50));
   
-  const aiProvider = config.ai_provider?.provider || 'não configurado';
-  log(`Provedor padrão: ${aiProvider}`);
+  // Gemma é o motor padrão fixo
+  log(`Motor padrão (fixo): gemma_cpp`);
+  const aiProvider = config.ai_provider?.provider || 'gemma_cpp (fixo)';
   
   const providers = ['openrouter', 'openai', 'requesty', 'anthropic', 'gemini', 'ollama'];
   
@@ -199,7 +200,7 @@ function showConfigStatus(config) {
 
 // Função para testar conectividade
 async function testConnectivity(config) {
-  logInfo('Testando conectividade com provedores...');
+  logInfo('Testando conectividade com provedores de fallback...');
   
   const axios = require('axios');
   const providers = ['openrouter', 'openai', 'requesty', 'anthropic', 'gemini'];
@@ -251,7 +252,7 @@ async function main() {
   while (true) {
     log('\nOpções disponíveis:');
     log('1. Mostrar status da configuração');
-    log('2. Configurar provedor de IA');
+    log('2. Configurar fallback de IA (OpenRouter, OpenAI, etc.)');
     log('3. Testar conectividade');
     log('4. Editar configuração manualmente');
     log('5. Restaurar configuração padrão');
@@ -267,12 +268,14 @@ async function main() {
       case '2':
         const aiConfig = await configureAIProvider();
         if (aiConfig) {
+          // Gemma é o motor padrão; aqui apenas habilitamos provedores de fallback
           config.ai_provider = config.ai_provider || {};
-          config.ai_provider.provider = aiConfig.provider;
-          
+          if (typeof config.ai_provider.enable_fallback === 'undefined') {
+            config.ai_provider.enable_fallback = true;
+          }
+          // Armazena a chave no bloco do provedor escolhido
           config[aiConfig.provider] = config[aiConfig.provider] || {};
           config[aiConfig.provider].api_key = aiConfig.apiKey;
-          
           saveConfig(config);
         }
         break;

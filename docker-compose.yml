@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  fazai:
+    build:
+      context: .
+      target: final
+    image: rluf/fazai:latest
+    container_name: fazai
+    environment:
+      - FAZAI_PORT=3120
+      - NODE_ENV=production
+      - FAZAI_GEMMA_SOCKET=/run/fazai/gemma.sock
+      - FAZAI_GEMMA_MODEL=/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
+    ports:
+      - "3120:3120"
+      # Opcional: UI Docler
+      - "3220:3220"
+      - "3221:3221"
+    volumes:
+      - ./etc/fazai:/etc/fazai
+      - ./var/log/fazai:/var/log/fazai
+      - ./opt/models/gemma:/opt/fazai/models/gemma
+    restart: unless-stopped
+
+  # Opcional: Qdrant (memória vetorial)
+  qdrant:
+    image: qdrant/qdrant:v1.7.3
+    container_name: fazai-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./var/lib/qdrant:/qdrant/storage
+    restart: unless-stopped
+

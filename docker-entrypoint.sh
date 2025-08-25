@@ -7,7 +7,7 @@ log() {
 }
 
 # Verificar diretórios necessários
-for dir in "/opt/fazai" "/etc/fazai" "/var/log/fazai"; do
+for dir in "/opt/fazai" "/etc/fazai" "/var/log/fazai" "/run/fazai"; do
     if [ ! -d "$dir" ]; then
         log "Criando diretório $dir"
         mkdir -p "$dir"
@@ -28,8 +28,24 @@ fi
 
 # Verificar permissões
 log "Verificando permissões..."
-chown -R root:root /opt/fazai
-chmod -R 755 /opt/fazai/bin
+chown -R root:root /opt/fazai || true
+chmod -R 755 /opt/fazai/bin || true
+chmod 755 /run/fazai || true
+
+# Variáveis do worker
+export FAZAI_GEMMA_SOCKET=${FAZAI_GEMMA_SOCKET:-/run/fazai/gemma.sock}
+export FAZAI_GEMMA_SOCK=$FAZAI_GEMMA_SOCKET
+export FAZAI_GEMMA_MODEL=${FAZAI_GEMMA_MODEL:-/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs}
+
+# Iniciar worker em background se existir
+if [ -x "/opt/fazai/bin/fazai-gemma-worker" ]; then
+  if [ ! -S "$FAZAI_GEMMA_SOCKET" ]; then
+    log "Iniciando Gemma Worker (socket: $FAZAI_GEMMA_SOCKET)"
+  else
+    log "Socket existente encontrado: $FAZAI_GEMMA_SOCKET"
+  fi
+  /opt/fazai/bin/fazai-gemma-worker &
+fi
 
 # Informar versão do Node.js
 log "Usando Node.js $(node -v)"

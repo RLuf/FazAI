@@ -1,21 +1,64 @@
-# FazAI - Orquestrador Inteligente de Automação
+# 🤖 FazAI v2.0 - Sistema de Fluxo Inteligente
 
 > **Licença:** Este projeto está licenciado sob a [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
 
-FazAI é um sistema de automação inteligente para servidores Linux, que permite executar comandos complexos usando linguagem natural e inteligência artificial.
+**FazAI v2.0** representa uma transformação revolucionária: de um simples orquestrador para um **sistema de agente inteligente cognitivo e persistente** que mantém raciocínio contínuo, aprende continuamente e executa ações complexas de forma autônoma.
 
-## Principais recursos (v1.42.1)
+## 🚀 Principais recursos (v2.0.0)
 
-- IA local com Gemma (gemma.cpp) integrada: baixa latência e operação offline
-- Geração dinâmica de ferramentas (auto_tool) a partir de linguagem natural
-- Monitoração e QoS por IP (nftables + tc) com gráfico HTML (top 10 IPs)
-- Agentes remotos com ingestão em `/ingest` e métricas Prometheus em `/metrics`
-- Integrações de segurança ativas: ModSecurity, Suricata, CrowdSec, Monit
-- SNMP (consultas de OIDs) para equipamentos de rede
-- APIs de terceiros prontas: Cloudflare (DNS/Firewall) e SpamExperts (domínios/políticas)
-- Suporte a Qdrant (RAG) para consultas semânticas de redes/Linux
+### 🤖 **Agente Inteligente Cognitivo**
+- **Sistema de Agente Persistente**: Raciocínio contínuo até concluir objetivos
+- **Worker Gemma (C++)**: Processo residente com modelo libgemma.a para latência mínima
+- **Protocolo ND-JSON**: 9 tipos de ação estruturada (plan, ask, research, shell, toolSpec, observe, commitKB, done)
+- **Streaming em Tempo Real**: Server-Sent Events (SSE) para tokens e ações
+- **Base de Conhecimento**: Aprendizado contínuo com Qdrant para persistência
+- **Geração Dinâmica de Ferramentas**: Criação e execução sob demanda
+
+### 📊 **Integração Enterprise**
+- **Relay SMTP Inteligente**: Automação completa com SpamExperts e Zimbra
+- **Monitoramento Avançado**: Detecção de ataques e análise de padrões
+- **Resposta Automática**: Sistema inteligente de resposta a ameaças
+- **Configuração Automática**: IA que configura e otimiza sistemas
+
+### 🔧 **Recursos Legados Mantidos**
+- IA local com Gemma integrada: baixa latência e operação offline
+- Monitoração e QoS por IP (nftables + tc) com gráfico HTML
+- Agentes remotos com ingestão em `/ingest` e métricas Prometheus
+- Integrações de segurança: ModSecurity, Suricata, CrowdSec, Monit
+- APIs de terceiros: Cloudflare (DNS/Firewall) e SpamExperts
+- Suporte a Qdrant (RAG) para consultas semânticas
+
+
 
 Consulte o [CHANGELOG](CHANGELOG.md) para histórico completo de alterações.
+
+## 🎯 Exemplos de Uso Rápido
+
+### **Agente Inteligente**
+```bash
+# Configuração automática completa
+fazai agent "configurar servidor de email relay com antispam e antivirus"
+
+# Otimização inteligente
+fazai agent "otimizar performance do sistema e detectar gargalos"
+
+# Resposta automática a ataques
+fazai agent "detectar ataque de spam em massa e implementar contramedidas"
+```
+
+### **Relay SMTP Inteligente**
+```bash
+# Análise e configuração
+fazai relay analyze                    # Analisa configuração atual
+fazai relay configure                  # Configura automaticamente
+fazai relay monitor                    # Monitora em tempo real
+fazai relay stats                      # Estatísticas completas
+
+# Integração Enterprise
+fazai relay spamexperts                # Integra com SpamExperts
+fazai relay zimbra                     # Integra com Zimbra
+fazai relay blacklist 192.168.1.100    # Blacklist dinâmica
+```
 
 **Para instruções detalhadas de uso, consulte [Instruções de Uso](USAGE.md).**
 
@@ -94,22 +137,37 @@ sudo ./install.sh
 # chamado de qualquer pasta, pois detecta seu próprio caminho.
 ```
 
-### Instalação via Docker
+### Docker e Compose
 
-O FazAI pode ser executado em um container Docker, facilitando a instalação e execução em qualquer ambiente. A imagem inclui o daemon, ferramentas e endpoints (`/status`, `/logs`, `/ingest`, `/metrics`).
-
+Opção A — Docker Compose (recomendado)
 ```bash
-# Construir a imagem
-docker build -t fazai:latest .
+# 1) Traga seus pesos para o host em ./opt/models/gemma
+#    Ex.: ./opt/models/gemma/2.0-2b-it-sfp.sbs
 
-# Executar o container
-docker run -d --name fazai \
-  -p 3120:3120 \
-  -v /etc/fazai:/etc/fazai \
-  -v /var/log/fazai:/var/log/fazai \
-  -e FAZAI_PORT=3120 \
-  fazai:latest
+# 2) Suba com Compose
+docker compose up -d --build
+
+# 3) Teste
+curl http://localhost:3120/agent/status
 ```
+
+Opção B — Docker direto
+```bash
+docker build -t rluf/fazai:latest .
+docker run -d --name fazai \
+  -p 3120:3120 -p 3220:3220 -p 3221:3221 \
+  -e FAZAI_PORT=3120 \
+  -e FAZAI_GEMMA_MODEL=/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs \
+  -v $(pwd)/etc/fazai:/etc/fazai \
+  -v $(pwd)/var/log/fazai:/var/log/fazai \
+  -v $(pwd)/opt/models/gemma:/opt/fazai/models/gemma \
+  rluf/fazai:latest
+```
+
+Notas
+- O container inicia o Gemma Worker (C++) e o daemon Node no mesmo serviço, usando socket Unix em `/run/fazai/gemma.sock`.
+- Monte seus pesos do modelo em `/opt/fazai/models/gemma` e aponte `FAZAI_GEMMA_MODEL` se necessário.
+- Qdrant opcional disponível via serviço `qdrant` no `docker-compose.yml` (porta 6333).
 
 #### Portas Oficiais do FazAI
 
@@ -191,6 +249,8 @@ mesmos elementos de identidade visual em ASCII).
 
 Atalhos: `q` (sair), futuras integrações: `l` (logs), `s` (status), `m` (métricas).
 
+Nota: DOCLER é a interface web do FazAI (servidor Node em `/opt/fazai/web/docler-server.js`) e não tem relação com Docker. A seção “Instalação via Docker” refere-se ao empacotamento/execução do FazAI em contêineres.
+
 ## Configuração
 
 O arquivo principal de configuração está em `/etc/fazai/fazai.conf`. Para criar:
@@ -200,26 +260,116 @@ sudo cp /etc/fazai/fazai.conf.example /etc/fazai/fazai.conf
 sudo nano /etc/fazai/fazai.conf
 ```
 
-### Provedores de IA Suportados
+### Telemetria (flags)
+- `[telemetry].enable_ingest`: habilita o endpoint `POST /ingest` para receber telemetria de agentes/hosts.
+- `[telemetry].enable_metrics`: habilita o endpoint `GET /metrics` (formato Prometheus) com contadores e métricas agregadas.
+Se um flag estiver desabilitado ou ausente, o endpoint correspondente retorna 404.
 
-- **OpenRouter** (https://openrouter.ai/api/v1) - Padrão, múltiplos modelos
-- **OpenAI** (https://api.openai.com/v1) - GPT-4, GPT-3.5-turbo
-- **Anthropic** (https://api.anthropic.com/v1) - Claude 3 Opus, Sonnet, Haiku
-- **Google Gemini** (https://generativelanguage.googleapis.com/v1beta) - Gemini Pro, Pro Vision
-- **Requesty** (https://router.requesty.ai/v1) - Gateway para múltiplos provedores
-- **Ollama** (http://127.0.0.1:11434/v1) - Modelos locais (llama3.2, mixtral, etc.)
-- **Gemma local (gemma.cpp)** - Via provedor interno `gemma_cpp` (requer pesos/tokenizer)
+Atalhos via CLI:
+```bash
+# Habilitar ambos e reiniciar o serviço
+fazai telemetry --enable
+
+# Desabilitar ambos e reiniciar
+fazai telemetry --disable
+
+# Smoke test (valida retornos esperados)
+fazai telemetry-smoke
+```
+
+### Interface Web / Docler
+- Serviço: `fazai-docler` (portas 3220 cliente, 3221 admin), executa como usuário não-root `fazai-web`.
+- Iniciado pelo installer. Acesse:
+  - Cliente: http://localhost:3220
+  - Admin: http://localhost:3221
+- A UI em http://localhost:3120/ui (servida pelo daemon) inclui tile de status e botões para alternar telemetria.
+
+### Qdrant (RAG)
+- Installer configura `fazai-qdrant` via Docker (porta 6333) se Docker estiver presente.
+- Integração com Gemma via endpoints internos e tool `rag_ingest.js`.
+- Exemplo (via API/UI):
+  - Ingestão por URL: `POST /kb/ingest {"url":"https://exemplo.com/doc.pdf"}`
+  - Ingestão por texto: `POST /kb/ingest {"text":"conteúdo a indexar"}`
+
+### OPNsense (Multiserver)
+- Cadastro e consulta via UI ou linguagem natural (CLI):
+  - Adicionar via UI: cartão “OPNsense” (nome, base_url, key/secret, TLS)
+  - Listar: `fazai opn "listar firewalls"`
+  - Health: `fazai opn "health do fw-01"`
+  - Interfaces: `fazai opn "listar interfaces do fw-01"`
+- API NL: `POST /opn/nl {"query":"..."}`
+- Registro: `/etc/fazai/opnsense.json` e segredos em `/etc/fazai/secrets/opnsense/<id>.json`
+- Baseado na API oficial: https://docs.opnsense.org/development/api.html
+
+### Alertas & Diagnóstico
+- Configuração via `/ui` (cartão “Alertas & Diagnóstico”) ou REST:
+  - GET/POST `/alerts/config` com `{ interval_sec, rules: [...] }`
+  - Regra exemplo: `{ "id":"fw-01", "cpu_percent":85, "mem_percent":90, "sessions":2000, "ifaces":[{"name":"em0","rx_bps":100000000}], "channel":"email", "target":{"to":"root@example"} }`
+  - Canais suportados: email, telegram, whatsapp (webhook)
+- Diagnóstico OPNsense (pass-through seguro): `POST /opn/:id/diagnostics { path:"/api/core/diagnostics/...", params:{} }`
+
+### IA: Motor e Fallbacks
+
+- **Motor padrão (core)**: Gemma local (gemma.cpp). Operação offline, baixa latência. Não configurável como “provedor” — é o mecanismo do FazAI.
+- **APIs de IA (fallback)**:
+  - OpenRouter (https://openrouter.ai/api/v1) — múltiplos modelos
+  - OpenAI (https://api.openai.com/v1) — GPT‑4, GPT‑3.5‑turbo
+  - Anthropic (https://api.anthropic.com/v1) — Claude 3 Opus/Sonnet/Haiku
+  - Google Gemini (https://generativelanguage.googleapis.com/v1beta)
+  - Requesty (https://router.requesty.ai/v1)
+  - Ollama (http://127.0.0.1:11434/v1)
 
 ### Sistema de Fallback
 
-O FazAI implementa um sistema de fallback robusto que garante alta disponibilidade:
+O FazAI usa Gemma como motor primário. Em falha grave/indisponibilidade, aciona fallback em APIs externas disponíveis:
 
-1. **Fallback entre Provedores**: Ordem automática: gemma_cpp → Llama server → OpenRouter → Requesty → OpenAI → Anthropic → Gemini → Ollama
-2. **Fallback Local**: `fazai_helper.js` para operação offline (DeepSeek removido)
-3. **GenaiScript**: Arquitetamento de comandos complexos usando modelos locais
-4. **Cache Inteligente**: Reduz latência e custos para comandos repetidos
+1. **Ordem padrão**: gemma_cpp → llama_server → openrouter → openai → anthropic → gemini → ollama
+2. **Configuração**: habilite fallbacks e chaves em `/etc/fazai/fazai.conf` ou via `fazai-config`.
+3. **Cache**: respostas e prompts são cacheados para reduzir custos/latência.
+
+Exemplos de configuração:
+
+```ini
+[ai_provider]
+enable_fallback = true
+max_retries = 3
+retry_delay = 2
+
+[openrouter]
+api_key = SUA_CHAVE
+endpoint = https://openrouter.ai/api/v1
+default_model = openai/gpt-4o
+
+[openai]
+api_key = SUA_CHAVE
+endpoint = https://api.openai.com/v1
+default_model = gpt-4o
+```
+
+Via CLI interativo:
+
+```bash
+sudo node /opt/fazai/tools/fazai-config.js
+# Opção: "Configurar fallback de IA (OpenRouter, OpenAI, etc.)"
+```
 
 ### Telemetria e Observabilidade
+Endpoints adicionais relevantes:
+
+- `POST /sec/policies` — políticas proativas; ações: `opn_block_ip`, `cf_block_ip`, `ai_decide`, `spx_quarantine`, `spx_allowlist`, `spx_blocklist`.
+- `POST /security/modsecurity/setup` — instala/configura ModSecurity (Nginx/Apache). 
+- `POST /config/reload` — recarrega conf e/ou define `telemetry.udp_port` em runtime; reinicia listener UDP.
+- `GET /config/get` / `POST /config/set` — ler/gravar `/etc/fazai/fazai.conf` (persistente).
+- RAG (arquitetamento): Qdrant→Context7 — injeta passo `kb.rag` com `origin` e amostras.
+
+## Bash Completion
+
+O instalador provisiona `/etc/bash_completion.d/fazai`. Para recarregar num shell atual:
+
+```
+source /etc/bash_completion
+source /etc/bash_completion.d/fazai
+```
 ### Llama.cpp (opcional, para uso com Ollama/llama server/execução local)
 
 Para compilar e instalar o llama.cpp com CMake e dependências adequadas (incluindo libcurl dev):
@@ -360,3 +510,26 @@ Consulte o arquivo de log `/var/log/fazai_install.log` para detalhes.
 ## Autor
 
 Roger Luft, Fundador do FazAI
+## OPNsense Multiserver (integração nativa)
+
+O FazAI integra múltiplos firewalls OPNsense via API nativa (Basic Auth), sem agente remoto.
+
+Endpoints do daemon:
+- `POST /opn/add` { name, base_url, api_key, api_secret, verify_tls?, tags? } → testa e salva
+- `GET /opn/list` → lista com health resumido (last_seen, last_error, version)
+- `GET /opn/:id/health` → consulta de saúde (usa firmware/status ou system/info/version)
+- `GET /opn/:id/interfaces` → inventário de interfaces
+- `GET /opn/:id/metrics` → pacote básico (versão, uptime, CPU/Mem se exposto, interfaces)
+- `GET /services` → inclui agregados `opnsense_fleet` (ok/degraded/down/total)
+
+UI Docler:
+- Página “OPNsense Fleet”: tabela de firewalls, agregados, detalhes (Dashboard/Interfaces)
+- Modal “Adicionar Firewall” (Testar & Salvar) → chama `POST /opn/add`
+
+Segurança:
+- Segredos em `/etc/fazai/secrets/opnsense/<id>.json` (0600)
+- TLS opcional (defina `verify_tls=false` para certificados self-signed)
+
+Observações:
+- Em alguns appliances, endpoints `/api/core/system/*` podem estar restritos. O FazAI usa `core/firmware/status` e fallback para `core/menu/search` no health, mantendo operações somente leitura.
+s

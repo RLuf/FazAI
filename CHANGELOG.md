@@ -1,5 +1,228 @@
 # Changelog
 
+## [v2.0.0] - 22/08/2025 — Stable
+
+### Added
+- Context7 Integration (RAG auxiliar) como parte do fluxo inteligente:
+  - Módulo Python permanente `opt/fazai/lib/context7_module.py` (search/get, cache local, aiohttp/urllib)
+  - Integração no pipeline de pesquisa `core/research.js` (usa Context7 quando `api_key` presente)
+  - Endpoint `GET /research?q=<termo>&max=5` no daemon
+  - Modo `-q` passa a enriquecer respostas com contexto de pesquisa (transparente)
+  - CLI: `fazai query "<termo>"` para consulta direta
+- Gemma Worker: build automatizado no installer (`build_gemma_worker`) e serviço `fazai-gemma-worker` (socket `/run/fazai/gemma.sock`)
+- Bash Completion unificado com cobertura dos novos comandos
+
+### Changed
+- Leitura de `[context7]` no `fazai.conf` para definir `CONTEXT7_API_KEY`/`API7_URL` no ambiente do processo (sem exigir env)
+- `USAGE.md`: seção “Pesquisa Técnica (Context7)” com exemplos e configuração
+- `README.md`: nota esclarecendo que DOCLER é a interface web (não Docker)
+- `opt/fazai/lib/main.js`: versão e metadados ajustados para 2.0.0
+
+### Fixed
+- `install.sh`: here-docs corrigidos, instalação de `cmake`, melhorias na detecção de SO (Pop!_OS tratado como Ubuntu)
+
+### Notes
+- Quando `[context7].api_key` estiver vazia, o sistema usa fallback/mock de pesquisa, mantendo o fluxo funcional.
+
+## [v2.0.1] - 20/08/2025
+
+### Added
+- Telemetry gating: Endpoints agora respeitam flags de configuração
+  - `[telemetry].enable_ingest` controla a disponibilidade do endpoint `POST /ingest`
+  - `[telemetry].enable_metrics` controla a disponibilidade do endpoint `GET /metrics`
+- gemma_oneshot wrapper: wrapper independente do bootstrap
+  - Arquivo: `opt/fazai/bin/gemma_oneshot`
+  - Aceita `--weights`, `--model`, `--tokenizer`, `--verbosity`
+ - Lê defaults de `/etc/fazai/fazai.conf` na seção `[gemma_cpp]`
+  - Encaminha stdin ao binário real (ex.: `/root/gemma.cpp/build/gemma_oneshot`)
+ - CLI: `fazai check-deps` expandido
+   - Verifica wrapper `gemma_oneshot` e presença do binário real (gemma.cpp)
+   - Valida `[gemma_cpp].weights` e `[gemma_cpp].default_model` em fazai.conf
+   - Valida flags `[telemetry].enable_ingest` e `enable_metrics`
+- CLI: `fazai telemetry-smoke` para validar /ingest e /metrics
+- CLI: `fazai telemetry --enable|--disable` para ajustar flags de telemetria e reiniciar o serviço
+- UI `/ui`: tile de status mostrando flags de telemetria e disponibilidade do agente (Gemma)
+- Service: `fazai-docler` executando como usuário não-root (fazai-web) nas portas 3220/3221; installer instala dependências web
+- Installer: serviço `fazai-qdrant` via Docker (porta 6333) se Docker estiver disponível
+ - Upload & Inferência: endpoint `/kb/upload` (multipart) com suporte a PDF/MD/TXT e sugestões via Gemma; `/kb/ingest` para URL/TEXTO
+ - UI: card de ingestão (upload/URL/texto) e exibição de resultados de inferência (RAG)
+- UI: card de Serviços + iframes integrados do Prometheus (9090) e Grafana (3000)
+- OPNsense (inicial): registro multi-firewall (`/opn/add`, `/opn/list`, `/opn/:id/health`, `/opn/:id/interfaces`) e UI básica para cadastro/listagem
+- OPNsense NL: endpoint `/opn/nl` com geração de plano via Gemma (ações: list/add/health/interfaces) + CLI `fazai opn "..."`
+- Backup automático por módulo: antes de alterações em `telemetria` (fazai.conf) e OPNsense (registro/segredos) cria artefatos em `/var/backups/fazai/<modulo>/`
+  - Endpoint `POST /backup` permite backup sob demanda por módulo ou caminhos customizados
+ - Alertas & Diagnóstico: `/alerts/config` (intervalo + regras por firewall), `POST /opn/:id/diagnostics` pass-through para API oficial (core/diagnostics)
+   - UI: cartão "Alertas & Diagnóstico" para salvar regras e acionar teste
+- Instalador: instala dependências da interface web e cria serviço systemd `fazai-docler` (portas 3220/3221)
+
+### Fixed
+- Daemon: corrigido conflito de rota `/services` (rota de ping movida para `/services/ping` preservando agregador com `opnsense_fleet`).
+- Backend: adicionado `GET /opn/:id/metrics` para UI Docler (métricas básicas e inventário de interfaces).
+- Alertas: adicionados `GET/POST /alerts/config` no daemon e reinicialização do scheduler após salvar.
+- OPNsense registry: health com fallback para `/api/core/menu/search` quando `core/system/info|version` indisponíveis.
+
+### Added (OPNsense)
+- Backend: endpoints de Firewall e Diagnostics
+  - `GET /opn/:id/firewall/rules` (lista regras via filter/searchRule)
+  - `POST /opn/:id/firewall/apply` (aplica e opcionalmente add/set/del rule)
+  - `GET /opn/:id/diagnostics/states`, `GET /opn/:id/diagnostics/activity`, `GET /opn/:id/logs/firewall`
+- UI Docler: abas “Firewall” e “Diagnostics” no detalhe do firewall (listagem e consultas básicas)
+ - NL Router: endpoints `POST /nl/route` e `POST /nl/execute` mapeiam linguagem natural para ações (OPNsense, Cloudflare, SpamExperts, Context7) e executam com credenciais fornecidas
+- UI Docler: seção “Agente por Linguagem Natural” para testar `/nl/route` e `/nl/execute` com hints/credenciais
+ - UI Docler: seção “Segurança Proativa” (editar/salvar `/sec/policies`) e botão para instalar/configurar ModSecurity (Nginx/Apache)
+
+### Changed
+- Config example atualizado (`etc/fazai/fazai.conf.example`)
+  - `[gemma_cpp]` usa `default_model` em vez de `model`
+  - Nova seção `[logging]` e prompts `[mcps_mode]`/`[question_mode]`
+- Daemon (`opt/fazai/lib/main.js`)
+  - MCPS seleciona automaticamente um provedor HTTP válido e com API key quando necessário
+  - Endpoints `/ingest` e `/metrics` condicionais às flags de telemetria
+- Installer (`install.sh`)
+  - Copia `opt/fazai/bin/` (inclui wrapper e worker)
+  - Cria serviço systemd para `fazai-gemma-worker` quando o binário existir
+- CLI (`bin/fazai`)
+  - Ajuda atualizada: provedores listados incluindo Gemma local e Llama Server
+  - Referência à configuração de telemetria adicionada
+  - Ajuda menciona `check-deps` (inclui validações Gemma/telemetria)
+  - Adicionados `telemetry-smoke` e `telemetry --enable|--disable`
+  - `check-deps` reforçado: testa Docler (portas 3220/3221), Qdrant (create/upsert/search), Prometheus (9090), Grafana (3000), Docker/Podman
+  - Adicionado `telemetry-smoke` para validar /ingest e /metrics conforme flags
+
+### Docs
+- README.md e USAGE.md: seção curta explicando os flags de telemetria (`enable_ingest`, `enable_metrics`)
+- Bash Completion: ajuda inclui nota sobre flags de telemetria
+
+### Notes
+- O wrapper `gemma_oneshot` evita dependência de `gemma_bootstrap.sh` e centraliza defaults via `fazai.conf`.
+- Para MCPS, configure um provedor HTTP (OpenRouter/OpenAI/Anthropic/Gemini ou Llama Server) com chave quando exigida.
+- DOCLER server agora usa portas 3220 (cliente) e 3221 (admin) para evitar conflito com o daemon (3120).
+- Para Qdrant sem Docker, utilize o script `opt/fazai/tools/qdrant_setup.js` ou instale manualmente.
+ - Autenticação PAM opcional no Docler via `authenticate-pam` (habilitar com DOCLER_AUTH_PAM=true)
+
+
+## [v2.0.0] - 15/01/2025
+
+### 🚀 MAJOR RELEASE - Transformação Revolucionária com Interface DOCLER
+
+#### 🤖 **Agente Inteligente Cognitivo**
+- **Sistema de Agente Persistente**: Transformação completa do FazAI de orquestrador simples para agente cognitivo e persistente
+- **Worker Gemma (C++)**: Processo residente com modelo libgemma.a para raciocínio local e rápido
+- **Protocolo ND-JSON**: Sistema de comunicação estruturado com 9 tipos de ação (plan, ask, research, shell, toolSpec, observe, commitKB, done)
+- **Streaming em Tempo Real**: Server-Sent Events (SSE) para tokens e ações em tempo real
+- **Base de Conhecimento**: Sistema de aprendizado contínuo com Qdrant para persistência de conhecimento
+- **Geração Dinâmica de Ferramentas**: Criação e execução de ferramentas sob demanda
+
+#### 🔄 **Arquitetura de Fluxo Inteligente**
+- **IPC via Socket Unix**: Comunicação eficiente entre worker C++ e daemon Node.js
+- **Módulos Core Modulares**: Prompt, retrieval, research, shell, tools, KB integrados
+- **Handlers Especializados**: Processamento de ações ND-JSON com controle granular
+- **CLI Inteligente**: Subcomando `agent` com streaming SSE e controle de interrupção
+- **Configuração Estruturada**: Arquivo `etc/fazai/agent.conf` para configuração avançada
+
+#### 📊 **Integração com Relay SMTP**
+- **Módulo de Integração**: `relay_integration.js` para automação completa do sistema de relay
+- **Análise Inteligente**: Configuração automática baseada em IA e recomendações
+- **Monitoramento Avançado**: Detecção de padrões de ataque e análise de logs em tempo real
+- **Integração Enterprise**: SpamExperts e Zimbra com sincronização automática
+- **Resposta Automática**: Sistema de resposta inteligente a ataques com blacklist dinâmica
+- **CLI Especializado**: Comandos `fazai relay analyze`, `configure`, `monitor`, `stats`
+
+#### 🛠️ **Ferramentas e Automação**
+- **Script de Build**: `worker/build.sh` para compilação automatizada do worker C++
+- **CMake Integration**: Configuração completa para build do worker com systemd
+- **Provider Node.js**: Cliente para comunicação com worker via socket Unix
+- **Documentação Abrangente**: 3 arquivos de documentação completa (FLUXO_INTELIGENTE.md, README_FLUXO_INTELIGENTE.md, TRANSFORMACAO_RESUMO.md)
+
+#### 🌟 **Interface DOCLER - Oráculo Druídico Digital**
+- **Interface Cliente Futurista**: Face animada que respira, pisca e reage em tempo real
+- **Temas Dinâmicos**: Cyberpunk, Matrix, Cósmico, Druídico com mudança instantânea
+- **Painel Administrativo**: Dashboard completo com métricas e controle total
+- **Servidor Web Node.js**: Express + WebSocket para comunicação em tempo real
+- **CLI Integration**: Comandos `fazai docler` para controle completo
+- **Responsividade**: Funciona perfeitamente em desktop, tablet e mobile
+
+#### 🎯 **Comandos e Funcionalidades**
+```bash
+# Agente Inteligente
+fazai agent "configurar servidor de email relay com antispam e antivirus"
+fazai agent "otimizar performance do sistema e detectar gargalos"
+
+# Relay SMTP
+fazai relay analyze                    # Análise de configuração
+fazai relay configure                  # Configuração automática
+fazai relay monitor                    # Monitoramento em tempo real
+fazai relay stats                      # Estatísticas completas
+fazai relay spamexperts                # Integração SpamExperts
+fazai relay zimbra                     # Integração Zimbra
+fazai relay blacklist 192.168.1.100    # Blacklist dinâmica
+fazai relay restart                    # Reinicialização
+
+# Interface DOCLER
+fazai docler                           # Abre interface cliente
+fazai docler admin                     # Abre painel administrativo
+fazai docler start                     # Inicia servidor web
+fazai docler stop                      # Para servidor web
+fazai docler status                    # Verifica status
+
+# Build do Worker
+cd worker && ./build.sh                # Compilação automatizada
+```
+
+#### 📈 **Benefícios Alcançados**
+- **Autonomia Real**: Agente mantém raciocínio contínuo até concluir objetivos
+- **Transparência Total**: Streaming em tempo real de tokens e ações
+- **Flexibilidade Extrema**: Geração dinâmica de ferramentas conforme necessário
+- **Eficiência Operacional**: Uma ação por iteração para controle total
+- **Segurança Robusta**: Validações, auditoria e execução segura
+- **Aprendizado Contínuo**: Base de conhecimento persistente
+
+#### 🔧 **Arquivos Criados/Modificados**
+- **Core System**: `worker/src/*` (worker.hpp, worker.cpp, ipc.hpp, ipc.cpp, main.cpp)
+- **Node.js Integration**: `opt/fazai/lib/providers/gemma-worker.js`, `opt/fazai/lib/handlers/agent.js`
+- **Core Modules**: `opt/fazai/lib/core/*` (prompt, retrieval, shell, research, tools, kb)
+- **CLI & Config**: `bin/fazai`, `etc/fazai/agent.conf`
+- **Build & Docs**: `worker/build.sh`, `worker/CMakeLists.txt`, documentação completa
+- **Interface DOCLER**: `opt/fazai/web/*` (docler-interface.html, docler-admin.html, docler-server.js)
+- **Web Integration**: `opt/fazai/web/package.json`, `opt/fazai/web/install-docler.sh`
+
+#### 🎮 **Exemplos de Uso Avançado**
+```bash
+# Configuração completa automática
+fazai agent "configurar sistema de relay SMTP com proteção máxima, integrar com SpamExperts e Zimbra, e configurar monitoramento inteligente"
+
+# Resposta automática a ataques
+fazai agent "detectar ataque de spam em massa e implementar contramedidas automáticas"
+
+# Otimização inteligente
+fazai agent "otimizar performance do relay SMTP e reduzir latência de processamento"
+
+# Interface DOCLER
+fazai docler start                     # Iniciar servidor web
+fazai docler                           # Abrir interface cliente
+fazai docler admin                     # Abrir painel administrativo
+```
+
+### Technical Details
+- **Compatibilidade**: Mantém total compatibilidade com sistema existente
+- **Performance**: Worker C++ residente para latência mínima
+- **Segurança**: Validação de comandos e execução isolada
+- **Escalabilidade**: Arquitetura modular para extensões futuras
+- **Documentação**: 3 arquivos de documentação abrangente criados
+
+### Breaking Changes
+- **Nova Arquitetura**: Sistema completamente reestruturado com agente inteligente
+- **Novos Comandos**: Subcomandos `agent` e `relay` adicionados ao CLI
+- **Configuração**: Novo arquivo `etc/fazai/agent.conf` para configuração do agente
+
+### Notes
+- Esta versão representa um salto evolutivo significativo no FazAI
+- Transformação de orquestrador simples para sistema de inteligência artificial operacional
+- Preparado para integração com sistemas enterprise (SpamExperts, Zimbra)
+- Base sólida para expansões futuras com IA e automação avançada
+
+---
+
 ## [v1.42.3] - 10/08/2025
 
 ### Added
@@ -368,3 +591,15 @@ fazai complex -g "gerar gráfico de indicadores e publicar na web" --web
 **...continuação conforme histórico existente...**
 
 *Mantido histórico anterior*
+- Contexto/KB:
+  - Novo tool `context7` (consulta Context7 via endpoint/ApiKey)
+  - `POST /kb/context7/query` (usa config `[context7]` do fazai.conf quando disponível)
+  - Wrappers Qdrant: `GET /kb/qdrant/collections`, `POST /kb/qdrant/upsert`, `POST /kb/qdrant/search`
+- Telemetria e métricas (inicial):
+  - `/ingest` incrementa contadores de Suricata (por assinatura) e ClamAV (por vírus)
+  - `GET /metrics` exporta Prometheus: `fazai_ingest_total`, `opnsense_fleet_*`, `suricata_alert_total{signature=...}`, `clamav_virus_total{name=...}`
+  - Ferramentas: `telemetry_suricata` (lê eve.json, envia alertas), `telemetry_clamav` (lê clamav.log, envia detecções)
+  - Listener UDP opcional (config `[telemetry].udp_port`) para ingestão simples (JSON ou texto)
+  - Ferramentas adicionais: `telemetry_zenarmor` (Sensei) e `telemetry_monarx` (genérico)
+ - Políticas proativas: `/sec/policies` GET/POST (JSON em `/etc/fazai/security_policies.json`), scheduler avalia assinaturas do Suricata e vírus ClamAV e pode acionar ações (ex.: `opn_block_ip`, `cf_block_ip`)
+ - AI proativa: regras podem usar `action.type = ai_decide` (decisor heurístico inicial, com parâmetros preferenciais em `rule.ai.opn` ou `rule.ai.cf`); avaliação imediata ao receber eventos em `/ingest` + de-duplicação (throttle) de 2 minutos

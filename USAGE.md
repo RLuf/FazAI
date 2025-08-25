@@ -60,6 +60,48 @@ Use o FazAI para obter informações do servidor sem sair do CLI:
 - Qdrant (RAG)
   - `tool:qdrant_setup param={"port":6333,"collection":"linux_networking_tech"}`
 
+## 4.2 OPNsense (Multiserver)
+
+Linguagem natural via CLI:
+
+```
+fazai opn "listar firewalls"
+fazai opn "health do fw-01"
+fazai opn "listar interfaces do fw-01"
+```
+
+Endpoints REST:
+
+```
+POST /opn/add       {name, base_url, api_key, api_secret, verify_tls?, tags?}
+GET  /opn/list
+GET  /opn/:id/health
+GET  /opn/:id/interfaces
+POST /opn/nl        {query}
+```
+
+Segurança: segredos são armazenados em `/etc/fazai/secrets/opnsense/<id>.json` (chmod 600).
+API OPNsense: https://docs.opnsense.org/development/api.html
+
+## 4.3 Alertas & Diagnóstico
+
+- Alertas via `/alerts/config`:
+```
+POST /alerts/config
+{
+  "interval_sec": 60,
+  "rules": [
+    { "id": "fw-01", "cpu_percent": 85, "channel": "email", "target": {"to":"root@example"} },
+    { "id": "fw-01", "ifaces": [{"name":"em0","rx_bps":100000000}], "channel": "telegram", "target": {"botToken":"...","chatId":"..."} }
+  ]
+}
+```
+
+- Diagnóstico pass-through:
+```
+POST /opn/:id/diagnostics { "path": "/api/core/diagnostics/...", "params": { ... } }
+```
+
 ## 5. Modo MCPS (Planejamento Passo a Passo)
 
 Para receber uma lista de comandos organizada em passos:
@@ -89,6 +131,28 @@ O FazAI retornará cada etapa sequencial para execução manual.
 - Para personalizar configurações, abra `/etc/fazai/fazai.conf`.
 - Execute `fazai-config` ou `fazai-config-tui` para ajustar chaves de API.
 
+### Telemetria (flags)
+- `[telemetry].enable_ingest`: habilita `POST /ingest` para ingestão de telemetria.
+- `[telemetry].enable_metrics`: habilita `GET /metrics` no formato Prometheus.
+Quando desabilitados ou ausentes, os respectivos endpoints retornam 404.
+
+CLI auxiliar:
+```
+fazai telemetry --enable    # habilita ambos + reinicia serviço
+fazai telemetry --disable   # desabilita ambos + reinicia
+fazai telemetry-smoke       # valida /ingest e /metrics conforme flags
+```
+
+### Interface Web / Docler
+- Serviço: `fazai-docler` (portas 3220/3221), executa como usuário `fazai-web`.
+- A UI em `/ui` (daemon) inclui um tile de status com botões para ativar/desativar telemetria.
+
+### Qdrant (RAG) e Ingestão
+- Se Docker estiver presente, o installer ativa o serviço `fazai-qdrant`.
+- Para inserir conhecimento:
+  - Via API: `POST /kb/ingest` com `{ url }` ou `{ text }`
+  - Via UI: utilizar controles de ingestão (quando disponíveis) ou API acima.
+
 ## 9. Suporte e Documentação Adicional
 
 - GitHub: https://github.com/RLuf/FazAI
@@ -109,3 +173,59 @@ git clone https://github.com/RLuf/FazAI.git
 cd FazAI
 sudo ./install.sh
 ```
+
+## 10. Pesquisa Técnica (Context7)
+
+- Endpoint de API do daemon:
+  - `GET /research?q=<termo>&max=5` — realiza pesquisa técnica; quando a chave do Context7 não estiver configurada, usa fallback mock.
+
+- CLI:
+  - `fazai query "<termo>"` — consulta o endpoint acima e imprime resultados (títulos/URLs/snippets).
+  - `fazai -q "<pergunta>"` — modo pergunta direta; integra pesquisa (Context7 quando disponível) como contexto para enriquecer a resposta, de forma transparente.
+
+- Configuração:
+  - Arquivo: `/etc/fazai/fazai.conf`
+  - Seção `[context7]`:
+    - `endpoint = https://context7.com/api/v1`
+    - `api_key = ctx7sk-...`
+  - Quando presentes no `.conf`, não é necessário exportar variáveis de ambiente — o FazAI carrega os valores e habilita a pesquisa Context7 automaticamente.
+
+Exemplos:
+```
+fazai query "react hook form"
+fazai -q "Como configurar SSR no Next.js?"
+curl 'http://localhost:3120/research?q=vercel%2Fnext.js&max=3'
+```
+
+## 11. Configurar Fallbacks de IA
+
+Gemma (gemma.cpp) é o motor padrão do FazAI. Para usar APIs externas como fallback (quando o Gemma falhar/ficar indisponível):
+
+- Via CLI interativa:
+  ```bash
+  sudo node /opt/fazai/tools/fazai-config.js
+  # Escolha: "Configurar fallback de IA (OpenRouter, OpenAI, etc.)"
+  ```
+
+- Editando o arquivo:
+  ```ini
+  [ai_provider]
+  enable_fallback = true
+
+  [openrouter]
+  api_key = SUA_CHAVE
+  endpoint = https://openrouter.ai/api/v1
+  default_model = openai/gpt-4o
+
+  [openai]
+  api_key = SUA_CHAVE
+  endpoint = https://api.openai.com/v1
+  default_model = gpt-4o
+  ```
+
+Após salvar, reinicie o serviço FazAI para aplicar:
+```bash
+sudo systemctl restart fazai
+```
+
+ 

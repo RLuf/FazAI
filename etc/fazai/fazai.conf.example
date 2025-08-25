@@ -1,6 +1,6 @@
 ###############################################################################
 # FazAI - Arquivo de Configuração Principal
-# Versão: 1.42.1
+# Versão: 2.0.0 - DOCLER Interface
 #
 # Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL
 #
@@ -9,6 +9,9 @@
 # - Sistema de orquestração (modos de planejamento e ação)
 # - Configurações gerais do sistema
 # - Sistema de cache e performance
+# - Interface DOCLER (Oráculo Druídico Digital)
+# - Agente Inteligente Cognitivo
+# - Relay SMTP Inteligente
 #
 # Localização recomendada: /etc/fazai/fazai.conf
 ###############################################################################
@@ -18,15 +21,10 @@
 ###############################################################################
 
 [ai_provider]
-# Define qual provedor de IA será utilizado como padrão
-# Valores possíveis: openrouter, requesty, openai, anthropic, gemini, ollama
-# - openrouter: Utiliza a API do OpenRouter para acessar múltiplos modelos
-# - requesty: Utiliza a API do Requesty para acessar múltiplos modelos
-# - openai: Utiliza diretamente a API da OpenAI
-# - anthropic: Utiliza a API da Anthropic (Claude)
-# - gemini: Utiliza a API do Google Gemini
-# - ollama: Utiliza modelos locais via Ollama
-provider = gemma_cpp
+# Núcleo de IA: Gemma (não configurável)
+# O FazAI utiliza Gemma local (gemma_cpp) como núcleo essencial.
+# Provedores externos são apenas apoios complementares/fallback.
+provider = gemma_cpp  # Ignorado se diferente de gemma_cpp
 
 # Habilita fallback automático para outro provedor em caso de falha
 # Se true, tentará o próximo provedor na ordem: gemma_cpp -> llama_server -> openrouter -> requesty -> openai -> anthropic -> gemini -> ollama
@@ -46,16 +44,26 @@ retry_delay = 2
 # Habilita o uso do Gemma local compilado (gemma.cpp)
 enabled = true
 # Caminho do binário (pré-compilado) gemma_oneshot
+# Observação: o instalador pode criar este binário via gemma_bootstrap.sh
 endpoint = /opt/fazai/bin/gemma_oneshot
-# Caminho dos pesos (preferir formato single-file com tokenizer embutido)
+# Caminho dos pesos (preferir formato single-file .sbs com tokenizer embutido)
 weights = /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
 # Se estiver usando pesos multi-arquivo, informe tokenizer; caso single-file, deixe vazio
 tokenizer = 
 # Model ID aceito pelo gemma.cpp (ex.: gemma2-2b-it, 2b-it)
-model = gemma2-2b-it
+default_model = gemma2-2b-it
  # Parâmetros do modelo
  temperature = 0.2
  max_tokens = 1024
+
+###############################################################################
+# LOGGING
+###############################################################################
+
+[logging]
+# Define o nível de log do daemon (substitui system.log_level)
+# Valores: debug, info, warn, error
+level = info
 
 ###############################################################################
 # TELEMETRIA / PROMETHEUS
@@ -66,6 +74,8 @@ model = gemma2-2b-it
 enable_ingest = true
 # Habilita exposição Prometheus em GET /metrics
 enable_metrics = true
+# Porta UDP opcional para ingestão (JSON ou texto). 0 para desabilitar
+udp_port = 0
 
 ###############################################################################
 # BANCO DE DADOS (MySQL)
@@ -88,6 +98,14 @@ enabled = false
 url = http://127.0.0.1:6333
 collection = linux_networking_tech
 dim = 1024
+
+###############################################################################
+# CONTEXT7 (RAG Auxiliar)
+###############################################################################
+
+[context7]
+endpoint = 
+api_key = 
 
 ###############################################################################
 # OPNsense MCP
@@ -204,7 +222,7 @@ default_model = claude-3-opus-20240229
 
 # Lista de modelos alternativos que podem ser utilizados
 # Separe múltiplos modelos com vírgulas
-models = claude-3-sonnet-20240229, claude-3-haiku-20240307
+models = claude-3-sonnet-20240229, claude-3-haiku-202.0.07
 
 # Temperatura para geração (0.0 a 1.0)
 temperature = 0.3
@@ -243,7 +261,7 @@ max_tokens = 2000
 
 [ollama]
 # Habilita o uso do Ollama para modelos locais
-enabled = true
+enabled = false
 
 # Endpoint do Ollama (padrão: localhost:11434)
 endpoint = http://127.0.0.1:11434/v1
@@ -375,9 +393,8 @@ forbidden_commands = rm -rf /
 ###############################################################################
 
 [system]
-# Nível de log
-# Valores possíveis: debug, info, warn, error
-log_level = debug
+# Nível de log (LEGADO - use [logging].level)
+log_level = info
 
 # Timeout para chamadas de API (em segundos)
 api_timeout = 60
@@ -418,3 +435,143 @@ error_max_size = 5242880  # 5MB
 
 # Número máximo de arquivos de erro de backup
 error_max_files = 3
+
+###############################################################################
+# CONFIGURAÇÃO DA INTERFACE DOCLER
+###############################################################################
+
+[docler]
+# Habilita a interface web DOCLER
+enabled = true
+
+# Porta para a interface cliente
+client_port = 3120
+
+# Porta para o painel administrativo
+admin_port = 3121
+
+# Host para o servidor web (0.0.0.0 para todos os IPs)
+host = 0.0.0.0
+
+# Tema padrão da interface
+# Valores possíveis: cyberpunk, matrix, cosmic, druidic
+default_theme = cyberpunk
+
+# Habilita animações da face DOCLER
+face_animations = true
+
+# Intervalo de atualização da face (em segundos)
+face_update_interval = 10
+
+# Habilita WebSocket para comunicação em tempo real
+websocket_enabled = true
+
+# Diretório dos arquivos web
+# Diretório dos arquivos web (atual UI embutida é servida de /opt/fazai/tools)
+web_dir = /opt/fazai/web
+
+# Configurações de segurança
+[docler_security]
+# Habilita autenticação básica
+auth_enabled = false
+
+# Usuário para autenticação (se habilitada)
+auth_user = admin
+
+# Senha para autenticação (se habilitada)
+auth_password = 
+
+# IPs permitidos (deixe vazio para permitir todos)
+allowed_ips = 
+
+# Habilita HTTPS (requer certificados)
+https_enabled = false
+
+# Caminho para certificado SSL
+ssl_cert = 
+
+# Caminho para chave SSL
+ssl_key = 
+
+###############################################################################
+# CONFIGURAÇÃO DO AGENTE INTELIGENTE
+###############################################################################
+
+[agent]
+# Habilita o agente inteligente cognitivo
+enabled = true
+
+# Caminho para o worker (não utilizado diretamente pelo daemon; serviço systemd recomendado)
+worker_path = /opt/fazai/bin/fazai-gemma-worker
+
+# Socket Unix para comunicação IPC
+ipc_socket = /tmp/fazai_worker.sock
+
+# Timeout para operações do agente (em segundos)
+timeout = 300
+
+# Número máximo de iterações por objetivo
+max_iterations = 50
+
+# Habilita streaming SSE em tempo real
+sse_enabled = true
+
+###############################################################################
+# MODOS ESPECIAIS DE PROMPTS
+###############################################################################
+
+[mcps_mode]
+# Prompt de sistema para geração de passos (MCPS) via provedores HTTP
+system_prompt = Você está executando como root e deve retornar uma lista de passos executáveis (um por linha). Use ferramentas no formato tool:<nome> param={...} quando apropriado; caso contrário, retorne apenas comandos bash puros, sem explicações.
+
+[question_mode]
+# Prompt de sistema para perguntas simples (-q)
+system_prompt = Responda de forma direta e objetiva.
+
+# Configuração da base de conhecimento
+[knowledge_base]
+# Habilita a base de conhecimento persistente
+enabled = true
+
+# Endpoint do Qdrant
+qdrant_url = http://localhost:6333
+
+# Nome da coleção
+collection_name = fazai_kb
+
+# Dimensão dos embeddings
+embedding_dim = 1024
+
+###############################################################################
+# CONFIGURAÇÃO DO RELAY SMTP
+###############################################################################
+
+[relay]
+# Habilita integração com relay SMTP
+enabled = true
+
+# Caminho para logs do relay
+log_path = /var/log/mail.log
+
+# Intervalo de monitoramento (em segundos)
+monitor_interval = 30
+
+# Configuração do SpamExperts
+[relay_spamexperts]
+enabled = false
+api_url = 
+api_key = 
+
+# Configuração do Zimbra
+[relay_zimbra]
+enabled = false
+api_url = 
+api_key = 
+
+###############################################################################
+# UI LEGADA (DEV-ONLY)
+###############################################################################
+
+[ui_legacy]
+# Se false, a rota /ui retorna 404 (recomendado)
+enabled = false

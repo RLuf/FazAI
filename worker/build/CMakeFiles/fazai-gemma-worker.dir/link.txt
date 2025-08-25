@@ -1,0 +1,1 @@
+/usr/bin/c++  -Wall -Wextra -O2 -O3 -DNDEBUG CMakeFiles/fazai-gemma-worker.dir/src/main.cpp.o CMakeFiles/fazai-gemma-worker.dir/src/worker.cpp.o CMakeFiles/fazai-gemma-worker.dir/src/ipc.cpp.o -o fazai-gemma-worker  -lrt 
