@@ -776,8 +776,56 @@ EOF
       log "INFO" "Criando usuário de serviço 'fazai-web' (sem shell de login)"
       useradd --system --home /opt/fazai/web --shell /usr/sbin/nologin fazai-web || true
     fi
-    chown -R fazai-web:fazai-web /opt/fazai/web || true
+    # Corrige permissões para acesso do usuário fazai-web
+    chmod 755 /opt/fazai || true
+    chmod 755 /opt/fazai/web || true
+    chown -R fazai:fazai-web /opt/fazai/web || true
+    chmod -R g+rx /opt/fazai/web || true
   fi
+
+  # Instalar Qdrant Vector Database
+  log "INFO" "Instalando Qdrant Vector Database..."
+  if [ ! -f "/opt/fazai/bin/qdrant" ]; then
+    log "INFO" "Baixando Qdrant binário..."
+    if curl -L https://github.com/qdrant/qdrant/releases/latest/download/qdrant-x86_64-unknown-linux-gnu.tar.gz -o /tmp/qdrant.tar.gz 2>/dev/null; then
+      tar -xzf /tmp/qdrant.tar.gz -C /opt/fazai/bin/ 2>/dev/null || log "WARN" "Falha ao extrair Qdrant - usando Docker fallback"
+      chmod +x /opt/fazai/bin/qdrant 2>/dev/null || true
+      rm -f /tmp/qdrant.tar.gz
+      log "INFO" "Qdrant binário instalado"
+    else
+      log "WARN" "Falha no download do Qdrant - será usado via Docker"
+    fi
+  fi
+
+  # Criar diretórios e configuração do Qdrant
+  mkdir -p /var/lib/qdrant /opt/fazai/web/static
+  chown -R fazai:fazai /var/lib/qdrant
+  
+  # Configuração Qdrant
+  cat > /etc/fazai/qdrant.yaml << 'EOF'
+log_level: INFO
+storage:
+  storage_path: /var/lib/qdrant/storage
+  snapshots_path: /var/lib/qdrant/snapshots
+  on_disk_payload: true
+
+service:
+  http_port: 6333
+  grpc_port: 6334
+  host: 0.0.0.0
+  max_request_size_mb: 32
+  max_workers: 0
+  static_content_dir: /opt/fazai/web/static
+  enable_cors: true
+
+web_ui:
+  enabled: true
+
+cluster:
+  enabled: false
+
+telemetry_disabled: false
+EOF
 
   # Copia binários auxiliares (inclui fazai-gemma-worker e utilitários)
   if [ -d "opt/fazai/bin" ]; then
@@ -794,18 +842,39 @@ EOF
       copy_errors=$((copy_errors+1))
     fi
   else
-    # Nova estrutura: pesos e tokenizer embarcados em gemma.cpp/
-    if [ -f "gemma.cpp/2.0-2b-it-sfp.sbs" ] || [ -f "gemma.cpp/tokenizer.spm" ]; then
+    # Nova estrutura: pesos e tokenizer embarcados junto ao fonte
+    # Preferir em worker/src/gemma.cpp/, fallback para gemma.cpp/ na raiz
+    SRC_DIR=""
+    if [ -f "worker/src/gemma.cpp/2.0-2b-it-sfp.sbs" ] || [ -f "worker/src/gemma.cpp/tokenizer.spm" ]; then
+      SRC_DIR="worker/src/gemma.cpp"
+    elif [ -f "gemma.cpp/2.0-2b-it-sfp.sbs" ] || [ -f "gemma.cpp/tokenizer.spm" ]; then
+      SRC_DIR="gemma.cpp"
+    fi
+    if [ -n "$SRC_DIR" ]; then
       mkdir -p /opt/fazai/models/gemma
-      if [ -f "gemma.cpp/2.0-2b-it-sfp.sbs" ]; then
-        log "INFO" "Copiando pesos Gemma de gemma.cpp para /opt/fazai/models/gemma/"
-        cp -f "gemma.cpp/2.0-2b-it-sfp.sbs" "/opt/fazai/models/gemma/" || copy_errors=$((copy_errors+1))
+      if [ -f "$SRC_DIR/2.0-2b-it-sfp.sbs" ]; then
+        log "INFO" "Copiando pesos Gemma de $SRC_DIR para /opt/fazai/models/gemma/"
+        cp -f "$SRC_DIR/2.0-2b-it-sfp.sbs" "/opt/fazai/models/gemma/" || copy_errors=$((copy_errors+1))
       fi
-      if [ -f "gemma.cpp/tokenizer.spm" ]; then
-        log "INFO" "Copiando tokenizer Gemma de gemma.cpp para /opt/fazai/models/gemma/"
-        cp -f "gemma.cpp/tokenizer.spm" "/opt/fazai/models/gemma/" || copy_errors=$((copy_errors+1))
+      if [ -f "$SRC_DIR/tokenizer.spm" ]; then
+        log "INFO" "Copiando tokenizer Gemma de $SRC_DIR para /opt/fazai/models/gemma/"
+        cp -f "$SRC_DIR/tokenizer.spm" "/opt/fazai/models/gemma/" || copy_errors=$((copy_errors+1))
       fi
       chmod 644 /opt/fazai/models/gemma/* 2>/dev/null || true
+
+      # Atualiza fazai.conf com caminhos detectados
+      if [ -f "/etc/fazai/fazai.conf" ]; then
+        WEIGHTS_PATH="/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs"
+        TOKENIZER_PATH="/opt/fazai/models/gemma/tokenizer.spm"
+        if [ -f "$WEIGHTS_PATH" ]; then
+          sed -i "/^\[gemma_cpp\]/,/^\[/ s|^weights\s*=.*|weights = $WEIGHTS_PATH|" /etc/fazai/fazai.conf || true
+        fi
+        if [ -f "$TOKENIZER_PATH" ]; then
+          sed -i "/^\[gemma_cpp\]/,/^\[/ s|^tokenizer\s*=.*|tokenizer = $TOKENIZER_PATH|" /etc/fazai/fazai.conf || true
+        fi
+        sed -i "/^\[gemma_cpp\]/,/^\[/ s|^endpoint\s*=.*|endpoint = /opt/fazai/bin/gemma_oneshot|" /etc/fazai/fazai.conf || true
+        sed -i "/^\[gemma_cpp\]/,/^\[/ s|^default_model\s*=.*|default_model = gemma2-2b-it|" /etc/fazai/fazai.conf || true
+      fi
     else
       # Fallback: caminho externo informado pelo usuário
       if [ -d "/media/rluft/fedora/root/opt/fazai/models/gemma" ]; then
@@ -813,6 +882,24 @@ EOF
           copy_errors=$((copy_errors+1))
         fi
       fi
+    fi
+  fi
+
+  # Compila e instala o binário real gemma_oneshot se as fontes estiverem em worker/src/gemma.cpp
+  if [ -d "worker/src/gemma.cpp" ] && [ -f "worker/src/gemma.cpp/CMakeLists.txt" ]; then
+    log "INFO" "Compilando gemma.cpp (gemma_oneshot) a partir de worker/src/gemma.cpp..."
+    (
+      cd worker/src/gemma.cpp
+      mkdir -p build
+      cd build
+      cmake .. -DCMAKE_BUILD_TYPE=Release || true
+      make -j$(nproc) gemma_oneshot || make gemma_oneshot || true
+    )
+    if [ -x "worker/src/gemma.cpp/build/gemma_oneshot" ]; then
+      install -m 0755 "worker/src/gemma.cpp/build/gemma_oneshot" "/opt/fazai/bin/gemma_oneshot.real" || true
+      log "SUCCESS" "gemma_oneshot.real instalado em /opt/fazai/bin"
+    else
+      log "WARNING" "Falha ao compilar gemma_oneshot. O wrapper tentará outros caminhos se existir um binário no sistema."
     fi
   fi
 
@@ -1392,6 +1479,7 @@ Restart=always
 RestartSec=5
 Environment=FAZAI_GEMMA_SOCKET=/run/fazai/gemma.sock
 Environment=FAZAI_GEMMA_SOCK=/run/fazai/gemma.sock
+Environment=FAZAI_GEMMA_MODEL=/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
 
 [Install]
 WantedBy=multi-user.target
@@ -1417,7 +1505,7 @@ PartOf=fazai.service
 Type=simple
 User=fazai-web
 Group=fazai-web
-Environment=DOCLER_CLIENT_PORT=3220
+Environment=DOCLER_PORT=3220
 Environment=DOCLER_ADMIN_PORT=3221
 Environment=DOCLER_HOST=0.0.0.0
 WorkingDirectory=/opt/fazai/web
@@ -1436,6 +1524,80 @@ EOF
 	    log "SUCCESS" "Serviço fazai-docler preparado (portas 3220/3221)."
 	  else
 	    log "WARNING" "docler-server.js não encontrado; serviço DOCLER não será criado."
+	  fi
+
+	  # Serviço Qdrant Vector Database
+	  log "INFO" "Configurando serviço fazai-qdrant..."
+	  if command -v docker >/dev/null 2>&1 && systemctl is-active docker >/dev/null 2>&1; then
+	    # Usar Docker se disponível
+	    cat > "/etc/systemd/system/fazai-qdrant.service" << 'EOF'
+[Unit]
+Description=FazAI Qdrant Vector Database (Docker)
+After=network.target docker.service
+Requires=docker.service
+PartOf=fazai.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/usr/bin/docker pull qdrant/qdrant:latest
+ExecStart=/usr/bin/docker run -d \
+    --name fazai-qdrant \
+    --restart unless-stopped \
+    -p 6333:6333 \
+    -p 6334:6334 \
+    -v /var/lib/qdrant:/qdrant/storage \
+    -v /opt/fazai/web/static:/opt/qdrant/web/static \
+    -e QDRANT__SERVICE__HTTP_PORT=6333 \
+    -e QDRANT__SERVICE__GRPC_PORT=6334 \
+    -e QDRANT__SERVICE__HOST=0.0.0.0 \
+    -e QDRANT__WEB_UI__ENABLED=true \
+    -e QDRANT__SERVICE__ENABLE_CORS=true \
+    qdrant/qdrant:latest
+ExecStop=/usr/bin/docker stop fazai-qdrant
+ExecStopPost=/usr/bin/docker rm fazai-qdrant
+
+[Install]
+WantedBy=multi-user.target
+EOF
+	  elif [ -f "/opt/fazai/bin/qdrant" ]; then
+	    # Usar binário nativo se disponível
+	    cat > "/etc/systemd/system/fazai-qdrant.service" << 'EOF'
+[Unit]
+Description=FazAI Qdrant Vector Database
+After=network.target
+PartOf=fazai.service
+
+[Service]
+Type=simple
+User=fazai
+Group=fazai
+WorkingDirectory=/var/lib/qdrant
+ExecStart=/opt/fazai/bin/qdrant --config-path /etc/fazai/qdrant.yaml
+Restart=always
+RestartSec=5
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
+EOF
+	  fi
+	  
+	  chmod 644 "/etc/systemd/system/fazai-qdrant.service" 2>/dev/null || true
+	  systemctl daemon-reload
+	  systemctl enable fazai-qdrant || true
+	  systemctl start fazai-qdrant || true
+	  log "SUCCESS" "Serviço fazai-qdrant preparado (porta 6333)."
+
+	  # Instalar GPT-Web2Shell se local-extras existe
+	  if [ -d "local-extras/gpt-web2shell" ]; then
+	    log "INFO" "Instalando GPT-Web2Shell..."
+	    mkdir -p /home/${SUDO_USER}/fazai/local-extras/gpt-web2shell
+	    cp -r local-extras/gpt-web2shell/* /home/${SUDO_USER}/fazai/local-extras/gpt-web2shell/
+	    chown -R ${SUDO_USER}:${SUDO_USER} /home/${SUDO_USER}/fazai/local-extras/ 2>/dev/null || true
+	    chmod +x /home/${SUDO_USER}/fazai/local-extras/gpt-web2shell/bin/gpt-web2shell 2>/dev/null || true
+	    chmod +x /opt/fazai/tools/gpt-web2shell.js 2>/dev/null || true
+	    log "SUCCESS" "GPT-Web2Shell instalado para transcendência CLI."
 	  fi
 
 	  # Detecta runtime de contêiner (Docker/Podman)
