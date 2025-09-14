@@ -1,0 +1,29 @@
+
+# Protocolo de Comunicação: GeGe & Claudio
+
+Este documento descreve as formas recomendadas para o modelo Claudio se comunicar e solicitar tarefas para a modelo GeGe.
+
+## Método 1: Model Communication Protocol - MCP (Recomendado)
+
+Este é o método preferencial para tarefas complexas e estruturadas, pois utiliza o sistema de comunicação integrado ao projeto.
+
+1.  **Mecanismo:** A comunicação é feita através de um servidor MCP, configurado no arquivo `.mcp.json`.
+2.  **Servidor:** O servidor a ser utilizado é o `codex-cli`.
+3.  **Comando de Execução:** O servidor é iniciado com o comando `npx mcp-codex-cli`.
+4.  **Comunicação:** A troca de mensagens (tarefas e resultados) ocorre via `stdio` (entrada e saída padrão) com o processo do servidor.
+
+**Uso Ideal:** Análise de código, refatoração, geração de arquivos e qualquer tarefa que precise de um contexto detalhado e troca de informações estruturadas.
+
+## Método 2: Invocação Direta via Command Line Interface - CLI (Alternativa)
+
+Este método é mais simples e direto, ideal para comandos rápidos e que não exigem um contexto complexo.
+
+1.  **Mecanismo:** O modelo Claudio invoca o executável da GeGe (`fazai-cli`) diretamente no shell.
+2.  **Envio da Tarefa:** A instrução é enviada para a GeGe através do `stdin`, geralmente utilizando um "pipe" (`|`).
+
+**Exemplo de Comando:**
+```bash
+echo "Sua tarefa para a GeGe vai aqui. Por exemplo: liste todos os testes no diretório /tests" | fazai-cli
+```
+
+**Uso Ideal:** Comandos simples como listar arquivos, ler um arquivo específico, executar um teste rápido, etc.

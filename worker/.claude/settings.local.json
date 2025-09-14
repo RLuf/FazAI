@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(g++:*)",
+      "Bash(curl:*)",
+      "Bash(chmod:*)",
+      "*",
+      "Bash(./fazai-gemma-worker:*)",
+      "Read(/opt/fazai/bin/**)",
+      "Bash(systemctl status:*)",
+      "Bash(sudo cp:*)",
+      "Bash(sudo systemctl restart:*)",
+      "Bash(sudo systemctl status:*)",
+      "Bash(./awaken_claudio.sh:*)",
+      "Bash(./backup_transcendental.sh)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

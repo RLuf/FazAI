@@ -1,0 +1,5 @@
+---
+description: Procedimento de desenvolvimento e repositorio
+globs: Desenvolver e testar em producao no linux /opt/fazai depois de homologar copiar para o repositorio local /home/rluft/fazai
+alwaysApply: true
+---
