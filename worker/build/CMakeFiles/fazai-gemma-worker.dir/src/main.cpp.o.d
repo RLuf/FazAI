@@ -249,7 +249,8 @@ CMakeFiles/fazai-gemma-worker.dir/src/main.cpp.o: \
  /home/rluft/fazai/worker/src/ipc.hpp /usr/include/c++/11/thread \
  /usr/include/c++/11/bits/std_thread.h \
  /usr/include/c++/11/bits/this_thread_sleep.h \
- /usr/include/c++/11/iostream /usr/include/signal.h \
+ /home/rluft/fazai/worker/src/logging.hpp /usr/include/c++/11/iostream \
+ /home/rluft/fazai/worker/src/qdrant_client.h /usr/include/signal.h \
  /usr/include/x86_64-linux-gnu/bits/signum-generic.h \
  /usr/include/x86_64-linux-gnu/bits/signum-arch.h \
  /usr/include/x86_64-linux-gnu/bits/types/sig_atomic_t.h \

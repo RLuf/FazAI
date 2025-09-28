@@ -50,5 +50,7 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
+  "CMakeFiles/libgemma_local.dir/DependInfo.cmake"
   "CMakeFiles/fazai-gemma-worker.dir/DependInfo.cmake"
+  "CMakeFiles/gemma_capi_real.dir/DependInfo.cmake"
   )

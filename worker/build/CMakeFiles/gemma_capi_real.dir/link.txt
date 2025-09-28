@@ -1,0 +1,2 @@
+/usr/bin/ar qc libgemma_capi_real.a CMakeFiles/gemma_capi_real.dir/lib/gemma_c_api_real.cpp.o
+/usr/bin/ranlib libgemma_capi_real.a

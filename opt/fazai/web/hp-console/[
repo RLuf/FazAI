@@ -1,0 +1,24 @@
+lista de funcionalidades
+
+TIRA O NOME HP, NAO PODE USAR 
+
+-relacionar os botoes as funcionalidades
+-colocar um atalho para abrir um console virtual tty
+-ferramentas de rede (pode ser chamando a cli mesmo) traceroute, ping, nmap, netstat
+-monitoramentos por: ping, snmp, portas(25,110,143...a escolher)
+-integrar API CloudFlare
+-integrar API SpamExperts
+-Criar cliente VNC, TS se possivel
+-tornar responsivo (adaptar a resolucao)
+-deixar uma pasta com submenus que abre logs do fazai, do kernel, do syslog ja no tail -f... ao fechar a janela mata o processo
+-Tela de monitoramento com representacao de nodes, dispositvos, etc, vermelho, fora, amarelo, instavel, verde no ar... 
+-sistema de configuração smtp para envio de alertas
+-plugin telegram / instagram / ligaçao voip
+-acesso a CADASTRO de ILO/DRAC
+-tem um crawler pronto ali que dispara e scaneia toda rede, aprimora ele pra pegar os dispositivos tentar resolver os nomes por dns, netbios, varre um por um, cadastra na interface de monitoramento
+-botoes de gerenciamento de docker 
+-botao que abre box para falar com o gemma tanto conversa cquanto comandos
+-instala o static (interface web do qdrant e coloca um botao para acessar la)
+-outro botao para atalho para fazer inverencia de conhecimento apenas por rag, tem um script semi pronto por ai....
+-ve com o sora pra fazer a gif da cabela animada
+

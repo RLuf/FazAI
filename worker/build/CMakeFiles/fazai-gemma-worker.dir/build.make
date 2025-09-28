@@ -111,11 +111,41 @@ CMakeFiles/fazai-gemma-worker.dir/src/ipc.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/fazai-gemma-worker.dir/src/ipc.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/rluft/fazai/worker/src/ipc.cpp -o CMakeFiles/fazai-gemma-worker.dir/src/ipc.cpp.s
 
+CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.o: CMakeFiles/fazai-gemma-worker.dir/flags.make
+CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.o: ../src/gemma_wrapper.cpp
+CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.o: CMakeFiles/fazai-gemma-worker.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/rluft/fazai/worker/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.o -MF CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.o.d -o CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.o -c /home/rluft/fazai/worker/src/gemma_wrapper.cpp
+
+CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/rluft/fazai/worker/src/gemma_wrapper.cpp > CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.i
+
+CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/rluft/fazai/worker/src/gemma_wrapper.cpp -o CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.s
+
+CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.o: CMakeFiles/fazai-gemma-worker.dir/flags.make
+CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.o: ../src/qdrant_client.cpp
+CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.o: CMakeFiles/fazai-gemma-worker.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/rluft/fazai/worker/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.o -MF CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.o.d -o CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.o -c /home/rluft/fazai/worker/src/qdrant_client.cpp
+
+CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/rluft/fazai/worker/src/qdrant_client.cpp > CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.i
+
+CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/rluft/fazai/worker/src/qdrant_client.cpp -o CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.s
+
 # Object files for target fazai-gemma-worker
 fazai__gemma__worker_OBJECTS = \
 "CMakeFiles/fazai-gemma-worker.dir/src/main.cpp.o" \
 "CMakeFiles/fazai-gemma-worker.dir/src/worker.cpp.o" \
-"CMakeFiles/fazai-gemma-worker.dir/src/ipc.cpp.o"
+"CMakeFiles/fazai-gemma-worker.dir/src/ipc.cpp.o" \
+"CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.o" \
+"CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.o"
 
 # External object files for target fazai-gemma-worker
 fazai__gemma__worker_EXTERNAL_OBJECTS =
@@ -123,9 +153,15 @@ fazai__gemma__worker_EXTERNAL_OBJECTS =
 fazai-gemma-worker: CMakeFiles/fazai-gemma-worker.dir/src/main.cpp.o
 fazai-gemma-worker: CMakeFiles/fazai-gemma-worker.dir/src/worker.cpp.o
 fazai-gemma-worker: CMakeFiles/fazai-gemma-worker.dir/src/ipc.cpp.o
+fazai-gemma-worker: CMakeFiles/fazai-gemma-worker.dir/src/gemma_wrapper.cpp.o
+fazai-gemma-worker: CMakeFiles/fazai-gemma-worker.dir/src/qdrant_client.cpp.o
 fazai-gemma-worker: CMakeFiles/fazai-gemma-worker.dir/build.make
+fazai-gemma-worker: libgemma_capi_real.a
+fazai-gemma-worker: liblibgemma_local.a
+fazai-gemma-worker: /usr/lib/x86_64-linux-gnu/libsentencepiece.so
+fazai-gemma-worker: /usr/lib/x86_64-linux-gnu/libgcc_s.so.1
 fazai-gemma-worker: CMakeFiles/fazai-gemma-worker.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/rluft/fazai/worker/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX executable fazai-gemma-worker"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/rluft/fazai/worker/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Linking CXX executable fazai-gemma-worker"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/fazai-gemma-worker.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

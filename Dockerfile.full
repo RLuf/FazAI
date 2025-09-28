@@ -1,0 +1,80 @@
+# FazAI – Dockerfile completo com todas as dependências de operações
+
+FROM debian:stable-slim AS base
+ENV DEBIAN_FRONTEND=noninteractive \
+    NODE_ENV=production \
+    FAZAI_PORT=3120
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    git \
+    ca-certificates \
+    python3 \
+    python3-pip \
+    python3-venv \
+    build-essential \
+    cmake \
+    g++ \
+    make \
+    poppler-utils \
+    pandoc \
+    docx2txt \
+    lynx \
+    w3m \
+    jq \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/fazai-src
+COPY package.json package-lock.json* ./
+RUN npm install --omit=dev
+COPY . .
+
+# Compilar o worker Gemma (C++)
+RUN cd worker && mkdir -p build && cd build \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/fazai \
+    && cmake --build . -j"$(nproc)"
+
+# Imagem final com runtime completo
+FROM debian:stable-slim AS final
+ENV DEBIAN_FRONTEND=noninteractive \
+    NODE_ENV=production \
+    FAZAI_PORT=3120 \
+    FAZAI_GEMMA_SOCKET=/run/fazai/gemma.sock
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    git \
+    ca-certificates \
+    python3 \
+    python3-pip \
+    python3-venv \
+    poppler-utils \
+    pandoc \
+    docx2txt \
+    lynx \
+    w3m \
+    jq \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/fazai
+COPY --from=base /opt/fazai-src /opt/fazai
+COPY --from=base /opt/fazai-src/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY --from=base /opt/fazai-src/install.sh /opt/fazai/install.sh
+COPY --from=base /opt/fazai-src/worker/build/fazai-gemma-worker /opt/fazai/bin/fazai-gemma-worker
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chmod +x /opt/fazai/bin/fazai-gemma-worker \
+    && chmod +x /opt/fazai/bin/fazai \
+    && mkdir -p /etc/fazai /var/log/fazai /run/fazai /opt/fazai/web/hp-console/data
+
+EXPOSE 3120
+VOLUME ["/etc/fazai", "/var/log/fazai", "/opt/fazai/web/hp-console/data"]
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["node", "/opt/fazai/lib/main.js"]

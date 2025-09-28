@@ -2,6 +2,7 @@
 node_modules/
 package-lock.json
 yarn.lock
+Old/
 
 # Arquivos de ambiente
 .env
@@ -37,6 +38,7 @@ yarn-error.log*
 tmp/
 temp/
 todo.txt
+opt/fazai/web/hp-console/data/
 
 # Arquivos do sistema
 .DS_Store

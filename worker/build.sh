@@ -67,23 +67,13 @@ check_libgemma() {
     log_info "Verificando libgemma.a..."
     
     if [ ! -f "lib/libgemma.a" ]; then
-        log_warning "libgemma.a não encontrada em lib/"
-        log_info "Você pode:"
-        echo "  1. Baixar uma versão pré-compilada"
-        echo "  2. Compilar a partir do código fonte"
-        echo "  3. Continuar sem libgemma (modo desenvolvimento)"
-        
-        read -p "Deseja continuar sem libgemma? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log_error "Build cancelado"
+        log_error "lib/libgemma.a não encontrada. Stubs não são permitidos."
+        if [ ! -d "/home/rluft/gemma.cpp" ]; then
+            log_error "Nenhum checkout local em /home/rluft/gemma.cpp detectado. Forneça lib/libgemma.a ou clone o gemma.cpp em /home/rluft/gemma.cpp"
             exit 1
+        else
+            log_info "Usando checkout local em /home/rluft/gemma.cpp para construir libgemma_local"
         fi
-        
-        # Criar stub para desenvolvimento
-        log_info "Criando stub para desenvolvimento..."
-        mkdir -p lib
-        echo "// Stub para desenvolvimento" > lib/libgemma.a
     else
         log_success "libgemma.a encontrada"
     fi
@@ -110,9 +100,16 @@ configure_build() {
 # Compilar
 compile() {
     log_info "Compilando worker..."
-    
-    cd build
-    
+    # Entrar em build apenas se não estivermos já dentro
+    if [ "$(basename "$PWD")" != "build" ]; then
+        if [ -d "build" ]; then
+            cd build
+        else
+            log_error "Diretório build não encontrado"
+            exit 1
+        fi
+    fi
+
     # Compilar
     make -j$(nproc)
     
@@ -122,9 +119,16 @@ compile() {
 # Instalar
 install_worker() {
     log_info "Instalando worker..."
-    
-    cd build
-    
+    # Entrar em build se necessário
+    if [ "$(basename "$PWD")" != "build" ]; then
+        if [ -d "build" ]; then
+            cd build
+        else
+            log_error "Diretório build não encontrado"
+            exit 1
+        fi
+    fi
+
     # Instalar
     sudo make install
     
@@ -152,11 +156,23 @@ Type=simple
 User=root
 Group=root
 ExecStart=/opt/fazai/bin/fazai-gemma-worker
-Restart=always
-RestartSec=5
+# Ensure the whole process group is killed on stop
+KillMode=control-group
+# Give it some time to stop gracefully
+TimeoutStopSec=20s
+# Restart policy: on failure only (not always)
+Restart=on-failure
+RestartSec=5s
+# Environment
 Environment=FAZAI_GEMMA_MODEL=/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
 Environment=FAZAI_GEMMA_SOCKET=/run/fazai/gemma.sock
 Environment=FAZAI_GEMMA_SOCK=/run/fazai/gemma.sock
+
+# Ensure logs go to /var/log/fazai
+RuntimeDirectory=fazai
+PermissionsStartOnly=true
+StandardOutput=append:/var/log/fazai/fazai-gemma-worker.log
+StandardError=append:/var/log/fazai/fazai-gemma-worker.log
 
 [Install]
 WantedBy=multi-user.target

@@ -1,4 +1,6 @@
+/home/rluft/fazai/worker/build/CMakeFiles/libgemma_local.dir
 /home/rluft/fazai/worker/build/CMakeFiles/fazai-gemma-worker.dir
+/home/rluft/fazai/worker/build/CMakeFiles/gemma_capi_real.dir
 /home/rluft/fazai/worker/build/CMakeFiles/edit_cache.dir
 /home/rluft/fazai/worker/build/CMakeFiles/rebuild_cache.dir
 /home/rluft/fazai/worker/build/CMakeFiles/list_install_components.dir

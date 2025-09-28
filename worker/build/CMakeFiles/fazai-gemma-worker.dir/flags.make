@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/home/rluft/fazai/worker/src -I/home/rluft/fazai/worker/third_party
 
-CXX_FLAGS =  -Wall -Wextra -O2 -O3 -DNDEBUG -fPIE -std=gnu++17
+CXX_FLAGS =  -Wall -Wextra -O2 -g -g -DDEBUG -fPIE -std=gnu++17
 

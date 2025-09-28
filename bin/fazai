@@ -1,13 +1,133 @@
-#!/usr/bin/env node
-// Habilita modo debug para verbose em tempo real
-let debugEnabled = false;
+#!/usr/bin/env python3
+"""
+FazAI CLI Dispatcher Wrapper
+Migra de Node.js main.js para dispatcher Python inteligente.
+"""
 
-/*
- * FazAI - Orquestrador Inteligente de Automação
- * Autor: Roger Luft
- * Licença: Creative Commons Attribution 4.0 International (CC BY 4.0)
- * https://creativecommons.org/licenses/by/4.0/
- */
+import sys
+import os
+import subprocess
+import json
+import time
+from pathlib import Path
+
+class FazAIDispatcherCLI:
+    """CLI wrapper que roteia para o dispatcher Python"""
+
+    def __init__(self):
+        self.dispatcher_path = "/opt/fazai/bin/fazai_dispatcher.py"
+        self.legacy_path = "/opt/fazai/bin/fazai-legacy.js"
+        self.dispatcher_socket = "/tmp/fazai_dispatcher.sock"
+
+    def run_command(self, args):
+        """Executa comando via dispatcher"""
+        try:
+            # Cria processo do dispatcher se não estiver rodando
+            if not self._is_dispatcher_running():
+                self._start_dispatcher()
+
+            # Monta comando para o dispatcher
+            cmd = [sys.executable, self.dispatcher_path] + args
+
+            # Executa e mostra output
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+
+            if result.returncode == 0:
+                print(result.stdout)
+                return True
+            else:
+                print(result.stderr, file=sys.stderr)
+                return False
+
+        except subprocess.TimeoutExpired:
+            print("Erro: Comando excedeu timeout", file=sys.stderr)
+            return False
+        except Exception as e:
+            print(f"Erro ao executar comando: {e}", file=sys.stderr)
+            return False
+
+    def _is_dispatcher_running(self):
+        """Verifica se dispatcher está rodando"""
+        try:
+            import socket
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            sock.connect(self.dispatcher_socket)
+            sock.close()
+            return True
+        except:
+            return False
+
+    def _start_dispatcher(self):
+        """Inicia dispatcher em background"""
+        try:
+            subprocess.Popen(
+                [sys.executable, self.dispatcher_path],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            # Pequena pausa para inicializar
+            time.sleep(2)
+        except Exception as e:
+            print(f"Aviso: Não conseguiu iniciar dispatcher: {e}", file=sys.stderr)
+
+def fallback_legacy(args):
+    """Fallback para sistema legado se dispatcher falhar"""
+    try:
+        legacy_js = "/opt/fazai/bin/fazai-legacy.js"
+        if Path(legacy_js).exists():
+            cmd = ["node", legacy_js] + args
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+
+            if result.returncode == 0:
+                print(result.stdout)
+                return True
+            else:
+                print(result.stderr, file=sys.stderr)
+                return False
+    except Exception as e:
+        print(f"Erro no fallback legado: {e}", file=sys.stderr)
+        return False
+
+    return False
+
+def main():
+    """Função principal"""
+    if len(sys.argv) < 2:
+        print("FazAI v2.0.0 - CLI Dispatcher")
+        print("Uso: fazai <comando>")
+        print("Digite 'fazai ajuda' para mais informações")
+        return
+
+    # Args sem o nome do programa
+    args = sys.argv[1:]
+
+    # Cria CLI dispatcher
+    cli = FazAIDispatcherCLI()
+
+    # Tenta executar via dispatcher
+    if cli.run_command(args):
+        return
+
+    # Fallback para legado
+    print("Tentando fallback para sistema legado...", file=sys.stderr)
+    if fallback_legacy(args):
+        return
+
+    # Erro final
+    print("Erro: Não foi possível executar o comando", file=sys.stderr)
+    sys.exit(1)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nInterrompido pelo usuário", file=sys.stderr)
+        sys.exit(130)
+    except Exception as e:
+        print(f"Erro fatal: {e}", file=sys.stderr)
+        sys.exit(1)
 
 /**
  * FazAI - Orquestrador Inteligente de Automação

@@ -1,0 +1,59 @@
+FLUXO_DE OPERACAO_FUNDAMENTAL_DESCRITO_DO_FAZAI_FUNDAMENTAL.TXT
+🧠 Fluxo Inteligente FazAI — Execução Contínua, Aprendizado e Interação
+
+Input do Usuário
+O usuário fornece uma ordem em linguagem natural.
+
+Interpretação Local com Gemma
+A entrada é interpretada localmente pelo modelo Gemma, gerando comandos ou identificando etapas a executar.
+
+Comando Gerado?
+
+Sim: segue execução.
+
+Não: ativa Fallback Nível 1.
+➤ Esse processo se repete para cada etapa necessária até completar toda a ordem.
+
+Execução Local (Interativa)
+O comando é executado em tempo real, com feedback visível e contínuo para o usuário a cada etapa completada.
+
+Sucesso?
+
+Sim: avança para o próximo passo.
+
+Não: ativa fallback inteligente.
+
+Fallback Nível 1: OpenAI / OpenRouter
+A ordem ou subetapa é reprocessada por modelos externos via API.
+
+Sucesso?
+
+Sim: volta à execução.
+
+Não: passa ao fallback seguinte.
+
+Fallback Nível 2: MCP / Context7
+Busca resposta ou solução via MCP e motores integrados como Context7.
+
+Sucesso?
+
+Sim: prossegue.
+
+Não: ativa última linha de defesa.
+
+Fallback Nível 3: Pesquisa na Internet
+Consulta motores de busca em tempo real. As respostas são tratadas e injetadas como contexto.
+
+Consolida Execução e Resposta
+Todos os dados, decisões e respostas são fundidos e a execução continua automaticamente.
+
+Aprendizado Contínuo
+O sistema registra erros, sucessos e contexto, aprendendo e se adaptando.
+
+Interação Contextual com o Usuário
+Se houver ambiguidade, falha lógica ou ausência de dados, o modelo deve interagir com o usuário para confirmar ou refinar a ação.
+⚠️ Exemplo: Não perguntar se a máquina está ligada — só intervir quando necessário de verdade.
+
+🔁 Esse fluxo é cíclico por etapa da ordem dada em linguagem natural
+🧠 Tudo é processado e executado com contexto real.
+💬 Interação só ocorre quando precisa — nunca por nao incapacidade ou preguiça.

@@ -1,0 +1,40 @@
+Contexto Atual - FazAI v2.0 Worker
+Status do Projeto:
+Objetivo: Refatorar worker Python para conformidade total com AGENTS.md e arquitetura FazAI v2.0
+Problema identificado: Timeouts hardcoded e configuração inconsistente
+Arquivos em Desenvolvimento:
+fazai_integration_adapter.py ✅
+
+Adaptador para daemon Node.js (porta 3120)
+Parse CLI /bin/fazai com flags oficiais
+Logging Winston-compatible
+Processador de comandos complexos
+libgemma_binding.py ✅
+
+FFI bindings para libgemma.a
+Paths corretos worker/lib/
+Timeout configurável via fazai.conf
+fazai-mcp-client.py ✅
+
+Cliente simplificado ND-JSON
+Conecta Unix socket + TCP fallback
+Shell interativo básico
+fazai-gemma-worker.py 🔄 EM PROGRESSO
+
+Worker principal ND-JSON
+9 ações conforme SPEC.md
+Fallback chain configurável
+Dual socket (Unix + TCP 0.0.0.0:5555)
+Últimas Correções Aplicadas:
+✅ Removido hardcode 127.0.0.1 → 0.0.0.0 para acesso externo
+✅ Timeouts configuráveis via /etc/fazai/fazai.conf
+✅ Fallback chain: OpenAI → OpenRouter → Context7
+✅ Criação automática de config padrão
+✅ Logging estruturado Winston-compatible
+Próximos Passos:
+Finalizar correção das classes faltantes no worker principal
+Testar integração completa daemon ↔ worker
+Validar protocolo ND-JSON conforme SPEC.md
+Estado: Código 90% completo, aguardando reinício VSCode para finalizar! 🚀
+
+Quando voltar, podemos continuar de onde paramos! 💪

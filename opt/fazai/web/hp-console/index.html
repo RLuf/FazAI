@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FazAI Ops Console</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="noise"></div>
+    <div id="desktop">
+      <header class="status-bar">
+        <div class="status-left">
+          <span class="brand">FAZAI • OPS</span>
+          <span id="clock"></span>
+        </div>
+        <div class="status-right">
+          <span class="status-dot online"></span>Gemma
+          <span class="status-dot online"></span>Qdrant
+          <span class="status-dot idle"></span>Fallback
+        </div>
+      </header>
+
+      <main class="workspace">
+        <div class="hologram">
+          <img id="avatar" src="assets/avatar-idle.gif" alt="Avatar holográfico" />
+          <canvas id="particle-layer"></canvas>
+        </div>
+
+        <div class="desktop-layer" id="desktop-layer">
+          <!-- ícones dinâmicos -->
+        </div>
+      </main>
+
+      <footer class="taskbar">
+        <button id="start-button">☰ Start</button>
+        <button id="new-folder-button">✚ Nova Pasta</button>
+        <div id="taskbar-windows"></div>
+        <div class="warp-indicator">Link Seguro</div>
+        <div class="avatar-dock">
+          <img id="avatar-dock-img" src="assets/avatar-idle.gif" alt="Mini avatar" />
+        </div>
+      </footer>
+    </div>
+
+    <div id="start-menu" class="hidden">
+      <div class="menu-column">
+        <h4>Logs &amp; Monitores</h4>
+        <button data-app="graylog" class="menu-item">Graylog Console</button>
+        <button data-app="grafana" class="menu-item">Grafana Dashboards</button>
+        <button data-app="loki" class="menu-item">Loki Queries</button>
+        <button data-app="promtail" class="menu-item">Promtail Streams</button>
+        <button data-app="monitorBoard" class="menu-item">Painel Monitor</button>
+        <button data-app="logs" class="menu-item">Tail de Logs</button>
+      </div>
+      <div class="menu-column">
+        <h4>Ferramentas</h4>
+        <button data-app="terminal" class="menu-item">Console TTY</button>
+        <button data-app="network" class="menu-item">Ferramentas de Rede</button>
+        <button data-app="notes" class="menu-item">Notas Rápidas</button>
+        <button data-app="docker" class="menu-item">Docker Manager</button>
+        <button data-app="crawler" class="menu-item">Crawler de Rede</button>
+        <button data-app="vnc" class="menu-item">Acesso Remoto</button>
+      </div>
+      <div class="menu-column">
+        <h4>Integrações</h4>
+        <button data-app="opnsense" class="menu-item">OPNsense API</button>
+        <button data-app="spamexperts" class="menu-item">SpamExperts</button>
+        <button data-app="cloudflare" class="menu-item">Cloudflare Zero Trust</button>
+        <button data-app="smtp" class="menu-item">SMTP/Alertas</button>
+        <button data-app="notifications" class="menu-item">Plugins Notificação</button>
+        <button data-app="ilo" class="menu-item">Cadastro ILO/DRAC</button>
+      </div>
+      <div class="menu-column">
+        <h4>FazAI</h4>
+        <button data-app="gemma" class="menu-item">Gemma ND-JSON</button>
+        <button data-app="rag" class="menu-item">Memória RAG</button>
+        <button data-app="coherence" class="menu-item">Coherence Guard</button>
+        <button data-app="qdrant" class="menu-item">Qdrant UI</button>
+      </div>
+    </div>
+
+    <template id="window-template">
+      <div class="window">
+        <div class="window-header">
+          <span class="window-title"></span>
+          <div class="window-controls">
+            <button class="btn-min">–</button>
+            <button class="btn-max">□</button>
+            <button class="btn-close">×</button>
+          </div>
+        </div>
+        <div class="window-body"></div>
+        <div class="window-resizer"></div>
+      </div>
+    </template>
+
+    <script src="desktop.js"></script>
+  </body>
+</html>

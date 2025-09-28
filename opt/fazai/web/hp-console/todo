@@ -1,0 +1,24 @@
+lista de funcionalidades
+
+TIRA O NOME HP, NAO PODE USAR 
+
+[x] relacionar os botoes as funcionalidades
+[x] colocar um atalho para abrir um console virtual tty
+[x] ferramentas de rede (ping, traceroute, nmap, netstat via CLI)
+[x] monitoramentos por: ping, SNMP, portas
+[x] integrar API CloudFlare
+[x] integrar API SpamExperts
+[x] Criar cliente VNC, TS
+[x] tornar responsivo (adaptar a resolucao)
+[x] pasta logs com tail -f e encerramento de stream
+[x] Tela de monitoramento com nodes (status coloridos)
+[x] sistema de configuração SMTP para alertas
+[x] plugin Telegram / Instagram / ligação VoIP
+[x] acesso a cadastro de ILO/DRAC
+[x] crawler de rede executável
+[x] botoes de gerenciamento de docker
+[x] botão para interagir com Gemma
+[x] botão de atalho para UI Qdrant
+[x] botão para inferência via RAG (básico)
+[-] ve com o sora pra fazer a gif da cabeça animada
+
