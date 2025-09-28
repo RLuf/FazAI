@@ -1,0 +1,27 @@
+#!/bin/bash
+# FazAI Container Manager CLI
+# Wrapper para a ferramenta TUI de gerenciamento de containers
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONTAINER_TUI="/opt/fazai/tools/container_manager_tui.py"
+
+# Fallback para desenvolvimento
+if [ ! -f "$CONTAINER_TUI" ]; then
+    CONTAINER_TUI="$SCRIPT_DIR/../opt/fazai/tools/container_manager_tui.py"
+fi
+
+# Verificar se o arquivo existe
+if [ ! -f "$CONTAINER_TUI" ]; then
+    echo "Erro: Arquivo $CONTAINER_TUI não encontrado"
+    echo "Execute a instalação completa do FazAI primeiro"
+    exit 1
+fi
+
+# Verificar dependências
+if ! python3 -c "import textual" >/dev/null 2>&1; then
+    echo "Instalando dependência textual..."
+    pip install textual
+fi
+
+# Executar TUI
+exec python3 "$CONTAINER_TUI" "$@"

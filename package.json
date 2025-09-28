@@ -11,6 +11,7 @@
     "prebuild": "npm rebuild ffi-napi-v22 || echo \"ffi-napi build skipped\"",
     "tui": "bash opt/fazai/tools/fazai-tui.sh",
     "config-tui": "bash opt/fazai/tools/fazai-config-tui.sh",
+    "containers-tui": "python3 opt/fazai/tools/container_manager_tui.py",
     "web": "bash opt/fazai/tools/fazai_web.sh"
   },
   "dependencies": {

@@ -1,0 +1,73 @@
+# Dockerfile para testar o instalador do FazAI v2.0
+# Simula ambiente limpo Ubuntu para validar processo de instalação completo
+
+FROM ubuntu:22.04
+
+# Evitar prompts interativos durante instalação
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instalar dependências básicas necessárias para o FazAI
+RUN apt-get update && apt-get install -y \
+    # Utilitários básicos
+    sudo \
+    curl \
+    wget \
+    git \
+    lsb-release \
+    ca-certificates \
+    gnupg \
+    # Ferramentas de desenvolvimento
+    build-essential \
+    cmake \
+    pkg-config \
+    # Python e pip
+    python3 \
+    python3-pip \
+    python3-dev \
+    python3-venv \
+    # Node.js será instalado pelo installer do FazAI
+    # Bibliotecas de desenvolvimento
+    libssl-dev \
+    libffi-dev \
+    libcurl4-openssl-dev \
+    # Limpeza
+    && rm -rf /var/lib/apt/lists/*
+
+# Criar usuário não-root para simular ambiente real
+RUN useradd -ms /bin/bash fazai && \
+    echo "fazai ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    usermod -aG sudo fazai
+
+# Preparar diretórios do FazAI
+RUN mkdir -p /opt/fazai /etc/fazai /var/log/fazai /var/lib/fazai && \
+    chown -R fazai:fazai /opt/fazai /etc/fazai /var/log/fazai /var/lib/fazai
+
+# Definir diretório de trabalho
+WORKDIR /workspace
+
+# Copiar código fonte (quando usado com volume mount)
+# COPY . /workspace/
+
+# Ajustar permissões para o usuário fazai
+RUN chown -R fazai:fazai /workspace
+
+# Trocar para usuário não-root
+USER fazai
+
+# Variáveis de ambiente para o FazAI
+ENV FAZAI_PORT=3120
+ENV NODE_ENV=development
+ENV FAZAI_LOG_LEVEL=debug
+
+# Script de entrada para testes
+COPY --chown=fazai:fazai docker-installer-test-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-installer-test-entrypoint.sh
+
+# Comando padrão: entrar no bash para testes manuais
+CMD ["bash"]
+
+# Labels para organização
+LABEL maintainer="Roger Luft <roger@fazai.dev>"
+LABEL description="Container para testar instalador do FazAI v2.0"
+LABEL version="2.0"
+LABEL project="FazAI"
