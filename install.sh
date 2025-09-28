@@ -2016,6 +2016,14 @@ EOF
 	  chmod +x /opt/fazai/bin/backup.sh
 	  ln -sf /opt/fazai/bin/backup.sh /usr/local/bin/fazai-backup
 	  
+	  # Script de completion fix utility
+	  if [ -f "bin/fazai-completion-fix" ]; then
+	    cp "bin/fazai-completion-fix" /opt/fazai/bin/
+	    chmod +x /opt/fazai/bin/fazai-completion-fix
+	    ln -sf /opt/fazai/bin/fazai-completion-fix /usr/local/bin/fazai-completion-fix
+	    log "SUCCESS" "Utilitário de reparo de completion instalado em /usr/local/bin/fazai-completion-fix"
+	  fi
+	  
 	  log "SUCCESS" "Scripts auxiliares criados"
 	}
 
@@ -2116,6 +2124,23 @@ EOF
 	    validation_errors=$((validation_errors + 1))
 	  fi
 	  
+	  # Verifica completion usando agente de verificação
+	  if [ -x "/opt/fazai/tools/completion_verification_agent.sh" ]; then
+	    log "DEBUG" "Testando bash completion com agente de verificação..."
+	    if /opt/fazai/tools/completion_verification_agent.sh check &> /dev/null; then
+	      log "SUCCESS" "Bash completion validado pelo agente"
+	    else
+	      log "WARNING" "Bash completion com problemas - tentando reparar..."
+	      if /opt/fazai/tools/completion_verification_agent.sh repair &> /dev/null; then
+	        log "SUCCESS" "Bash completion reparado pelo agente"
+	      else
+	        log "WARNING" "Agente não conseguiu reparar completion automaticamente"
+	      fi
+	    fi
+	  else
+	    log "DEBUG" "Agente de verificação de completion não encontrado"
+	  fi
+	  
 	  # Verifica serviço systemd
 	  if ! systemctl is-enabled fazai &> /dev/null; then
 	    log "WARNING" "Serviço fazai não está habilitado"
@@ -2168,6 +2193,19 @@ EOF
 	    log "WARNING" "Teste permissões: Falhou"
 	  fi
 	  
+	  # Teste 4: Verifica bash completion usando agente
+	  if [ -x "/opt/fazai/tools/completion_verification_agent.sh" ]; then
+	    log "DEBUG" "Testando bash completion..."
+	    if /opt/fazai/tools/completion_verification_agent.sh test &> /dev/null; then
+	      log "SUCCESS" "Teste bash completion: OK"
+	    else
+	      log "WARNING" "Teste bash completion: Falhou - executando verificação completa..."
+	      /opt/fazai/tools/completion_verification_agent.sh verify || log "WARNING" "Não foi possível reparar completion automaticamente"
+	    fi
+	  else
+	    log "DEBUG" "Agente de verificação de completion não disponível para teste"
+	  fi
+	  
 	  log "SUCCESS" "Testes pós-instalação concluídos"
 	}
 
@@ -2196,6 +2234,7 @@ EOF
 
 	  echo "  • fazai-backup          - Criar backup"
 	  echo "  • fazai-uninstall       - Desinstalar"
+	  echo "  • fazai-completion-fix  - Reparar bash completion"
 	  echo ""
 	  
 	  echo -e "${BLUE}Gerenciamento do serviço:${NC}"

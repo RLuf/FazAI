@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# FazAI Completion Fix Utility
+# Wrapper para o completion verification agent
+# Pode ser executado por usuários para reparar completion
+
+AGENT_SCRIPT="/opt/fazai/tools/completion_verification_agent.sh"
+
+if [[ -x "$AGENT_SCRIPT" ]]; then
+    exec "$AGENT_SCRIPT" "$@"
+else
+    echo "❌ Agente de verificação de completion não encontrado."
+    echo "    Certifique-se de que o FazAI está instalado corretamente."
+    echo "    Esperado: $AGENT_SCRIPT"
+    exit 1
+fi
