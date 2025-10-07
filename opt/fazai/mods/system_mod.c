@@ -23,7 +23,7 @@
 
 #define MAX_CMD_OUTPUT 8192
 #define MAX_CMD_LEN 1024
-#define LOG_FILE "/var/log/fazai.log"
+#define LOG_FILE "/var/log/fazai/fazai.log"
 
 // Estrutura para armazenar estatísticas do sistema
 typedef struct {

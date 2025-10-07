@@ -1,161 +1,200 @@
-// Real C API wrapper around Gemma C++ library (gemma.cpp)
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
 #include <mutex>
 #include <string>
-#include <memory>
-#include <vector>
-#include <iostream>
-#include <cstdlib>
-#include <sys/stat.h>
 
-// Include gemma headers from local checkout
-#include "/home/rluft/gemma.cpp/gemma/gemma.h"
-#include "/home/rluft/gemma.cpp/util/app.h"
+#include "gemma/bindings/context.h"
 
-using namespace gcpp;
+namespace {
 
-extern "C" {
-  void* gemma_init(const char* model_path);
-  void gemma_free(void* ctx);
-  void* gemma_create_session(void* ctx);
-  void gemma_destroy_session(void* session);
-  int gemma_generate_stream(void* session, const char* prompt, void (*callback)(const char*, void*), void* user_data);
-  void gemma_abort(const char* session_id);
-}
+struct GemmaContextDeleter {
+    void operator()(gcpp::GemmaContext* ctx) const noexcept {
+        delete ctx;
+    }
+};
 
 struct GemmaCtx {
-  // unique_ptr to Gemma instance
-  std::unique_ptr<Gemma> model;
-  // simple mutex to protect concurrent access
-  std::mutex mtx;
+    std::string weights_path;
+    std::string tokenizer_path;
+    int max_tokens;
+    float temperature;
+    int top_k;
+    bool deterministic;
+    bool multiturn;
+    int prefill_tbatch;
 };
 
 struct GemmaSession {
-  // keep a pointer to Gemma (not owning)
-  Gemma* model;
-  // KVCache is still required by API - create one per session
-  std::unique_ptr<KVCache> kv_cache;
-  // mutex for thread safety
-  std::mutex session_mtx;
+    std::unique_ptr<gcpp::GemmaContext, GemmaContextDeleter> context;
+    int max_tokens;
 };
 
-extern "C" void* gemma_init(const char* model_path) {
-  try {
-    // Allow overriding tokenizer and weights via environment variables.
-    // Priority: FAZAI_GEMMA_TOKENIZER, FAZAI_GEMMA_WEIGHTS. If not set,
-    // fall back to the provided `model_path` as weights and empty tokenizer.
-    const char* tok_env = std::getenv("FAZAI_GEMMA_TOKENIZER");
-    const char* weights_env = std::getenv("FAZAI_GEMMA_WEIGHTS");
-    std::string tokenizer_path = tok_env ? std::string(tok_env) : std::string("");
-    std::string weights_path = weights_env ? std::string(weights_env) : std::string(model_path ? model_path : "");
+int parse_int(const char* env_value, int fallback, int min_value = 1) {
+    if (!env_value || std::strlen(env_value) == 0) {
+        return fallback;
+    }
+    try {
+        int value = std::stoi(env_value);
+        return value < min_value ? min_value : value;
+    } catch (...) {
+        return fallback;
+    }
+}
 
-    // Diagnostic: print resolved paths and existence
-    auto check_exists = [](const std::string &p)->bool{
-      struct stat sb;
-      return p.size()>0 && stat(p.c_str(), &sb)==0;
-    };
-    std::cerr << "[gemma_c_api] tokenizer_path='" << tokenizer_path << "' exists=" << (check_exists(tokenizer_path)?"yes":"no") << std::endl;
-    std::cerr << "[gemma_capi] weights_path='" << weights_path << "' exists=" << (check_exists(weights_path)?"yes":"no") << std::endl;
+float parse_float(const char* env_value, float fallback) {
+    if (!env_value || std::strlen(env_value) == 0) {
+        return fallback;
+    }
+    try {
+        return std::stof(env_value);
+    } catch (...) {
+        return fallback;
+    }
+}
 
-    // If a tokenizer is provided the Gemma Loader expects a model type string
-    // to be present as well. Allow override via FAZAI_GEMMA_MODEL_TYPE, or
-    // fall back to a sensible default for our deployed model.
-    const char* model_type_env = std::getenv("FAZAI_GEMMA_MODEL_TYPE");
-    std::string model_type_str = model_type_env ? std::string(model_type_env) : std::string("");
-    if (model_type_str.empty() && !tokenizer_path.empty()) {
-      // default for the packaged model
-      model_type_str = std::string("gemma2-2b-it");
+bool parse_bool(const char* env_value, bool fallback) {
+    if (!env_value || std::strlen(env_value) == 0) {
+        return fallback;
+    }
+    std::string value(env_value);
+    for (auto& ch : value) {
+        ch = static_cast<char>(std::tolower(ch));
+    }
+    if (value == "1" || value == "true" || value == "yes" || value == "on") {
+        return true;
+    }
+    if (value == "0" || value == "false" || value == "no" || value == "off") {
+        return false;
+    }
+    return fallback;
+}
+
+void configure_context(gcpp::GemmaContext& ctx, const GemmaCtx& base) {
+    ctx.SetMaxGeneratedTokens(base.max_tokens);
+    ctx.SetTemperature(base.temperature);
+    ctx.SetTopK(base.top_k);
+    ctx.SetDeterministic(base.deterministic);
+    ctx.SetMultiturn(base.multiturn ? 1 : 0);
+    ctx.SetPrefillTbatchSize(base.prefill_tbatch);
+}
+
+bool stream_callback(const char* token, void* user_data) {
+    if (!token || !user_data) {
+        return true;
+    }
+    auto* buffer = static_cast<std::string*>(user_data);
+    buffer->append(token);
+    return true;
+}
+
+struct StreamState {
+    std::string* buffer;
+    void (*external)(const char*, void*);
+    void* external_user;
+};
+
+bool dispatch_stream(const char* token, void* user_data) {
+    auto* state = static_cast<StreamState*>(user_data);
+    if (!state) {
+        return true;
+    }
+    if (token && state->buffer) {
+        state->buffer->append(token);
+    }
+    if (token && state->external) {
+        state->external(token, state->external_user);
+    }
+    return true;
+}
+
+}  // namespace
+
+extern "C" {
+
+void* gemma_init(const char* model_path) {
+    if (!model_path || std::strlen(model_path) == 0) {
+        return nullptr;
     }
 
-    // Basic loader args: tokenizer_path, weights_path, model_type_str
-    LoaderArgs loader{tokenizer_path, weights_path, model_type_str};
+    auto* ctx = new GemmaCtx();
+    ctx->weights_path = model_path;
 
-    // Create topology and pools from default AppArgs
-    AppArgs app;
-    BoundedTopology topo = CreateTopology(app);
-    NestedPools pools = CreatePools(topo, app);
-    MatMulEnv env(topo, pools);
+    const char* tokenizer_env = std::getenv("FAZAI_GEMMA_TOKENIZER");
+    if (tokenizer_env && std::strlen(tokenizer_env) > 0) {
+        ctx->tokenizer_path = tokenizer_env;
+    }
 
-    std::unique_ptr<Gemma> m = AllocateGemma(loader, env);
-    if (!m) return nullptr;
-    GemmaCtx* ctx = new GemmaCtx();
-    ctx->model = std::move(m);
-    return reinterpret_cast<void*>(ctx);
-  } catch (const std::exception& e) {
-    std::cerr << "gemma_init exception: " << e.what() << std::endl;
-    return nullptr;
-  }
+    ctx->max_tokens = parse_int(std::getenv("FAZAI_GEMMA_MAX_TOKENS"), 512);
+    ctx->temperature = parse_float(std::getenv("FAZAI_GEMMA_TEMPERATURE"), 0.2f);
+    ctx->top_k = parse_int(std::getenv("FAZAI_GEMMA_TOP_K"), 1);
+    ctx->deterministic = parse_bool(std::getenv("FAZAI_GEMMA_DETERMINISTIC"), true);
+    ctx->multiturn = parse_bool(std::getenv("FAZAI_GEMMA_MULTITURN"), false);
+    ctx->prefill_tbatch = parse_int(std::getenv("FAZAI_GEMMA_PREFILL_TBATCH"), 256);
+
+    return ctx;
 }
 
-extern "C" void gemma_free(void* ctx) {
-  if (!ctx) return;
-  GemmaCtx* c = reinterpret_cast<GemmaCtx*>(ctx);
-  delete c;
+void gemma_free(void* ctx_ptr) {
+    auto* ctx = static_cast<GemmaCtx*>(ctx_ptr);
+    delete ctx;
 }
 
-extern "C" void* gemma_create_session(void* ctx) {
-  if (!ctx) return nullptr;
-  GemmaCtx* c = reinterpret_cast<GemmaCtx*>(ctx);
-  GemmaSession* s = new GemmaSession();
-  s->model = c->model.get();
-  s->kv_cache = std::make_unique<KVCache>();
-  return reinterpret_cast<void*>(s);
+void* gemma_create_session(void* ctx_ptr) {
+    auto* base = static_cast<GemmaCtx*>(ctx_ptr);
+    if (!base) {
+        return nullptr;
+    }
+
+    auto session = std::make_unique<GemmaSession>();
+
+    const char* tokenizer_cstr = base->tokenizer_path.empty() ? "" : base->tokenizer_path.c_str();
+    std::unique_ptr<gcpp::GemmaContext, GemmaContextDeleter> context(
+        gcpp::GemmaContext::Create(tokenizer_cstr, base->weights_path.c_str(), base->max_tokens));
+
+    if (!context) {
+        return nullptr;
+    }
+
+    configure_context(*context, *base);
+
+    session->max_tokens = base->max_tokens;
+    session->context = std::move(context);
+
+    return session.release();
 }
 
-extern "C" void gemma_destroy_session(void* session) {
-  if (!session) return;
-  GemmaSession* s = reinterpret_cast<GemmaSession*>(session);
-  delete s;
+void gemma_destroy_session(void* session_ptr) {
+    auto* session = static_cast<GemmaSession*>(session_ptr);
+    delete session;
 }
 
-// adapter to call the user callback for tokens
-static bool stream_adapter(const std::string& token, std::function<bool(const std::string&)>* cb) {
-  if (!cb) return true;
-  bool keep = (*cb)(token);
-  return keep;
+int gemma_generate_stream(void* session_ptr, const char* prompt,
+                          void (*callback)(const char*, void*), void* user_data) {
+    auto* session = static_cast<GemmaSession*>(session_ptr);
+    if (!session || !session->context) {
+        return -1;
+    }
+
+    std::string buffer;
+    buffer.reserve(static_cast<size_t>(session->max_tokens) * 4);
+
+    StreamState state{&buffer, callback, user_data};
+
+    int rc = session->context->Generate(
+        prompt ? prompt : "",
+        nullptr,
+        0,
+        dispatch_stream,
+        &state
+    );
+
+    return rc < 0 ? rc : 0;
 }
 
-extern "C" int gemma_generate_stream(void* session, const char* prompt, void (*callback)(const char*, void*), void* user_data) {
-  if (!session) return -1;
-  GemmaSession* s = reinterpret_cast<GemmaSession*>(session);
-  if (!s->model) return -2;
-
-  std::lock_guard<std::mutex> lock(s->session_mtx);
-
-  try {
-    // build RuntimeConfig with stream callback
-    std::mt19937 gen;
-    RuntimeConfig rc;
-    rc.gen = &gen;
-    rc.stream_token = [&](int token, float) {
-      if (callback) {
-        std::string tok_text;
-        s->model->Tokenizer().Decode(std::vector<int>{token}, &tok_text);
-        callback(tok_text.c_str(), user_data);
-      }
-      return true;
-    };
-
-    // tokenize prompt (WrapAndTokenize expects std::string&)
-    std::string prompt_str = prompt ? std::string(prompt) : std::string("");
-    std::vector<int> tokens = WrapAndTokenize(s->model->Tokenizer(), s->model->Info(), 0, prompt_str);
-
-    // Prepare PromptTokens span
-    gcpp::PromptTokens pspan(tokens.empty() ? nullptr : tokens.data(), tokens.size());
-    
-    TimingInfo ti;
-    // Use correct API: Generate(runtime_config, prompt, pos, kv_cache, timing_info)
-    s->model->Generate(rc, pspan, 0, *s->kv_cache, ti);
-    return 0;
-  } catch (const std::exception& e) {
-    std::cerr << "gemma_generate_stream exception: " << e.what() << std::endl;
-    return -3;
-  } catch (...) {
-    std::cerr << "gemma_generate_stream unknown exception" << std::endl;
-    return -4;
-  }
+void gemma_abort(const char* /*session_id*/) {
+    // Não suportado na implementação atual.
 }
 
-extern "C" void gemma_abort(const char* session_id) {
-  // Not implemented: future work to signal running generate to stop
-  (void)session_id;
-}
+}  // extern "C"

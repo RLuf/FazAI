@@ -114,7 +114,7 @@ class ConfigLoader:
             )
 
         # Worker Python Gemma - lê configurações de paths
-        gemma_socket = self.config.get("dispatcher", "gemma_socket", fallback="/tmp/fazai-gemma.sock")
+        gemma_socket = self.config.get("dispatcher", "gemma_socket", fallback="/run/fazai/gemma.sock")
         workers["gemma"] = WorkerConfig(
             type=WorkerType.PYTHON_GEMMA,
             enabled=self.config.getboolean("dispatcher", "gemma_enabled", fallback=True),
@@ -146,7 +146,7 @@ class ConfigLoader:
                 "gemma": WorkerConfig(
                     type=WorkerType.PYTHON_GEMMA,
                     enabled=True,
-                    socket_path="/tmp/fazai-gemma.sock",
+                    socket_path="/run/fazai/gemma.sock",
                     capabilities=["gemma", "memory", "fallback", "mcp"]
                 )
             },
@@ -377,6 +377,39 @@ class FazaiDispatcher:
             self.logger.error(f"Erro roteando para {worker_name}: {e}")
             return {"error": f"Worker {worker_name} indisponível: {str(e)}"}
 
+def _execute_oneshot(prompt: str):
+    """Executa o binário gemma_oneshot para perguntas diretas."""
+    logger = logging.getLogger("fazai_dispatcher.oneshot")
+    try:
+        # Caminho para o executável oneshot
+        oneshot_executable = "/opt/fazai/bin/gemma_oneshot.real"
+        if not Path(oneshot_executable).exists():
+            logger.error(f"Executável oneshot não encontrado em {oneshot_executable}")
+            print("Erro: Componente de pergunta direta não instalado.", file=sys.stderr)
+            return
+
+        # Executa o comando passando o prompt via stdin
+        result = subprocess.run(
+            [oneshot_executable],
+            input=prompt,
+            capture_output=True,
+            text=True,
+            timeout=120  # Timeout de 2 minutos para a geração
+        )
+
+        if result.returncode == 0:
+            print(result.stdout.strip())
+        else:
+            logger.error(f"Erro no gemma_oneshot: {result.stderr}")
+            print(f"Erro ao processar a pergunta: {result.stderr}", file=sys.stderr)
+
+    except subprocess.TimeoutExpired:
+        logger.error("Timeout ao executar gemma_oneshot")
+        print("Erro: A pergunta demorou muito para ser respondida.", file=sys.stderr)
+    except Exception as e:
+        logger.error(f"Erro inesperado ao executar oneshot: {e}")
+        print(f"Erro inesperado: {e}", file=sys.stderr)
+
 def main():
     """Função principal"""
     # Carrega configuração
@@ -386,6 +419,26 @@ def main():
     # Cria dispatcher
     dispatcher = FazaiDispatcher(config)
     dispatcher.start()
+
+    # Verifica se o modo -q (pergunta direta) foi usado
+    args = sys.argv[1:]
+    if "-q" in args or "--question" in args:
+        try:
+            # Extrai o prompt
+            q_index = args.index("-q") if "-q" in args else args.index("--question")
+            prompt = " ".join(args[q_index + 1:])
+            if not prompt:
+                print("Erro: Forneça uma pergunta após a flag -q.", file=sys.stderr)
+                sys.exit(1)
+            
+            # Executa o modo oneshot e sai
+            _execute_oneshot(prompt)
+            sys.exit(0)
+
+        except (ValueError, IndexError):
+            print("Erro: Uso incorreto da flag -q.", file=sys.stderr)
+            sys.exit(1)
+
 
     # CLI mode - aceita argumentos ou entra em modo interativo
     if len(sys.argv) > 1:

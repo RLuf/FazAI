@@ -106,13 +106,25 @@
       "Bash(find:*)",
       "Bash(npm test)",
       "Read(//opt/**)",
-      "mcp__claude-mem__chroma_query_documents"
+      "mcp__claude-mem__chroma_query_documents",
+      "Read(//run/fazai/**)",
+      "Bash(python3:*)",
+      "Bash(/opt/fazai/bin/fazai-stream:*)",
+      "Bash(/opt/fazai/bin/gemma_worker_client.py:*)",
+      "Read(//home/rluft/fazai-bkp/**)",
+      "Bash(test:*)",
+      "Bash(ollama:*)",
+      "Bash(sh)",
+      "Bash(locate:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "codex-cli"
-  ]
+    "context7"
+  ],
+  "outputStyle": "test-reporter"
 }

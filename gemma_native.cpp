@@ -1,271 +1,193 @@
-//====================================================================
-// FazAI Gemma Native PyBind11 Module
-// Descrição: Binding direto para libgemma.a sem stubs ou wrappers
-// Autor: Roger Luft - FazAI Project
-// Licença: Creative Commons Attribution 4.0 International (CC BY 4.0)
-//====================================================================
-
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <mutex>
-#include <string>
+
 #include <memory>
-#include <iostream>
-#include <sstream>
-#include <cstring>
-#include <cstdlib>
-#include <thread>
-#include <chrono>
+#include <mutex>
+#include <random>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
-// Declarações extern "C" para linkar com libgemma.a
-// Baseado no wrapper real em worker/lib/gemma_c_api_real.cpp
-extern "C" {
-    // Inicialização e limpeza do modelo
-    void* gemma_init(const char* model_path);
-    void gemma_free(void* ctx);
-
-    // Gerenciamento de sessões (uma por instância Python para isolamento)
-    void* gemma_create_session(void* ctx);
-    void gemma_destroy_session(void* session);
-
-    // Streaming de geração - retorna tokens via callback
-    int gemma_generate_stream(void* session, const char* prompt,
-                             void (*callback)(const char*, void*), void* user_data);
-
-    // Abort opcional (para futuro use)
-    void gemma_abort(const char* session_id);
-}
+#include "gemma/gemma.h"
+#include "gemma/gemma_args.h"
+#include "gemma/tokenizer.h"
+#include "hwy/base.h"
+#include "ops/matmul.h"
+#include "util/threading_context.h"
 
 namespace py = pybind11;
 
-//====================================================================
-// Estrutura de dados para coleta de tokens via callback
-//====================================================================
-struct StreamData {
-    std::stringstream buffer;
-    std::mutex mtx;
-    bool active = true;
+namespace {
 
-    void append_token(const std::string& token) {
-        std::lock_guard<std::mutex> lock(mtx);
-        buffer << token;
-    }
-
-    std::string get_result() {
-        std::lock_guard<std::mutex> lock(mtx);
-        return buffer.str();
-    }
-
-    void reset() {
-        std::lock_guard<std::mutex> lock(mtx);
-        buffer.str("");
-        buffer.clear();
-        active = true;
-    }
-
-    void deactivate() {
-        std::lock_guard<std::mutex> lock(mtx);
-        active = false;
-    }
+struct GemmaConfigSnapshot {
+  std::string weights_path;
+  std::string tokenizer_path;
+  int max_tokens = 512;
+  float temperature = 0.2f;
+  int top_k = 1;
+  bool deterministic = true;
+  bool multiturn = false;
+  int prefill_tbatch = 256;
 };
 
-//====================================================================
-// Função callback estática C compatível
-//====================================================================
-extern "C" void token_callback(const char* token, void* user_data) {
-    if (user_data && token) {
-        StreamData* data = static_cast<StreamData*>(user_data);
-        data->append_token(std::string(token));
-    }
-}
-
-//====================================================================
-// Classe principal do módulo Python
-//====================================================================
 class GemmaNative {
-private:
-    // Contexto do modelo (compartilhado entre sessões)
-    void* model_ctx_;
+ public:
+  GemmaNative() = default;
 
-    // Sessão exclusiva (session per instance para isolamento)
-    void* session_;
+  bool initialize(const std::string& weights_path,
+                  const std::string& tokenizer_path,
+                  int max_tokens,
+                  double temperature,
+                  int top_k,
+                  bool deterministic,
+                  bool multiturn,
+                  int prefill_tbatch) {
+    if (weights_path.empty()) {
+      throw std::invalid_argument("weights_path obrigatório");
+    }
 
-public:
-    //------------------------------------------------------------------
-    // Construtor: inicializa modelo e sessão dinamicamente
-    //------------------------------------------------------------------
-    GemmaNative() : model_ctx_(nullptr), session_(nullptr) {}
+    std::lock_guard<std::mutex> lock(mutex_);
 
-    //------------------------------------------------------------------
-    // Inicialização sob demanda (lazy initialization)
-    //------------------------------------------------------------------
-    bool initialize() {
-        if (model_ctx_ != nullptr) {
-            return true;  // Já inicializado
-        }
+    config_.weights_path = weights_path;
+    config_.tokenizer_path = tokenizer_path;
+    config_.max_tokens = max_tokens;
+    config_.temperature = static_cast<float>(temperature);
+    config_.top_k = top_k;
+    config_.deterministic = deterministic;
+    config_.multiturn = multiturn;
+    config_.prefill_tbatch = prefill_tbatch;
 
-        // Tentar caminhos padrão do FazAI
-        const char* modelo_paths[] = {
-            "/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs",  // Produção
-            "./models/gemma/2.0-2b-it-sfp.sbs",           // Desenvolvimento
-            "./gemma-2b.bin",                             // Compilação teste
-            nullptr
-        };
+    loader_ = std::make_unique<gcpp::LoaderArgs>(tokenizer_path, weights_path);
+    threading_args_ = std::make_unique<gcpp::ThreadingArgs>();
+    inference_args_ = std::make_unique<gcpp::InferenceArgs>();
 
-        // Tentar inicializar com primeiro modelo encontrado
-        for (int i = 0; modelo_paths[i] != nullptr; ++i) {
-            std::cout << "[GemmaNative] Tentando modelo: " << modelo_paths[i] << std::endl;
-            model_ctx_ = gemma_init(modelo_paths[i]);
-            if (model_ctx_) {
-                std::cout << "[GemmaNative] Modelo inicializado com: " << modelo_paths[i] << std::endl;
-                break;
-            }
-        }
+    inference_args_->verbosity = 0;
+    if (max_tokens > 0) {
+      inference_args_->max_generated_tokens = static_cast<size_t>(max_tokens);
+    }
+    inference_args_->temperature = static_cast<float>(temperature);
+    if (top_k > 0) {
+      inference_args_->top_k = static_cast<size_t>(top_k);
+    }
+    inference_args_->deterministic = deterministic;
+    inference_args_->multiturn = multiturn;
+    if (prefill_tbatch > 0) {
+      inference_args_->prefill_tbatch_size =
+          static_cast<size_t>(prefill_tbatch);
+    }
 
-        if (!model_ctx_) {
-            std::cerr << "[GemmaNative] ERRO: Falha ao inicializar modelo. "
-                      << "Verifique se os pesos estão em /opt/fazai/models/gemma/" << std::endl;
-            return false;
-        }
+    ctx_ = std::make_unique<gcpp::ThreadingContext>(*threading_args_);
+    env_ = std::make_unique<gcpp::MatMulEnv>(*ctx_);
+    gemma_ = std::make_unique<gcpp::Gemma>(*loader_, *inference_args_, *ctx_);
+    kv_cache_ = std::make_unique<gcpp::KVCache>(gemma_->Config(), *inference_args_, ctx_->allocator);
 
-        // Criar sessão exclusiva para esta instância
-        session_ = gemma_create_session(model_ctx_);
-        if (!session_) {
-            std::cerr << "[GemmaNative] ERRO: Falha ao criar sessão" << std::endl;
-            gemma_free(model_ctx_);
-            model_ctx_ = nullptr;
-            return false;
-        }
+    generator_.seed(std::random_device{}());
+    abs_pos_ = 0;
 
+    return true;
+  }
+
+  bool is_initialized() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return gemma_ != nullptr;
+  }
+
+  py::dict status() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    py::dict info;
+    info["initialized"] = gemma_ != nullptr;
+    info["weights_path"] = config_.weights_path;
+    info["tokenizer_path"] = config_.tokenizer_path;
+    info["max_tokens"] = config_.max_tokens;
+    info["temperature"] = config_.temperature;
+    info["top_k"] = config_.top_k;
+    info["deterministic"] = config_.deterministic;
+    info["multiturn"] = config_.multiturn;
+    info["prefill_tbatch"] = config_.prefill_tbatch;
+    return info;
+  }
+
+  std::string generate(const std::string& prompt,
+                       py::object override_max_tokens = py::none()) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!gemma_) {
+      throw std::runtime_error("GemmaNative não inicializado");
+    }
+
+    const int effective_tokens = override_max_tokens.is_none()
+                                     ? config_.max_tokens
+                                     : override_max_tokens.cast<int>();
+
+    // Reinicializa o KV cache se não estivermos no modo multiturn.
+    if (!config_.multiturn) {
+      kv_cache_ = std::make_unique<gcpp::KVCache>(gemma_->Config(), *inference_args_, ctx_->allocator);
+      abs_pos_ = 0;
+    }
+
+    std::vector<int> tokens = gcpp::WrapAndTokenize(
+        gemma_->Tokenizer(), gemma_->ChatTemplate(),
+        gemma_->Config().wrapping, abs_pos_, prompt);
+
+    gcpp::TimingInfo timing_info;
+    gcpp::RuntimeConfig runtime_config{};
+    inference_args_->CopyTo(runtime_config);
+    runtime_config.max_generated_tokens = static_cast<size_t>(effective_tokens);
+    runtime_config.temperature = config_.temperature;
+    runtime_config.top_k = static_cast<size_t>(config_.top_k);
+    runtime_config.gen = &generator_;
+    runtime_config.verbosity = 0;
+
+    std::string output;
+    runtime_config.stream_token = [&](int token, float) {
+      if (gemma_->Config().IsEOS(token)) {
         return true;
-    }
+      }
+      std::string token_text;
+      HWY_ASSERT(gemma_->Tokenizer().Decode(std::vector<int>{token}, &token_text));
+      output.append(token_text);
+      return true;
+    };
 
-    //------------------------------------------------------------------
-    // Função principal: generate(prompt: str) -> str
-    //------------------------------------------------------------------
-    std::string generate(const std::string& prompt) {
-        if (!initialize()) {
-            return "[ERRO] Modelo Gemma não pôde ser inicializado";
-        }
+    gemma_->Generate(runtime_config, tokens, abs_pos_, *kv_cache_, *env_,
+                     timing_info);
 
-        // Preparar coleta de streaming
-        StreamData stream_data;
-        stream_data.reset();
+    abs_pos_ += tokens.size();
+    return output;
+  }
 
-        // Chamar geração real via libgemma.a
-        int result = gemma_generate_stream(
-            session_,
-            prompt.c_str(),
-            token_callback,
-            &stream_data
-        );
+ private:
+  mutable std::mutex mutex_;
+  GemmaConfigSnapshot config_;
 
-        if (result != 0) {
-            return "[ERRO] Falha na geração (código: " + std::to_string(result) + ")";
-        }
+  std::unique_ptr<gcpp::LoaderArgs> loader_;
+  std::unique_ptr<gcpp::ThreadingArgs> threading_args_;
+  std::unique_ptr<gcpp::InferenceArgs> inference_args_;
+  std::unique_ptr<gcpp::ThreadingContext> ctx_;
+  std::unique_ptr<gcpp::MatMulEnv> env_;
+  std::unique_ptr<gcpp::Gemma> gemma_;
+  std::unique_ptr<gcpp::KVCache> kv_cache_;
 
-        // Aguardar pequena pausa para completar streaming (se assíncrono)
-        // Nota: API atual é síncrona mas segura
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        return stream_data.get_result();
-    }
-
-    //------------------------------------------------------------------
-    // Status do modelo
-    //------------------------------------------------------------------
-    bool is_initialized() const {
-        return model_ctx_ != nullptr && session_ != nullptr;
-    }
-
-    //------------------------------------------------------------------
-    // Destrutor: limpeza adequada
-    //------------------------------------------------------------------
-    ~GemmaNative() {
-        if (session_) {
-            gemma_destroy_session(session_);
-            session_ = nullptr;
-        }
-
-        if (model_ctx_) {
-            gemma_free(model_ctx_);
-            model_ctx_ = nullptr;
-        }
-    }
+  std::mt19937 generator_;
+  size_t abs_pos_ = 0;
 };
 
-//====================================================================
-// Binding PyBind11
-//====================================================================
+}  // namespace
+
 PYBIND11_MODULE(gemma_native, m) {
-    m.doc() = R"pbdoc(
-        FazAI Gemma Native Module
-        ------------------------
-
-        Módulo Python para acesso direto ao modelo Gemma via libgemma.a
-        sem wrappers ou stubs - implementação real e legítima.
-
-        Função principal:
-            generate(prompt: str) -> str
-
-        Retorna a resposta gerada pelo modelo para o prompt fornecido.
-    )pbdoc";
-
-    py::class_<GemmaNative>(m, "GemmaNative", R"pbdoc(
-        Classe principal do módulo Gemma Native.
-
-        Cada instância mantém sua própria sessão com o modelo,
-        garantindo isolamento entre uso paralelo.
-    )pbdoc")
-        .def(py::init<>(), R"pbdoc(
-            Inicializa nova instância do Gemma Native.
-
-            Inicialização preguiçosa: modelo só é carregado quando
-            necessário (primeira chamada a generate).
-        )pbdoc")
-
-        .def("generate", &GemmaNative::generate, R"pbdoc(
-            Gera resposta baseada no prompt fornecido.
-
-            Args:
-                prompt (str): Texto de entrada para processamento
-
-            Returns:
-                str: Resposta gerada pelo modelo Gemma
-
-            Raises:
-                RuntimeError se modelo não puder ser inicializado
-        )pbdoc", py::arg("prompt"))
-
-        .def("is_initialized", &GemmaNative::is_initialized, R"pbdoc(
-            Verifica se o modelo está carregado e sessões criadas.
-
-            Returns:
-                bool: True se inicializado, False caso contrário
-        )pbdoc")
-
-        .def("__repr__", [](const GemmaNative& obj) {
-            return std::string("<GemmaNative initialized=") +
-                   (obj.is_initialized() ? "True" : "False") + ">";
-        });
-
-    // Versão do módulo
-    m.attr("__version__") = "1.0.0";
-    m.attr("__author__") = "Roger Luft - FazAI";
-
-    // Função de conveniência replacement
-    m.def("generate", [](const std::string& prompt) {
-        GemmaNative instance;
-        return instance.generate(prompt);
-    }, R"pbdoc(
-        Função de conveniência para geração rápida.
-
-        Cria instância temporária, gera resposta e limpa recursos.
-
-        Args:
-            prompt (str): Texto de entrada
-
-        Returns:
-            str: Resposta do modelo
-    )pbdoc", py::arg("prompt"));
+  py::class_<GemmaNative>(m, "GemmaNative")
+      .def(py::init<>())
+      .def("initialize", &GemmaNative::initialize,
+           py::arg("weights_path"),
+           py::arg("tokenizer_path"),
+           py::arg("max_tokens"),
+           py::arg("temperature"),
+           py::arg("top_k"),
+           py::arg("deterministic"),
+           py::arg("multiturn"),
+           py::arg("prefill_tbatch"))
+      .def("is_initialized", &GemmaNative::is_initialized)
+      .def("status", &GemmaNative::status)
+      .def("generate", &GemmaNative::generate,
+           py::arg("prompt"),
+           py::arg("max_tokens") = py::none());
 }

@@ -66,6 +66,25 @@ config.dev.js
 *.bak
 *.backup
 *~
+*backup*
+*.tgz
+*.zip
+*.tar
+*.gz
+*.sbs
+*.spm
+*fazai.conf
+*deep-plan*
+*node_modules*
+*.claudio
+*Soul*
+*soul*
+*collections*
+*claudio*
+*transc*
+*models*
+*gemma-b2-pt_cpp*
+
 
 #arquivos locais particulas
 
@@ -82,3 +101,16 @@ pesquisa*
 bin/gpt-web2shell
 opt/fazai/tools/gpt-web2shell.js
 local-extras/gpt-web2shell/
+
+.gemini/
+gha-creds-*.json
+
+*gemma3*
+*teste*
+*TESTE*
+*Old*
+*old*
+*.cline*
+*.ipynb*
+*.claude*
+

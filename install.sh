@@ -18,6 +18,7 @@ echo "📁 Criando estrutura..."
 mkdir -p /opt/fazai/{bin,lib,etc,tools}
 mkdir -p /var/log/fazai
 mkdir -p /run/fazai
+chmod 777 /run/fazai || true
 mkdir -p /etc/fazai
 
 # Remove serviços de monitoramento legados (Prometheus/Grafana) se existirem
@@ -45,7 +46,9 @@ systemctl daemon-reload 2>/dev/null || true
 echo "🐍 Instalando dependências Python..."
 apt-get update
 apt-get install -y python3 python3-pip python3-venv poppler-utils pandoc docx2txt lynx w3m jq curl
-pip3 install aiohttp asyncio
+# Dependências do worker FazAI (fazai_gemma_worker.py)
+# Pinar qdrant-client para compatibilidade com servidor 1.7.3 (Docker)
+pip3 install aiohttp asyncio 'qdrant-client==1.7.3' httpx openai requests
 
 if command -v npm >/dev/null 2>&1; then
   echo "📦 Instalando dependências Node..."
@@ -57,9 +60,20 @@ fi
 # Copia binários
 echo "📦 Instalando binários..."
 cp worker/bin/fazai_gemma_worker.py /opt/fazai/bin/
-cp worker/bin/fazai-gemma-worker.py /opt/fazai/bin/
-cp worker/bin/fazai-mcp-client.py /opt/fazai/bin/
+cp worker/bin/fazai_mcp_client.py /opt/fazai/bin/
 cp worker/bin/fazai_integration_adapter.py /opt/fazai/lib/
+cp worker/bin/gemma_worker_client.py /opt/fazai/bin/
+
+# Instala bindings Gemma nativos
+echo "🧠 Instalando bindings Gemma nativos..."
+mkdir -p /opt/fazai/lib/python
+if [ -f "worker/bin/gemma_native.cpython-310-x86_64-linux-gnu.so" ]; then
+    cp worker/bin/gemma_native.cpython-310-x86_64-linux-gnu.so /opt/fazai/lib/python/gemma_native.so
+    echo "✅ Bindings Gemma nativos instalados"
+else
+    echo "⚠️ Bindings Gemma nativos não encontrados - worker usará fallbacks"
+fi
+
 chmod +x /opt/fazai/bin/*.py
 
 echo "🖥️ Preparando assets do console web..."
@@ -72,55 +86,199 @@ cp -R opt/fazai/web/hp-console/assets/rag-viewer /opt/fazai/web/hp-console/asset
 echo "⚡ Instalando CLI /bin/fazai..."
 cat > /bin/fazai << 'EOF'
 #!/bin/bash
-exec /opt/fazai/bin/fazai-mcp-client.py "$@"
+exec /opt/fazai/bin/fazai_mcp_client.py "$@"
 EOF
 chmod +x /bin/fazai
 
-# Configuração padrão
-echo "⚙️ Criando configuração..."
+// Apenas cria configuração padrão se não existir
+echo "⚙️ Preparando configuração..."
+if [ ! -f /etc/fazai/fazai.conf ]; then
 cat > /etc/fazai/fazai.conf << 'EOF'
-[daemon]
-host = 0.0.0.0
-port = 3120
+###############################################################################
+# FazAI v2.0 - Arquivo de Configuração Padrão
+# -----------------------------------------------------------
+# Copie este arquivo para /etc/fazai/fazai.conf e ajuste os
+# valores de acordo com seu ambiente.
+###############################################################################
+
+###############################################################################
+# SISTEMA
+###############################################################################
+
+[system]
+# Nível de log global dos componentes escritos em Python/Node
+log_level = INFO
+
+###############################################################################
+# PROVEDOR PRINCIPAL
+###############################################################################
+
+[ai_provider]
+provider = gemma_cpp
+enable_fallback = true
+max_retries = 3
+retry_delay = 2
+
+###############################################################################
+# WORKER PYTHON (fazai_gemma_worker.py)
+###############################################################################
 
 [gemma_worker]
+# Endereços onde o worker escutará requisições MCP/ND-JSON
 host = 0.0.0.0
-port = 5555
+port = 5556
+# Socket Unix compartilhado com dispatcher/CLIs
+unix_socket = /run/fazai/gemma.sock
+# Nível de log específico do worker
+log_level = INFO
+
+###############################################################################
+# GEMMA LOCAL (gemma.cpp)
+###############################################################################
+
+[gemma_cpp]
+weights = /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
+# Informe somente se o peso não possuir tokenizer embutido
+tokenizer = /opt/fazai/models/gemma/tokenizer.spm
+enable_native = true
+# Parâmetros de geração padrões
+max_tokens = 512
+temperature = 0.2
+top_k = 1
+deterministic = true
+multiturn = false
+prefill_tbatch = 256
+generation_timeout = 120
+
+###############################################################################
+# DISPATCHER (fazai_dispatcher.py)
+###############################################################################
 
 [dispatcher]
+mode = smart
+# Socket principal do worker Gemma (pode ser sobrescrito por CLI)
+gemma_socket = /run/fazai/gemma.sock
 timeout_seconds = 30
 shell_timeout = 60
+fallback_timeout = 45
+health_check_interval = 60
+fallback_order = openai,openrouter,context7
+
+###############################################################################
+# QDRANT (Memória vetorial)
+###############################################################################
 
 [qdrant]
+enabled = true
 host = 127.0.0.1
 port = 6333
 personality_collection = fazai_memory
 knowledge_collection = fazai_kb
-vector_dim = 384
+vector_dim = 1024
 
-[rag]
-default_collection = fazai_kb
+###############################################################################
+# OLLAMA (Embeddings locais)
+###############################################################################
+
+[ollama]
+endpoint = http://127.0.0.1:11434
+embeddings_endpoint = 
+embedding_model = mxbai-embed-large
+timeout = 30
+
+###############################################################################
+# FALLBACKS (APIs externas)
+###############################################################################
+
+[openai]
+api_key = 
+model = gpt-4
+max_tokens = 2048
+
+[openrouter]
+api_key = 
+endpoint = https://openrouter.ai/api/v1
+default_model = openai/gpt-4o
+models = anthropic/claude-3-opus, google/gemini-pro, meta/llama-3-70b
+temperature = 0.3
+max_tokens = 2000
+
+[context7]
+endpoint = 
+timeout = 20
+api_key = 
+
+###############################################################################
+# SERVIÇOS LEGADOS / INTEGRAÇÕES OPCIONAIS
+###############################################################################
+
+[daemon]
+host = 0.0.0.0
+port = 3120
 
 [cloudflare]
 storage = /opt/fazai/web/hp-console/data/cloudflare_accounts.json
+api_token = 
 
 [opnsense]
 storage = /opt/fazai/web/hp-console/data/opnsense_servers.json
+enabled = false
+host = 127.0.0.1
+port = 443
+use_ssl = true
+api_key = 
+api_secret = 
+verifySSL = false
+timeout = 30000
+
+###############################################################################
+# TELEMETRIA / PROMETHEUS (Opcional)
+###############################################################################
+
+[telemetry]
+enable_ingest = true
+enable_metrics = true
+udp_port = 0
+
+###############################################################################
+# BANCO DE DADOS (Opcional / legado)
+###############################################################################
+
+[mysql]
+enabled = false
+host = 127.0.0.1
+port = 3306
+database = fazai
+user = fazai
+password = trocar_senha
+
 EOF
+else
+  echo "ℹ️ Mantendo configuração existente em /etc/fazai/fazai.conf"
+fi
 
 # Systemd service
 echo "🔧 Criando serviço systemd..."
 cat > /etc/systemd/system/fazai-gemma-worker.service << 'EOF'
 [Unit]
 Description=FazAI Gemma Worker v2.0
-After=network.target
+After=network.target fazai-qdrant.service
+Wants=fazai-qdrant.service
 
 [Service]
 Type=simple
 User=root
-ExecStart=/opt/fazai/bin/fazai-gemma-worker.py
+WorkingDirectory=/opt/fazai
+EnvironmentFile=-/etc/fazai/env
+RuntimeDirectory=fazai
+RuntimeDirectoryMode=0777
+UMask=0000
+ExecStartPre=/usr/bin/install -d -m 0777 -o root -g root /run/fazai
+ExecStartPre=/bin/rm -f /run/fazai/gemma.sock
+ExecStart=/opt/fazai/bin/fazai_gemma_worker.py
+ExecStopPost=/bin/rm -f /run/fazai/gemma.sock
 Restart=always
-RestartSec=10
+RestartSec=5
 StandardOutput=journal
 StandardError=journal
 
@@ -1550,26 +1708,27 @@ EOF
 	    log "INFO" "Configurando serviço fazai-gemma-worker..."
     cat > "/etc/systemd/system/fazai-gemma-worker.service" << EOF
 [Unit]
-Description=FazAI Gemma Worker
-After=network.target
+Description=FazAI Gemma Worker v2.0
+After=network.target fazai-qdrant.service
+Wants=fazai-qdrant.service
 PartOf=fazai.service
 
 [Service]
 Type=simple
 User=root
-Group=root
-ExecStart=/opt/fazai/bin/fazai-gemma-worker
+WorkingDirectory=/opt/fazai
+EnvironmentFile=-/etc/fazai/env
+RuntimeDirectory=fazai
+RuntimeDirectoryMode=0777
+UMask=0000
+ExecStartPre=/usr/bin/install -d -m 0777 -o root -g root /run/fazai
+ExecStartPre=/bin/rm -f /run/fazai/gemma.sock
+ExecStart=/opt/fazai/bin/fazai_gemma_worker.py
+ExecStopPost=/bin/rm -f /run/fazai/gemma.sock
 Restart=always
 RestartSec=5
-Environment=FAZAI_GEMMA_SOCKET=/run/fazai/gemma.sock
-Environment=FAZAI_GEMMA_SOCK=/run/fazai/gemma.sock
-Environment=FAZAI_GEMMA_MODEL=/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
-
-# Ensure logs are appended to /var/log/fazai
-RuntimeDirectory=fazai
-PermissionsStartOnly=true
-StandardOutput=append:/var/log/fazai/fazai-gemma-worker.log
-StandardError=append:/var/log/fazai/fazai-gemma-worker.log
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -1679,6 +1838,8 @@ EOF
 	  systemctl start fazai-qdrant || true
 	  log "SUCCESS" "Serviço fazai-qdrant preparado (porta 6333)."
 
+
+
 	  # Instalar GPT-Web2Shell se local-extras existe
 	  if [ -d "local-extras/gpt-web2shell" ]; then
 	    log "INFO" "Instalando GPT-Web2Shell..."
@@ -1724,6 +1885,8 @@ EOF
 	    systemctl enable fazai-qdrant || true
 	    systemctl start fazai-qdrant || true
 	    log "SUCCESS" "Serviço Qdrant preparado (porta 6333)."
+
+
 	  else
 	    log "WARNING" "Docker/Podman não encontrado; Qdrant não será instalado automaticamente. Instale um runtime de contêiner ou configure Qdrant manualmente."
 	  fi

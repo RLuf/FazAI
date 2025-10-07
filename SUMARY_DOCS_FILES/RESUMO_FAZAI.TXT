@@ -1,0 +1,113 @@
+### Visão Geral do FazAI
+
+FazAI é um orquestrador cognitivo de automação para servidores Linux que interpreta ordens em linguagem natural, planeja ações, executa comandos e aprende com falhas. FazAI opera com um worker central que expõe um protocolo ND-JSON via socket (Unix TCP/Unix) e integra um núcleo de inferência local (Gemma / gemma3-cpp) com fallbacks remotos. O projeto é modular: ferramentas (tools/) são invocáveis dinamicamente, módulos nativos (.so/FFI) são carregáveis no daemon, e wrappers de rede acionam o worker por gravidade de eventos.
+
+---
+
+### Arquitetura de Alto Nível
+
+#### Componentes principais
+- Worker daemon: orquestrador que recebe mensagens ND-JSON, cria planos, invoca ferramentas e retorna respostas JSON/NDJSON.  
+- Núcleo de inferência: integração local com Gemma (libgemma / gemma3-cpp) via bindings C/C++ ou processo externo oneshot; suporte a stream de tokens.  
+- Tools: coleção de scripts JS/Python que realizam ações operacionais (instalação, monitoramento, mitigação, geração de artefatos).  
+- Módulos nativos (fazai_mod interface): .so carregados via dlopen/FFI com API padrão (init, exec, cleanup).  
+- RAG / Memória Vetorial: Qdrant para coleções de personalidade e conhecimento; embeddings via Ollama ou endpoint configurado.  
+- Web/UI: frontend (DOCLER / docler-server) expõe dashboards, uploads e interação em tempo real.  
+- Wrappers de rede (camada 3/7): filtros que detectam anomalias, classificam gravidade e acionam o worker.  
+- Auto-tool / generator: ferramenta que gera novas tools sob demanda a partir de especificações em linguagem natural.  
+- Logging e observabilidade: logs centrados em /var/log/fazai, healthchecks, PID, e scripts system-check.
+
+#### Fluxo típico de execução
+1. Wrapper detecta evento ou usuário envia comando via CLI/API.  
+2. Worker recebe ND-JSON, enriquece prompt com personalidade/contexto e consulta Gemma local.  
+3. Gemma gera plano ou respostas; worker decide invocar ferramentas ou módulos nativos.  
+4. Ferramentas são executadas (shell, npm, python, systemctl, apt/dnf), resultados são observados.  
+5. Em caso de falha, worker replaneja, instala dependências e reexecuta steps.  
+6. Resultados, artefatos e gráficos são publicados via web ou armazenados em RAG/memória.
+
+---
+
+### Protocolos e Interfaces
+
+#### Protocolo ND-JSON do Worker
+- Mensagens linha-por-linha JSON com campos como `action`, `action_id`, `input`, `type`.  
+- Ações padrão: `ask`, `shell`, `observe`, `plan`, `commitkb`, `research`.  
+- Resposta única por linha JSON; streaming suportado nas rotas `/command/stream`.
+
+#### API de módulos nativos (fazai_mod.h)
+- int fazai_mod_init();  
+- int fazai_mod_exec(const char* cmd, char* result, int result_len);  
+- void fazai_mod_cleanup();  
+
+#### Integração Gemma
+- Duas vias suportadas: bindings nativos (libgemma C API wrapper) ou execução de processo externo (gemma oneshot).  
+- Sessões gerenciadas com geração streaming; fallback remoto configurável (openai, openrouter, context7).  
+- Configurações lidas exclusivamente de /etc/fazai/fazai.conf.
+
+#### Qdrant e Personalidades
+- Coleções previstas: `fazai_memory` (personality) e `fazai_kb` (knowledge).  
+- Personalities carregadas do Qdrant enriquecem prompts e ajustam estilo e comportamento do modelo.
+
+---
+
+### Módulos de Tools e Padrões de Implementação
+
+- Tools são módulos invocáveis com metadados `{ name, description, interactive }` e função `run(params)`.  
+- Execução via `execSync`/`exec` para comandos shell; tentativas adaptativas com múltiplos package managers (apt/dnf/yum).  
+- Auto-tool: gerador de ferramentas que cria, instala e provisiona novos scripts/daemons conforme necessidade.  
+- Complex tasks executor: servidor HTTP que cria gráficos (Python/Matplotlib), publica via web/email/FTP e gerencia estado de tarefas com EventEmitter.  
+- Test suite e scripts: `test-all-tools.sh`, `test_complex_tasks.js` para validação automatizada das tools.
+
+---
+
+### Design de Agentes e Raciocínio Adaptativo
+
+- Agente de decomposição: quebra ordens complexas em subtarefas executáveis (ex.: monitoramento SNMP -> instalar SNMP -> configurar coleta -> provisionar dashboard).  
+- Agente de validação/teste: executa testes automatizados sobre a tool gerada, corrige erros e revalida.  
+- Agente de mitigação por gravidade: avalia entrada do wrapper de rede e escolhe ação (alerta, bloqueio, escalonamento, criação de regras iptables/modsecurity).  
+- Agente de geração de ferramentas (auto-tool): produz código, instala dependências, registra metadados e expõe a ferramenta via catálogo.  
+- Lógica de aprendizado: persistência de falhas, soluções e preferências no Qdrant para uso futuro em RAG.
+
+---
+
+### Segurança, Permissões e Operação no Kernel
+
+- Módulos nativos carregados no espaço do processo do daemon; design exige revisões de segurança e validação de inputs antes de dlopen/execution.  
+- Wrappers em camada 3/7 filtram tráfego e chamam o worker; worker decide ações baseadas em políticas configuráveis.  
+- Operações com privilégio (instalação de pacotes, systemctl, manipulação de iptables) exigem execução com permissões adequadas e validação contextual prévia.  
+- Política de configuração única: leitura exclusiva de /etc/fazai/fazai.conf para evitar hardcoded; permissões e chaves gerenciadas por `sync-keys.sh`.
+
+---
+
+### Deploy, Build e Operação
+
+- Instalação central via `install.sh`: cria /opt/fazai, copia bins, instala dependências Python/Node, registra CLI `/bin/fazai`.  
+- Build de libgemma: scripts profissionais (`build_libgemma.py`) que configuram CMake, PIC, bindings Python e instalação em /opt/fazai/lib.  
+- Fallbacks: se bindings nativos não presentes, worker usa processo Gemma externo (`gemma_oneshot`) ou fallbacks remotos.  
+- Logs em /var/log/fazai; healthcheck e system-check scripts disponíveis.  
+- Ambiente recomendado: Debian/Ubuntu ou Fedora/CentOS com Python 3.10+, Node.js >= 14, mínimo 2GB RAM.
+
+---
+
+### Registro do Conhecimento capturado (sumário do que foi lido)
+
+- Worker reference implementations: fazai_gemma_worker.py, fazai_worker_final.py, gemma_process_handler.py, gemma_c_api.cpp, gemma stub wrappers.  
+- Tools relevantes: crowdsec_setup.js, auto_tool.js, complex_tasks.js, ports_monitor.js, grafana_provision.js, suricata_setup.js, qdrant_setup.js, telemetry_* scripts.  
+- Módulos nativos de exemplo: lib/mods/system_mod_ffi.c (FFI stub), lib/mods/fazai_mod.h (API), worker/lib/gemma_c_api.cpp (thin wrapper).  
+- UI e web server: web/docler-server.js, web/package.json, fazai web assets.  
+- Config e instaladores: /etc/fazai/fazai.conf (padrão criado por install.sh), install.sh, build scripts.
+
+---
+
+### Próximos passos recomendados (prioritários e executáveis)
+
+1. Gerar documentação técnica formal (este documento) versionada em repo e registrar no /opt/fazai/docs/manual_generated.md.  
+2. Implementar testes de segurança para carregamento de módulos nativos (sandbox checks, signature, input sanitization).  
+3. Criar agente de decomposição mínimo para auto_tool: dividir tarefa → gerar tool stub → testar → promover.  
+4. Formalizar contrato ND-JSON (esquema JSON Schema) e publicar exemplo de mensagens para cada ação.  
+5. Automatizar CI de build da libgemma (CMake) com validação end-to-end usando gemma_process_handler como fallback.  
+6. Definir políticas de privilégio para operações sensíveis e implementar gatekeeper no worker para aprovações de ações críticas.
+
+---
+
+Documento completo registrado. Continuaremos trabalhando em função desta documentação para projetar e implementar agentes, módulos nativos e protocolos operacionais.

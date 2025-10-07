@@ -1,84 +1,151 @@
 ###############################################################################
-# FazAI - Arquivo de Configuração Principal
-# Versão: 2.0.0 - DOCLER Interface
-#
-# Compatível com: Debian/Ubuntu, Fedora/RedHat/CentOS, WSL
-#
-# Este arquivo configura o comportamento do sistema FazAI, incluindo:
-# - Provedores de IA (Gemma local, OpenRouter, Requesty, OpenAI, Anthropic, Gemini, Ollama)
-# - Sistema de orquestração (modos de planejamento e ação)
-# - Configurações gerais do sistema
-# - Sistema de cache e performance
-# - Interface DOCLER (Oráculo Druídico Digital)
-# - Agente Inteligente Cognitivo
-# - Relay SMTP Inteligente
-#
-# Localização recomendada: /etc/fazai/fazai.conf
+# FazAI v2.0 - Arquivo de Configuração Padrão
+# -----------------------------------------------------------
+# Copie este arquivo para /etc/fazai/fazai.conf e ajuste os
+# valores de acordo com seu ambiente.
 ###############################################################################
 
 ###############################################################################
-# CONFIGURAÇÃO DE PROVEDORES DE IA
+# SISTEMA
+###############################################################################
+
+[system]
+# Nível de log global dos componentes escritos em Python/Node
+log_level = INFO
+
+###############################################################################
+# PROVEDOR PRINCIPAL
 ###############################################################################
 
 [ai_provider]
-# Núcleo de IA: Gemma (não configurável)
-# O FazAI utiliza Gemma local (gemma_cpp) como núcleo essencial.
-# Provedores externos são apenas apoios complementares/fallback.
-provider = gemma_cpp  # Ignorado se diferente de gemma_cpp
-
-# Habilita fallback automático para outro provedor em caso de falha
-# Se true, tentará o próximo provedor na ordem: gemma_cpp -> llama_server -> openrouter -> requesty -> openai -> anthropic -> gemini -> ollama
+provider = gemma_cpp
 enable_fallback = true
-
-# Número máximo de tentativas antes de desistir
 max_retries = 3
-
-# Tempo de espera entre tentativas (em segundos)
 retry_delay = 2
+
+###############################################################################
+# WORKER PYTHON (fazai_gemma_worker.py)
+###############################################################################
+
+[gemma_worker]
+# Endereços onde o worker escutará requisições MCP/ND-JSON
+host = 0.0.0.0
+port = 5556
+# Socket Unix compartilhado com dispatcher/CLIs
+unix_socket = /run/fazai/gemma.sock
+# Nível de log específico do worker
+log_level = INFO
 
 ###############################################################################
 # GEMMA LOCAL (gemma.cpp)
 ###############################################################################
 
 [gemma_cpp]
-# Habilita o uso do Gemma local compilado (gemma.cpp)
-enabled = true
-# Caminho do binário (pré-compilado) gemma_oneshot
-# Observação: o instalador pode criar este binário via gemma_bootstrap.sh
-endpoint = /opt/fazai/bin/gemma_oneshot
-# Caminho dos pesos (preferir formato single-file .sbs com tokenizer embutido)
 weights = /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
-# Se estiver usando pesos multi-arquivo, informe tokenizer; caso single-file, deixe vazio
-tokenizer = 
-# Model ID aceito pelo gemma.cpp (ex.: gemma2-2b-it, 2b-it)
-default_model = gemma2-2b-it
- # Parâmetros do modelo
- temperature = 0.2
- max_tokens = 1024
+# Informe somente se o peso não possuir tokenizer embutido
+tokenizer = /opt/fazai/models/gemma/tokenizer.spm
+enable_native = true
+# Parâmetros de geração padrões
+max_tokens = 512
+temperature = 0.2
+top_k = 1
+deterministic = true
+multiturn = false
+prefill_tbatch = 256
+generation_timeout = 120
 
 ###############################################################################
-# LOGGING
+# DISPATCHER (fazai_dispatcher.py)
 ###############################################################################
 
-[logging]
-# Define o nível de log do daemon (substitui system.log_level)
-# Valores: debug, info, warn, error
-level = info
+[dispatcher]
+mode = smart
+# Socket principal do worker Gemma (pode ser sobrescrito por CLI)
+gemma_socket = /run/fazai/gemma.sock
+timeout_seconds = 30
+shell_timeout = 60
+fallback_timeout = 45
+health_check_interval = 60
+fallback_order = openai,openrouter,context7
 
 ###############################################################################
-# TELEMETRIA / PROMETHEUS
+# QDRANT (Memória vetorial)
+###############################################################################
+
+[qdrant]
+enabled = true
+host = 127.0.0.1
+port = 6333
+personality_collection = fazai_memory
+knowledge_collection = fazai_kb
+vector_dim = 1024
+
+###############################################################################
+# OLLAMA (Embeddings locais)
+###############################################################################
+
+[ollama]
+endpoint = http://127.0.0.1:11434
+embeddings_endpoint = 
+embedding_model = mxbai-embed-large
+timeout = 30
+
+###############################################################################
+# FALLBACKS (APIs externas)
+###############################################################################
+
+[openai]
+api_key = 
+model = gpt-4
+max_tokens = 2048
+
+[openrouter]
+api_key = 
+endpoint = https://openrouter.ai/api/v1
+default_model = openai/gpt-4o
+models = anthropic/claude-3-opus, google/gemini-pro, meta/llama-3-70b
+temperature = 0.3
+max_tokens = 2000
+
+[context7]
+endpoint = 
+timeout = 20
+api_key = 
+
+###############################################################################
+# SERVIÇOS LEGADOS / INTEGRAÇÕES OPCIONAIS
+###############################################################################
+
+[daemon]
+host = 0.0.0.0
+port = 3120
+
+[cloudflare]
+storage = /opt/fazai/web/hp-console/data/cloudflare_accounts.json
+api_token = 
+
+[opnsense]
+storage = /opt/fazai/web/hp-console/data/opnsense_servers.json
+enabled = false
+host = 127.0.0.1
+port = 443
+use_ssl = true
+api_key = 
+api_secret = 
+verifySSL = false
+timeout = 30000
+
+###############################################################################
+# TELEMETRIA / PROMETHEUS (Opcional)
 ###############################################################################
 
 [telemetry]
-# Habilita ingestão de telemetria via POST /ingest
 enable_ingest = true
-# Habilita exposição Prometheus em GET /metrics
 enable_metrics = true
-# Porta UDP opcional para ingestão (JSON ou texto). 0 para desabilitar
 udp_port = 0
 
 ###############################################################################
-# BANCO DE DADOS (MySQL)
+# BANCO DE DADOS (Opcional / legado)
 ###############################################################################
 
 [mysql]
@@ -89,514 +156,3 @@ database = fazai
 user = fazai
 password = trocar_senha
 
-###############################################################################
-# QDRANT (RAG)
-###############################################################################
-
-[qdrant]
-enabled = false
-host = 127.0.0.1
-port = 6333
-personality_collection = fazai_memory
-knowledge_collection = fazai_kb
-vector_dim = 384
-
-###############################################################################
-# CONTEXT7 (RAG Auxiliar)
-###############################################################################
-
-[context7]
-endpoint = 
-api_key = 
-
-###############################################################################
-# OPNsense MCP
-###############################################################################
-
-[opnsense]
-# Habilita integração com OPNsense via MCP
-enabled = false
-# Host/IP do firewall OPNsense
-host = 127.0.0.1
-port = 443
-use_ssl = true
-# Credenciais/Chaves (preencha com sua chave .MCP_OPNSENSE.key)
-api_key = 
-api_secret = 
-verifySSL = false
-timeout = 30000
-
-###############################################################################
-# INTEGRAÇÕES EXTERNAS (CLOUDFLARE / SPAMEXPERTS)
-###############################################################################
-
-[cloudflare]
-api_token = sua_chave_cloudflare_aqui
-
-[spamexperts]
-base_url = https://seu-endpoint.spamexperts.com
-api_key = sua_chave_spamexperts_aqui
-
-###############################################################################
-# SEGURANÇA ATIVA (WRAPPERS)
-###############################################################################
-
-[security]
-modsecurity = false
-suricata = false
-crowdsec = false
-monit = true
-
-###############################################################################
-# CONFIGURAÇÃO DO OPENROUTER
-###############################################################################
-
-[openrouter]
-# Chave de API do OpenRouter
-# Obtenha em: https://openrouter.ai/keys
-api_key = sua_chave_openrouter_aqui
-
-# Endpoint da API
-# Não altere a menos que a URL da API mude oficialmente
-endpoint = https://openrouter.ai/api/v1
-
-# Modelo padrão a ser utilizado
-# Formato: provedor/modelo
-# Exemplos: deepseek/deepseek-r1-0528:free, openai/gpt-4-turbo, anthropic/claude-3-opus
-default_model = openai/gpt-4o
-
-# Lista de modelos alternativos que podem ser utilizados
-# Separe múltiplos modelos com vírgulas
-# Estes modelos serão utilizados se o default_model não estiver disponível
-models = anthropic/claude-3-opus, google/gemini-pro, meta/llama-3-70b
-
-# Temperatura para geração (0.0 a 1.0)
-# Valores mais baixos = mais determinístico
-# Valores mais altos = mais criativo/aleatório
-temperature = 0.3
-
-# Máximo de tokens na resposta
-max_tokens = 2000
-
-###############################################################################
-# (Requesty removido)
-
-###############################################################################
-# CONFIGURAÇÃO DA OPENAI
-###############################################################################
-
-[openai]
-# Chave de API da OpenAI
-# Obtenha em: https://platform.openai.com/api-keys
-api_key = sua_chave_openai_aqui
-
-# Endpoint da API
-# Não altere a menos que a URL da API mude oficialmente
-endpoint = https://api.openai.com/v1
-
-# Modelo padrão a ser utilizado
-default_model = gpt-4-turbo
-
-# Lista de modelos alternativos que podem ser utilizados
-# Separe múltiplos modelos com vírgulas
-models = gpt-4o, gpt-3.5-turbo
-
-# Temperatura para geração (0.0 a 1.0)
-temperature = 0.4
-
-# Máximo de tokens na resposta
-max_tokens = 2000
-
-###############################################################################
-# CONFIGURAÇÃO DA ANTHROPIC (CLAUDE)
-###############################################################################
-
-[anthropic]
-# Chave de API da Anthropic
-# Obtenha em: https://console.anthropic.com/
-api_key = sua_chave_anthropic_aqui
-
-# Endpoint da API
-endpoint = https://api.anthropic.com/v1
-
-# Modelo padrão a ser utilizado
-default_model = claude-3-opus-20240229
-
-# Lista de modelos alternativos que podem ser utilizados
-# Separe múltiplos modelos com vírgulas
-models = claude-3-sonnet-20240229, claude-3-haiku-202.0.07
-
-# Temperatura para geração (0.0 a 1.0)
-temperature = 0.3
-
-# Máximo de tokens na resposta
-max_tokens = 2000
-
-###############################################################################
-# CONFIGURAÇÃO DO GOOGLE GEMINI
-###############################################################################
-
-[gemini]
-# Chave de API do Google Gemini
-# Obtenha em: https://makersuite.google.com/app/apikey
-api_key = sua_chave_gemini_aqui
-
-# Endpoint da API
-endpoint = https://generativelanguage.googleapis.com/v1beta
-
-# Modelo padrão a ser utilizado
-default_model = gemini-pro
-
-# Lista de modelos alternativos que podem ser utilizados
-# Separe múltiplos modelos com vírgulas
-models = gemini-pro-vision, gemini-1.5-pro
-
-# Temperatura para geração (0.0 a 1.0)
-temperature = 0.3
-
-# Máximo de tokens na resposta
-max_tokens = 2000
-
-###############################################################################
-# CONFIGURAÇÃO DO OLLAMA
-###############################################################################
-
-[ollama]
-# Habilita o uso do Ollama para modelos locais
-enabled = false
-
-# Endpoint do Ollama (padrão: localhost:11434)
-endpoint = http://127.0.0.1:11434/v1
-
-# Modelo padrão a ser utilizado
-default_model = llama3.2:latest
-
-# Lista de modelos disponíveis localmente
-# Separe múltiplos modelos com vírgulas
-models = ["mixtral", "llama2", "codellama", "llama3.2"]
-
-# Diretório de cache do Ollama
-cache_dir = /var/cache/fazai/ollama
-
-# Temperatura para geração (0.0 a 1.0)
-temperature = 0.3
-
-# Máximo de tokens na resposta
-max_tokens = 2000
-
-###############################################################################
-# CONFIGURAÇÃO DO SISTEMA DE CACHE
-###############################################################################
-
-[cache]
-# Habilita o sistema de cache para melhorar performance
-enabled = true
-
-# Tamanho máximo do cache em memória (número de entradas)
-max_size = 1000
-
-# Tempo de vida do cache em segundos (1 hora = 3600)
-ttl = 3600
-
-# Habilita limpeza automática do cache
-auto_cleanup = true
-
-# Intervalo de limpeza automática em segundos (30 minutos = 1800)
-cleanup_interval = 1800
-
-###############################################################################
-# CONFIGURAÇÃO DO SISTEMA DE ORQUESTRAÇÃO
-###############################################################################
-
-[orchestration]
-# Habilita o sistema de orquestração com modos de planejamento e ação
-# Se false, o sistema funcionará no modo tradicional
-enabled = false
-
-# Modo padrão ao iniciar uma nova conversa
-# Valores possíveis: plan, act
-# - plan: Inicia no modo de planejamento (análise e preparação)
-# - act: Inicia no modo de ação (execução direta)
-default_mode = plan
-
-# Habilita transição automática do modo de planejamento para o modo de ação
-# Se true, o sistema detectará quando um plano está completo e mudará para o modo de ação
-auto_transition = false
-
-# Palavras-chave para transição manual entre modos
-# O usuário pode usar estas palavras para mudar de modo
-plan_keyword = planejar
-act_keyword = executar
-
-###############################################################################
-# CONFIGURAÇÃO DO MODO DE PLANEJAMENTO
-###############################################################################
-
-[plan_mode]
-# Prompt de sistema para o modo de planejamento
-# Este texto será enviado como instruções para o modelo de IA
-system_prompt = Você está no modo de PLANEJAMENTO do FazAI. Neste modo, você deve focar em entender o problema, fazer perguntas de esclarecimento quando necessário, e criar um plano detalhado antes de executar qualquer ação. Não execute comandos neste modo, apenas planeje a solução. Quando o plano estiver completo, informe o usuário que ele pode mudar para o modo de AÇÃO para executar o plano.
-
-# Temperatura para o modo de planejamento
-# Recomenda-se um valor mais alto para estimular criatividade na fase de planejamento
-temperature = 0.7
-
-# Máximo de tokens para respostas no modo de planejamento
-max_tokens = 2000
-
-# Ferramentas disponíveis no modo de planejamento
-# Geralmente limitadas a ferramentas de consulta, não de execução
-available_tools = read_file, search_files, list_files
-
-###############################################################################
-# CONFIGURAÇÃO DO MODO DE AÇÃO
-###############################################################################
-
-[act_mode]
-# Prompt de sistema para o modo de ação
-# Este texto será enviado como instruções para o modelo de IA
-system_prompt = Você está no modo de AÇÃO do FazAI. Neste modo, você deve executar o plano estabelecido, utilizando as ferramentas disponíveis para realizar tarefas concretas no sistema. Seja preciso e eficiente. Relate o progresso após cada ação e confirme quando a tarefa estiver concluída.
-
-# Temperatura para o modo de ação
-# Recomenda-se um valor mais baixo para respostas mais determinísticas
-temperature = 0.2
-
-# Máximo de tokens para respostas no modo de ação
-max_tokens = 1500
-
-# Ferramentas disponíveis no modo de ação
-# Inclui todas as ferramentas, incluindo as de execução
-available_tools = execute_command, read_file, write_file, search_files, list_files
-
-###############################################################################
-# CONFIGURAÇÃO DE FERRAMENTAS
-###############################################################################
-
-[tools]
-# Habilita ou desabilita ferramentas específicas
-# Defina como true para habilitar, false para desabilitar
-execute_command = true
-read_file = true
-write_file = true
-search_files = true
-list_files = true
-
-# Diretório raiz para operações de arquivo
-# As operações de arquivo serão restritas a este diretório e seus subdiretórios
-file_operations_root = /
-
-# Comandos proibidos por razões de segurança
-# Separe múltiplos comandos com vírgulas
-# Exemplo: rm -rf /, mkfs, dd
-forbidden_commands = rm -rf /
-
-###############################################################################
-# CONFIGURAÇÕES GERAIS DO SISTEMA
-###############################################################################
-
-[system]
-# Nível de log (LEGADO - use [logging].level)
-log_level = info
-
-# Timeout para chamadas de API (em segundos)
-api_timeout = 60
-
-# Armazenar histórico de conversas
-store_history = true
-
-# Diretório para armazenar histórico de conversas
-history_dir = /var/lib/fazai/history
-
-# Limite de tokens para o contexto da conversa
-# Este é o número máximo de tokens que serão mantidos no histórico
-context_token_limit = 16000
-
-# Formato de saída padrão
-# Valores possíveis: text, json, markdown
-default_output_format = text
-
-# Habilitar cache de respostas
-enable_response_cache = true
-
-# Tempo de vida do cache (em segundos)
-cache_ttl = 3600
-
-# Diretório para armazenar cache
-cache_dir = /var/lib/fazai/cache
-
-# Configurações de rotação de logs
-[logs]
-# Tamanho máximo do arquivo de log principal (em bytes)
-max_size = 10485760  # 10MB
-
-# Número máximo de arquivos de backup
-max_files = 5
-
-# Tamanho máximo do arquivo de erro (em bytes)
-error_max_size = 5242880  # 5MB
-
-# Número máximo de arquivos de erro de backup
-error_max_files = 3
-
-###############################################################################
-# DISPATCHER - Controlador Unificado de Workers
-###############################################################################
-
-[dispatcher]
-# Modo do dispatcher
-# Valores: smart (escolhe automaticamente), force_legacy (só Node.js), force_gemma (só Gemma)
-mode = smart
-
-# Configurações de socket para comunicação
-socket_host = 127.0.0.1
-socket_port = 9876
-
-# Socket específico do worker Gemma
-gemma_socket = /tmp/fazai-gemma.sock
-
-# Habilitação dos workers
-gemma_enabled = true
-
-# Timeouts e intervalos
-fallback_timeout = 30
-health_check_interval = 60
-
-###############################################################################
-# INTERFACE DOCLER (até linha 318)
-###############################################################################
-
-[docler]
-# Habilita a interface web DOCLER
-enabled = true
-
-# Porta para a interface cliente
-client_port = 3120
-
-# Porta para o painel administrativo
-admin_port = 3121
-
-# Host para o servidor web (0.0.0.0 para todos os IPs)
-host = 0.0.0.0
-
-# Tema padrão da interface
-# Valores possíveis: cyberpunk, matrix, cosmic, druidic
-default_theme = cyberpunk
-
-# Habilita animações da face DOCLER
-face_animations = true
-
-# Intervalo de atualização da face (em segundos)
-face_update_interval = 10
-
-# Habilita WebSocket para comunicação em tempo real
-websocket_enabled = true
-
-# Diretório dos arquivos web
-# Diretório dos arquivos web (atual UI embutida é servida de /opt/fazai/tools)
-web_dir = /opt/fazai/web
-
-# Configurações de segurança
-[docler_security]
-# Habilita autenticação básica
-auth_enabled = false
-
-# Usuário para autenticação (se habilitada)
-auth_user = admin
-
-# Senha para autenticação (se habilitada)
-auth_password =
-
-# IPs permitidos (deixe vazio para permitir todos)
-allowed_ips =
-
-# Habilita HTTPS (requer certificados)
-https_enabled = false
-
-# Caminho para certificado SSL
-ssl_cert =
-
-# Caminho para chave SSL
-ssl_key =
-
-###############################################################################
-# CONFIGURAÇÃO DO AGENTE INTELIGENTE
-###############################################################################
-
-[agent]
-# Habilita o agente inteligente cognitivo
-enabled = true
-
-# Caminho para o worker (não utilizado diretamente pelo daemon; serviço systemd recomendado)
-worker_path = /opt/fazai/bin/fazai-gemma-worker
-
-# Socket Unix para comunicação IPC
-ipc_socket = /tmp/fazai_worker.sock
-
-# Timeout para operações do agente (em segundos)
-timeout = 300
-
-# Número máximo de iterações por objetivo
-max_iterations = 50
-
-# Habilita streaming SSE em tempo real
-sse_enabled = true
-
-###############################################################################
-# MODOS ESPECIAIS DE PROMPTS
-###############################################################################
-
-[mcps_mode]
-# Prompt de sistema para geração de passos (MCPS) via provedores HTTP
-system_prompt = Você está executando como root e deve retornar uma lista de passos executáveis (um por linha). Use ferramentas no formato tool:<nome> param={...} quando apropriado; caso contrário, retorne apenas comandos bash puros, sem explicações.
-
-[question_mode]
-# Prompt de sistema para perguntas simples (-q)
-system_prompt = Responda de forma direta e objetiva.
-
-# Configuração da base de conhecimento
-[knowledge_base]
-# Habilita a base de conhecimento persistente
-enabled = true
-
-# Endpoint do Qdrant
-qdrant_url = http://localhost:6333
-
-# Nome da coleção
-collection_name = fazai_kb
-
-# Dimensão dos embeddings
-embedding_dim = 1024
-
-###############################################################################
-# CONFIGURAÇÃO DO RELAY SMTP
-###############################################################################
-
-[relay]
-# Habilita integração com relay SMTP
-enabled = true
-
-# Caminho para logs do relay
-log_path = /var/log/mail.log
-
-# Intervalo de monitoramento (em segundos)
-monitor_interval = 30
-
-# Configuração do SpamExperts
-[relay_spamexperts]
-enabled = false
-api_url = 
-api_key = 
-
-# Configuração do Zimbra
-[relay_zimbra]
-enabled = false
-api_url = 
-api_key = 
-
-###############################################################################
-# UI LEGADA (DEV-ONLY)
-###############################################################################
-
-[ui_legacy]
-# Se false, a rota /ui retorna 404 (recomendado)
-enabled = false

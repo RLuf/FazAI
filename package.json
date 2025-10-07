@@ -14,6 +14,7 @@
     "web": "bash opt/fazai/tools/fazai_web.sh"
   },
   "dependencies": {
+    "@openai/codex": "^0.42.0",
     "axios": "^1.11.0",
     "blessed": ">=0.1.81",
     "blessed-contrib": "^1.0.11",
