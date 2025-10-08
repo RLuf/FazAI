@@ -5,6 +5,7 @@
 O FazAI combina um **agente inteligente baseado em Gemma**, memória vetorial persistente e um **console operacional web** para administrar infraestrutura, segurança e integrações corporativas. O fluxo acima resume o ciclo completo: receber objetivos em linguagem natural, planejar, executar ferramentas (internas ou externas), observar resultados, aprender e registrar conhecimento.
 
 - **Worker Gemma** em Python/C++ (PyBind + libgemma) com sessões persistentes e geração em streaming.
+  - **Novo**: Integração Gemma3.cpp - veja [GEMMA_QUICKSTART.md](GEMMA_QUICKSTART.md) para setup rápido
 - **Dispatcher Inteligente** que roteia requisições entre provedores locais/remotos (Gemma, OpenAI, Context7, MCP, RAG).
 - **Console Ops Web** (Node + Express) com painéis de monitoramento, RAG, integrações Cloudflare/OPNsense, Docker, logs e notas.
 - **Base de Conhecimento (Qdrant)** para memória de longo prazo (coleções `fazai_memory`, `fazai_kb`).
@@ -21,6 +22,7 @@ O FazAI combina um **agente inteligente baseado em Gemma**, memória vetorial pe
    - [Instalação via script](#instalação-via-script)
    - [Contêiner Docker (minimal e full)](#contêiner-docker)
    - [Pós-instalação](#pós-instalação)
+   - [Gemma3 Integration](#gemma3-integration) 🆕
 4. [Console Web](#console-web)
 5. [Integrações Cloudflare & OPNsense](#cloudflare--opnsense)
 6. [RAG & Memória Vetorial](#rag--memória-vetorial)
@@ -111,6 +113,31 @@ docker run -d --name fazai-full \
   fazai-full
 ```
 Pesos Gemma devem ser montados em `/opt/fazai/models/gemma`. Ajuste `FAZAI_GEMMA_MODEL` via variável de ambiente se necessário.
+
+### Gemma3 Integration
+
+FazAI agora suporta integração nativa com Google Gemma3.cpp para inferência local de alta performance.
+
+**Setup Rápido:**
+```bash
+cd worker
+./setup_gemma.sh  # Baixa e compila gemma.cpp automaticamente
+./build.sh        # Compila worker com suporte Gemma
+```
+
+**Download de Modelos:**
+- Kaggle: https://www.kaggle.com/models/google/gemma
+- Modelos recomendados: gemma-2b-it (4GB), gemma-7b-it (14GB), gemma3-1b-it (2GB)
+
+**Documentação Completa:**
+- [Guia Rápido](GEMMA_QUICKSTART.md) - TL;DR e comandos essenciais
+- [Guia Completo](worker/GEMMA_INTEGRATION.md) - Integração detalhada, troubleshooting, otimizações
+- [Worker README](worker/README.md) - Arquitetura e desenvolvimento
+
+**Modos de Build:**
+- Com Gemma nativo (recomendado)
+- Com biblioteca pré-compilada
+- Modo stub (desenvolvimento/testes)
 
 ### Pós-instalação
 1. **Verificar serviço**:
@@ -230,6 +257,8 @@ Boas práticas:
 ## Solução de Problemas
 - **404/Erro ao carregar console**: execute `npm install` na raiz e em `opt/fazai/web/hp-console`; reinicie `npm start`.
 - **Gemma não inicializa**: confira `FAZAI_GEMMA_MODEL`, permissões do socket e logs em `/var/log/fazai/gemma-worker.log`.
+  - Para setup inicial do Gemma3: veja [worker/GEMMA_INTEGRATION.md](worker/GEMMA_INTEGRATION.md)
+  - Setup rápido: `cd worker && ./setup_gemma.sh`
 - **Cloudflare 403**: valide permissões do token (ex.: `Zone:Read`, `DNS:Edit`, `Account:Read`).
 - **Conversores ausentes (PDF/DOC)**: instale `poppler-utils`, `pandoc`, `docx2txt` (já presentes no `install.sh` e `Dockerfile.full`).
 - **Qdrant não responde**: verifique host/porta em `/etc/fazai/fazai.conf` e se o serviço está acessível em `http://localhost:6333`.
