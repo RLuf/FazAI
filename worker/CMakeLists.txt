@@ -151,7 +151,10 @@ elseif(TARGET libgemma_prebuilt)
     target_link_libraries(fazai-gemma-worker PRIVATE libgemma_prebuilt)
     message(STATUS "Linking with libgemma_prebuilt (pre-built library)")
 else()
-    message(STATUS "Building worker without native Gemma support")
+    # Use stubs as fallback
+    message(STATUS "Building worker with stub implementations (no native Gemma)")
+    add_library(gemma_stubs STATIC ${CMAKE_CURRENT_SOURCE_DIR}/stubs/gemma_stubs.cpp)
+    target_link_libraries(fazai-gemma-worker PRIVATE gemma_stubs)
 endif()
 
 # Linkar bibliotecas de terceiros (se disponíveis)
