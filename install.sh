@@ -1348,7 +1348,8 @@ EOF
 	    "opt/fazai/tools/modsecurity.js" \
 	    "opt/fazai/tools/spamexperts.js" \
 	    "opt/fazai/tools/web_search.js" \
-	    "opt/fazai/tools/cloudflare.js"; do
+	    "opt/fazai/tools/cloudflare.js" \
+	    "opt/fazai/tools/container_manager_tui.py"; do
 	    if [ -f "$t" ]; then
 	      if ! copy_with_verification "$t" "/opt/fazai/tools/" "Tool $(basename $t)"; then
 		copy_errors=$((copy_errors+1))
@@ -1394,6 +1395,17 @@ EOF
 	      chmod +x /opt/fazai/tools/fazai-tui.sh
 	      ln -sf /opt/fazai/tools/fazai-tui.sh /usr/local/bin/fazai-tui
 	      log "SUCCESS" "Dashboard TUI completo instalado em /usr/local/bin/fazai-tui"
+	    fi
+	    
+	    # Instalar Container Manager TUI
+	    if [ -f "bin/fazai-containers" ]; then
+	      if ! copy_with_verification "bin/fazai-containers" "/opt/fazai/bin/" "Container Manager CLI"; then
+	        copy_errors=$((copy_errors+1))
+	      else
+	        chmod +x /opt/fazai/bin/fazai-containers
+	        ln -sf /opt/fazai/bin/fazai-containers /usr/local/bin/fazai-containers
+	        log "SUCCESS" "Container Manager CLI instalado em /usr/local/bin/fazai-containers"
+	      fi
 	    fi
 	    if command -v cargo >/dev/null 2>&1; then
 	      log "INFO" "Compilando TUI em Rust..."
