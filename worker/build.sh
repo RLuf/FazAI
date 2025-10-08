@@ -62,21 +62,52 @@ check_dependencies() {
     log_success "Todas as dependências encontradas"
 }
 
-# Verificar libgemma.a
+# Verificar libgemma.a ou gemma.cpp
 check_libgemma() {
-    log_info "Verificando libgemma.a..."
+    log_info "Verificando Gemma.cpp..."
     
-    if [ ! -f "lib/libgemma.a" ]; then
-        log_error "lib/libgemma.a não encontrada. Stubs não são permitidos."
-        if [ ! -d "/home/rluft/gemma.cpp" ]; then
-            log_error "Nenhum checkout local em /home/rluft/gemma.cpp detectado. Forneça lib/libgemma.a ou clone o gemma.cpp em /home/rluft/gemma.cpp"
-            exit 1
-        else
-            log_info "Usando checkout local em /home/rluft/gemma.cpp para construir libgemma_local"
-        fi
-    else
-        log_success "libgemma.a encontrada"
+    # Check for pre-built library first
+    if [ -f "lib/libgemma.a" ]; then
+        log_success "Found pre-built lib/libgemma.a"
+        return 0
     fi
+    
+    # Check for gemma.cpp source
+    local gemma_paths=(
+        "third_party/gemma.cpp"
+        "$GEMMA_CPP_ROOT"
+        "/home/rluft/gemma.cpp"
+    )
+    
+    for path in "${gemma_paths[@]}"; do
+        if [ -n "$path" ] && [ -d "$path" ]; then
+            log_success "Found gemma.cpp at: $path"
+            export GEMMA_CPP_ROOT="$path"
+            return 0
+        fi
+    done
+    
+    # Neither library nor source found
+    log_warning "Neither libgemma.a nor gemma.cpp source found"
+    log_info "Worker will be built without native Gemma support"
+    log_info ""
+    log_info "To enable Gemma support, run:"
+    log_info "  ./setup_gemma.sh"
+    log_info ""
+    log_info "Or manually:"
+    log_info "  1. Clone gemma.cpp to third_party/gemma.cpp"
+    log_info "  2. Place pre-built libgemma.a in lib/"
+    log_info ""
+    
+    # Ask user if they want to continue
+    read -p "Continue build without Gemma? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Build cancelled. Run ./setup_gemma.sh to set up Gemma first."
+        exit 0
+    fi
+    
+    return 0
 }
 
 # Configurar build

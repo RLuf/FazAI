@@ -230,6 +230,8 @@ Boas práticas:
 ## Solução de Problemas
 - **404/Erro ao carregar console**: execute `npm install` na raiz e em `opt/fazai/web/hp-console`; reinicie `npm start`.
 - **Gemma não inicializa**: confira `FAZAI_GEMMA_MODEL`, permissões do socket e logs em `/var/log/fazai/gemma-worker.log`.
+  - Para setup inicial do Gemma3: veja [worker/GEMMA_INTEGRATION.md](worker/GEMMA_INTEGRATION.md)
+  - Setup rápido: `cd worker && ./setup_gemma.sh`
 - **Cloudflare 403**: valide permissões do token (ex.: `Zone:Read`, `DNS:Edit`, `Account:Read`).
 - **Conversores ausentes (PDF/DOC)**: instale `poppler-utils`, `pandoc`, `docx2txt` (já presentes no `install.sh` e `Dockerfile.full`).
 - **Qdrant não responde**: verifique host/porta em `/etc/fazai/fazai.conf` e se o serviço está acessível em `http://localhost:6333`.

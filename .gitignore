@@ -4,6 +4,11 @@ package-lock.json
 yarn.lock
 Old/
 
+# Worker gemma.cpp source (cloned via setup script)
+worker/third_party/gemma.cpp/
+worker/build/
+worker/lib/libgemma.a
+
 # Arquivos de ambiente
 .env
 .env.local

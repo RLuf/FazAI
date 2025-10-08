@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Gemma3.cpp Integration**: Proper project scaffolding for Google's gemma.cpp library
+  - Automated setup script `worker/setup_gemma.sh` for downloading and building gemma.cpp
+  - Flexible CMake configuration supporting multiple gemma.cpp locations (third_party/, environment variable, legacy path)
+  - Support for pre-built `libgemma.a` or building from source
+  - Comprehensive integration guide at `worker/GEMMA_INTEGRATION.md`
+  - Worker can build with or without native Gemma support (fallback to remote providers)
+  - Proper .gitignore entries to exclude third-party source and build artifacts
+  - Documentation: `worker/README.md` and `worker/third_party/README.md`
 - Installer: Post-start helper ensures `/run/fazai/gemma.sock` is chmod 0666 reliably.
 - Qdrant migration: added one‑time script `scripts/qdrant_migrate_persona.py` (claudio_soul → fazai_memory). Removed from installer.
 - Test: `tests/test_natural_cli_order.sh` to simulate a natural‑language order via CLI (non‑destructive).
