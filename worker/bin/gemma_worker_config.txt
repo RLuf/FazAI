@@ -1,0 +1,63 @@
+# FazAI Gemma Worker Configuration
+# /etc/fazai/gemma-worker.conf
+
+[socket]
+# Tipo de socket: tcp ou unix
+type = tcp
+# Configurações TCP
+tcp_host = 127.0.0.1
+tcp_port = 5555
+# Configurações Unix Socket
+unix_path = /tmp/fazai-gemma.sock
+
+[gemma]
+# Caminho para o binário Gemma compilado
+binary = /opt/fazai/bin/gemma_oneshot
+# Caminho para os pesos do modelo
+weights = /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
+# Caminho para o tokenizer
+tokenizer = /opt/fazai/models/gemma/tokenizer.spm
+# Modelo a usar
+model = gemma2-2b-it
+# Temperatura para geração
+temperature = 0.2
+# Máximo de tokens
+max_tokens = 1024
+
+[qdrant]
+# Host do servidor Qdrant
+host = 127.0.0.1
+# Porta do servidor Qdrant
+port = 6333
+# Nome da coleção para memória vetorial
+collection = fazai_memory
+# Dimensão dos embeddings
+embedding_dim = 1536
+
+[openai]
+# Chave API OpenAI (deixe vazio para desabilitar)
+api_key = 
+
+[openrouter]
+# Chave API OpenRouter (deixe vazio para desabilitar)
+api_key = 
+# Modelo padrão para OpenRouter
+model = openai/gpt-4o
+
+[context7]
+# Endpoint do Context7
+endpoint = 
+# Chave API do Context7
+api_key = 
+
+[behavior]
+# Número máximo de tentativas
+max_retries = 3
+# Delay entre tentativas (segundos)
+retry_delay = 2.0
+# Modo verbose
+verbose = true
+# Arquivo de log
+log_file = /var/log/fazai/gemma-worker.log
+# Arquivo PID
+pid_file = /var/run/fazai-gemma-worker.pid

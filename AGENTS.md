@@ -1,38 +1,41 @@
 # Repository Guidelines
 
-This document helps contributors work effectively in this repository and keep changes consistent and testable.
-
 ## Project Structure & Module Organization
-- `opt/fazai/tools/`: Node.js tools and integrations (e.g., `agent_supervisor.js`, `rag_ingest.js`).
-- `worker/`: C/C++ Gemma worker and IPC server; builds a local ND‑JSON provider on `unix:/run/fazai/gemma.sock`.
-- `bin/`: CLI binary (`fazai`) and build helpers; `tui/` contains TUI bits if enabled.
-- `gemma.cpp/`: Upstream Gemma engine sources and tests.
-- `etc/`, `var/`: Config and logs at runtime; mounted in Docker.
-- `tests/`: Shell/PowerShell tests (`*.test.sh`, `*.tests.ps1`).
-- Specs: see `SPEC.md` for protocol schemas; top‑level docs in `README.md`.
+- `bin/`: CLI entrypoints (e.g., `bin/fazai`, `fazai_cli_natural.py`).
+- `opt/`: Runtime app code deployed under `/opt/fazai` (Node services, tools).
+- `worker/`: Gemma worker sources and build artifacts (`worker/bin/fazai_gemma_worker.py`, bindings, C++ build).
+- `etc/`: Config templates and shell completion (installed to `/etc/fazai`).
+- `tests/`: Shell, Python, and JS integration tests.
+- `install.sh` / `uninstall.sh`: System install/uninstall scripts.
 
 ## Build, Test, and Development Commands
-- Install: `sudo ./install.sh` (provisions deps, CLI, services). Uninstall: `sudo ./uninstall.sh`.
-- Tests: `npm test` (runs `tests/*.test.sh` and WSL PowerShell where available).
-- TUI/Config/Web helpers: `npm run tui`, `npm run config-tui`, `npm run web`.
-- Docker: `docker compose up -d --build` (binds `3120`; optional Qdrant at `6333`).
+- Install locally: `bash install.sh` (deploys to `/opt/fazai`, does not overwrite existing configs).
+- Run tests (aggregate): `npm test`.
+- End‑to‑end worker test: `bash tests/test_cli_worker_integration.sh`.
+- Worker quick checks:
+  - Python compile: `python3 -m py_compile worker/bin/fazai_gemma_worker.py`.
+  - Run worker locally: `python3 worker/bin/fazai_gemma_worker.py`.
 
 ## Coding Style & Naming Conventions
-- JavaScript: 2‑space indent, semicolons, `camelCase` functions/vars, `PascalCase` classes, `UPPER_SNAKE_CASE` constants. Tool filenames prefer `lower_snake_case.js`.
-- C/C++: follow existing style in `worker/` (4‑space indent, include guards, minimal iostreams in headers).
-- Keep functions small, pure where possible, and log with `winston` in JSON.
+- Python: 4‑space indent, PEP8‑oriented; snake_case for files and symbols; prefer type hints where practical.
+- Node/JS: Node 22+, prefer async/await; camelCase for symbols; kebab/snake for CLI names.
+- Logs: structured, actionable messages; include component prefixes (e.g., `worker:`, `cli:`).
+- Config access: read from `/etc/fazai/fazai.conf` only; never hardcode secrets or model paths.
 
 ## Testing Guidelines
-- Add tests alongside existing scripts in `tests/` using the `*.test.sh` pattern; keep them idempotent.
-- CI entry is `npm test`; ensure local tests pass and avoid external network reliance.
-- For protocol changes, add/adjust contract checks per `SPEC.md` and include fixtures.
+- Primary tests live in `tests/` with patterns `test_*.py`, `*.test.sh`, and specific JS probes.
+- CI‑equivalent locally: `npm test` plus targeted scripts (e.g., `tests/test_gemma_native.py`).
+- Ensure E2E path works: CLI → Worker → libgemma → Qdrant; avoid mocks/stubs.
 
 ## Commit & Pull Request Guidelines
-- Commits: short imperative summary, scoped body, reference issues (e.g., `Fix: opnsense list health (#123)`).
-- Update docs: `CHANGELOG.md`, `SPEC.md` (when schemas change), and relevant README sections.
-- PRs: clear description, reproduction steps, test evidence, and screenshots/logs when UI/metrics change.
+- Commits: imperative, scoped prefix when useful (e.g., `worker:`, `cli:`, `installer:`), concise body with rationale.
+- PRs: include problem statement, summary of changes, test evidence (commands/output), and any config or install notes.
+- Avoid drive‑by refactors; keep changes focused and reversible.
 
-## Security & Agent Tips
-- Secrets live under `/etc/fazai/secrets/`; never commit them. Enforce mTLS for remote agents.
-- Respect idempotency (`action_id`) and timeouts for southbound calls. Local provider uses ND‑JSON over Unix socket at `/run/fazai/gemma.sock`.
-- OPNsense integration is native (no agent): see daemon endpoints `/opn/*` and keep operations read‑only by default.
+## Security & Configuration Tips
+- Never overwrite existing configs; create defaults only if missing.
+- Model path and Gemma settings must come from `/etc/fazai/fazai.conf`.
+- Qdrant: configure host/port; collections `fazai_memory` and `fazai_kb`; typical `vector_dim=1024`.
+- Sockets/IPC: Unix socket at `/run/fazai/gemma.sock`; follow ND‑JSON protocol.
+- Native bindings: load `gemma_native*.so` from approved locations (e.g., `/opt/fazai/lib`); handle import errors gracefully.
+

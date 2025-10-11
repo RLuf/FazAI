@@ -1,0 +1,34 @@
+Ordem Zero — Leitura Técnica Gemma/Context7 (obrigatória antes de qualquer passo)
+
+Cline, pare e estude gemma.cpp, headers/ABI da libgemma.so e o uso via Context7 (já configurado). Objetivo: entender completamente o ciclo de vida do modelo e alinhar o FazAI a esse comportamento, corrigindo inconsistências e melhorando tratamentos.
+
+Escopo mínimo do estudo (entregáveis obrigatórios):
+
+Mapeamento de API/ABI: init/shutdown, load/unload de modelo, tokenizer, geração streaming, batch, cancelamento, timeouts, códigos de erro e políticas de retry/backoff.
+
+Desempenho/Recursos: CPU vs GPU, threads, max_ctx, quantização, pinagem de memória, file-mapping do model_path.
+
+Erros & Resiliência: classificação de falhas (recuperável x fatal), tempo de reconexão, queda de kernel, vazamento de handle.
+
+Integração FazAI: ajustes no fazai-gemma-worker.py e FazaiDispatcher para:
+
+carregar tudo via fazai.conf (nada hardcoded);
+
+timeouts/backoff configuráveis;
+
+streaming consistente;
+
+rotulagem de fonte (local/OpenAI/OpenRouter/MCP/Context7/Web).
+
+POCs rápidas (3):
+
+carga do modelo + geração curta (stream on);
+
+timeout + retry controlado;
+
+cancelamento durante stream.
+Registrar logs de latência, tokens/s, memória e resultado.
+
+Documentos: gemma_context7_notes.md (achados, decisões, gaps e fixes aplicados) + patches mínimos.
+
+Chaves sugeridas para fazai.conf.example (ajuste se necessário):

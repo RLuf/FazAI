@@ -1,257 +1,396 @@
-# FazAI v2.0 - Orquestrador Inteligente de Automação
+# CLAUDE.md
 
-## Change Log (Changelog)
-- **2025-08-25**: **Interface OPNsense Avançada Implementada** 
-  - 🛡️ **Editor Visual de Regras de Firewall**: Interface gráfica para criar/editar regras com validação em tempo real
-  - 📊 **Dashboard de Métricas Tempo Real**: Painéis de CPU, memória, uptime, e tráfego de rede com atualização automática (15s)
-  - 💻 **Terminal OPNsense MCP**: Interface de linha de comando direta com protocolo MCP para comandos avançados
-  - 💾 **Backup & Restore**: Funcionalidades integradas de backup de configuração e aplicação de mudanças
-  - 🔧 **APIs Completas**: Todas as rotas OPNsense expostas no DOCLER (/api/opn/*) com proxy transparente
-  - ⚡ **UX Aprimorada**: Emojis, formatação visual, e feedback interativo para todas as operações
-- **2025-08-25**: **Integração WebUIs Unificada** 
-  - ✅ Corrigido problema do serviço DOCLER (permissões fazai-web, portas 3220/3221)
-  - 🌟 **GPT-Web2Shell integrado**: Bridge transcendental para Mia executar comandos via chat OpenAI/Claude
-  - 🎯 **Dashboard Unificado**: Painel centralizado mostrando status de todos os serviços (FazAI Main, DOCLER, GPT-Web2Shell, Qdrant, Gemma Worker)
-  - 🧠 **Qdrant Vector DB**: Base de conhecimento vetorial com interface web ativa (porta 6333)
-  - 📊 **Monitoramento em Tempo Real**: Auto-refresh de status dos serviços a cada 30s
-  - 🔧 **Consolidado no Instalador**: Todas as mudanças incorporadas no install.sh com detecção Docker/binário nativo
-- **2025-08-24**: Inicialização da arquitetura com Claude Code - Estrutura modular documentada, diagrama Mermaid criado, breadcrumbs de navegação implementados
+> Think carefully and implement the most concise solution that changes as little code as possible.
 
-## Visão do Projeto
+## 🐳 DOCKER-FIRST DEVELOPMENT WORKFLOW
 
-FazAI v2.0 é um sistema orquestrador inteligente de IA que evoluiu de um simples orquestrador para um agente de IA cognitivo com raciocínio persistente. Combina IA local (modelo Gemma) com automação de sistema, monitoramento de segurança e integrações empresariais.
+This project enforces Docker-first development to ensure consistency and reproducibility across all environments.
 
-## Visão Geral da Arquitetura
+### 🚨 CRITICAL RULE: NO LOCAL EXECUTION
 
-O sistema consiste em três camadas principais:
-1. **Camada CLI**: `/bin/fazai` - Interface de linha de comando
-2. **Camada Daemon**: `/opt/fazai/lib/main.js` - Servidor Node.js Express (porta 3120)
-3. **Camada Worker**: `/worker/` - Worker C++ Gemma para inferência de IA
+**All code must run inside Docker containers.** Local execution outside containers is blocked.
 
-### Componentes-Chave
-- **Sistema de Agentes**: Raciocínio persistente com 9 tipos de ação (plan, ask, research, shell, toolSpec, observe, commitKB, done)
-- **Processo Worker**: Binário C++ usando libgemma.a para inferência de IA de baixa latência
-- **Base de Conhecimento**: Integração Qdrant para RAG (Retrieval-Augmented Generation)
-- **Integrações Empresariais**: Firewalls OPNsense, SpamExperts, Cloudflare, email relay
-- **Ferramentas de Segurança**: Integração ModSecurity, Suricata, CrowdSec
+### 🔧 Docker Development Environment
 
-## Diagrama da Estrutura de Módulos
+#### Required Commands
+- All development happens in Docker containers
+- Use `docker compose` for orchestration
+- Hot reload enabled for rapid development
 
-```mermaid
-graph TD
-    A["🎯 FazAI v2.0<br/>(Root)"] --> B["bin/"];
-    A --> C["opt/fazai/"];
-    A --> D["worker/"];
-    A --> E["tui/"];
-    A --> F["tests/"];
-    
-    B --> B1["fazai<br/>(CLI Principal)"];
-    
-    C --> C1["lib/"];
-    C --> C2["tools/"];
-    C --> C3["web/"];
-    C --> C4["models/"];
-    
-    C1 --> C1A["main.js<br/>(Daemon Principal)"];
-    C1 --> C1B["handlers/"];
-    C1 --> C1C["providers/"];
-    C1 --> C1D["core/"];
-    C1 --> C1E["mods/"];
-    
-    C1B --> C1B1["agent.js<br/>(Agente IA)"];
-    C1B --> C1B2["relay.js<br/>(Email Relay)"];
-    
-    C1C --> C1C1["gemma-worker.js<br/>(Provider IA)"];
-    
-    C1D --> C1D1["shell.js<br/>(Execução)"];
-    C1D --> C1D2["research.js<br/>(Pesquisa)"];
-    C1D --> C1D3["kb.js<br/>(Base Conhecimento)"];
-    C1D --> C1D4["retrieval.js<br/>(RAG)"];
-    
-    C3 --> C3A["docler-server.js<br/>(Interface Web)"];
-    
-    D --> D1["src/"];
-    D1 --> D1A["main.cpp<br/>(Worker C++)"];
-    D1 --> D1B["worker.cpp<br/>(Gemma Logic)"];
-    D1 --> D1C["ipc.cpp<br/>(Unix Socket)"];
-    
-    E --> E1["Cargo.toml<br/>(Terminal UI)"];
-    
-    F --> F1["version.test.sh"];
-    F --> F2["cli.test.sh"];
-    F --> F3["install_uninstall.test.sh"];
+#### Getting Started
 
-    click C1A "/home/rluft/fazai/opt/fazai/lib/CLAUDE.md" "Documentação do daemon principal"
-    click C1B "/home/rluft/fazai/opt/fazai/lib/handlers/CLAUDE.md" "Documentação dos handlers"
-    click C1C "/home/rluft/fazai/opt/fazai/lib/providers/CLAUDE.md" "Documentação dos providers"
-    click C1D "/home/rluft/fazai/opt/fazai/lib/core/CLAUDE.md" "Documentação do core"
-    click C3 "/home/rluft/fazai/opt/fazai/web/CLAUDE.md" "Documentação da interface web"
-    click D "/home/rluft/fazai/worker/CLAUDE.md" "Documentação do worker C++"
-    click E "/home/rluft/fazai/tui/CLAUDE.md" "Documentação da TUI"
-    click F "/home/rluft/fazai/tests/CLAUDE.md" "Documentação dos testes"
+1. **Start development environment**
+   ```bash
+   docker compose up -d
+   ```
+
+2. **Run commands in containers**
+   ```bash
+   # Commands depend on your project type:
+   # Node.js: docker compose exec app npm install
+   # Python: docker compose exec app pip install -r requirements.txt
+   # Go: docker compose exec app go mod download
+   # Ruby: docker compose exec app bundle install
+   # PHP: docker compose exec app composer install
+
+   # Development and testing commands will be project-specific
+   ```
+
+3. **View logs**
+   ```bash
+   docker compose logs -f app
+   ```
+
+### 📋 Docker-First Rules
+
+- **NEVER** run `npm install` directly on host
+- **NEVER** execute code outside containers
+- **ALWAYS** use `docker compose exec` for commands
+- **ALWAYS** define services in docker-compose.yml
+
+### 🔥 Hot Reload Configuration
+
+Development containers are configured with:
+- Volume mounts for source code
+- File watchers for automatic reload
+- Debug ports exposed
+- Database containers for local development
+
+### ⚠️ Enforcement
+
+If you attempt local execution, you'll see:
+```
+❌ Docker-first development enforced
+Use: docker compose exec app <command>
 ```
 
-## Índice de Módulos
+## CRITICAL RULE FILES
 
-| Módulo | Caminho | Linguagem | Responsabilidade | Status |
-|--------|---------|-----------|------------------|--------|
-| **CLI Principal** | `bin/fazai` | Node.js | Interface de linha de comando | ✅ Ativo |
-| **Daemon Core** | `opt/fazai/lib/main.js` | Node.js | Orquestração principal e API REST | ✅ Ativo |
-| **Agent Handlers** | `opt/fazai/lib/handlers/` | Node.js | Handlers de agente inteligente e relay | ✅ Ativo |
-| **AI Providers** | `opt/fazai/lib/providers/` | Node.js | Provedores de IA (Gemma worker) | ✅ Ativo |
-| **Core Functions** | `opt/fazai/lib/core/` | Node.js | Shell, pesquisa, KB, retrieval | ✅ Ativo |
-| **System Tools** | `opt/fazai/tools/` | Node.js/Bash | Ferramentas utilitárias e configuração | ✅ Ativo |
-| **Web Interface** | `opt/fazai/web/` | Node.js/HTML | Interface web DOCLER com WebSocket | ✅ Ativo |
-| **Gemma Worker** | `worker/` | C++ | Worker para processamento Gemma | ✅ Ativo |
-| **Terminal UI** | `tui/` | Rust | Interface de usuário terminal | 🔄 Em desenvolvimento |
-| **Test Suite** | `tests/` | Bash/PowerShell | Testes automatizados | ✅ Ativo |
+All rule files in `.claude/rules/` define mandatory behaviors and must be followed:
 
-## Execução e Desenvolvimento
+### Core Development Rules
 
-### Instalação e Setup
+- **tdd-enforcement.md** - Test-Driven Development cycle (RED-GREEN-REFACTOR). HIGHEST PRIORITY for all code changes
+- **pipeline-mandatory.md** - Required pipelines for errors, features, bugs, code search, and log analysis
+- **naming-conventions.md** - Naming standards, code quality requirements, and prohibited patterns
+- **context-optimization.md** - Agent usage patterns for context preservation (<20% data return)
+- **development-workflow.md** - Development patterns, search-before-create, and best practices
+- **command-pipelines.md** - Command sequences, prerequisites, and PM system workflows
+
+### Operational Rules
+
+- **agent-coordination.md** - Multi-agent parallel work with file-level coordination
+- **agent-coordination-extended.md** - Extended coordination patterns for complex workflows
+- **git-strategy.md** - Unified Git branch strategy, naming conventions, and merge workflows
+- **datetime.md** - Real datetime requirements using ISO 8601 UTC format (no placeholders)
+- **frontmatter-operations.md** - YAML frontmatter standards for PRDs, epics, and tasks
+- **strip-frontmatter.md** - Metadata removal for GitHub sync and external communication
+- **github-operations.md** - GitHub CLI safety and critical template repository protection
+- **no-pr-workflow.md** - Direct main branch development without PRs
+
+### Technical Rules
+
+- **test-execution.md** - Testing standards requiring test-runner agent, no mocks, real services only
+- **standard-patterns.md** - Command consistency, fail-fast philosophy, and minimal validation
+- **use-ast-grep.md** - Structural code search using AST over regex for language-aware patterns
+- **database-pipeline.md** - Database migrations, query optimization, and backup procedures
+- **infrastructure-pipeline.md** - IaC deployments, container builds, and cloud operations
+
+### Code Formatting & Quality
+
+**MANDATORY**: All code MUST pass autoformatters and linters before commit:
+
+- **Python**: Must pass `black` formatter and `ruff` linter
+- **JavaScript/TypeScript**: Must pass `prettier` and `eslint`
+- **Markdown**: Must pass `markdownlint`
+- **Other languages**: Use language-specific standard tools
+
+Always run formatters and linters BEFORE marking any task as complete.
+
+## DOCUMENTATION REFERENCES
+
+### Agent Documentation (`.claude/agents/`)
+
+**📋 Complete Agent Registry**: See `.claude/agents/AGENT-REGISTRY.md` for comprehensive list of all available agents with descriptions, tools, and direct links.
+
+Agents are organized by category for better maintainability:
+
+- **Core Agents** (`.claude/agents/core/`) - Essential agents for all projects
+- **Language Agents** (`.claude/agents/languages/`) - Language-specific experts
+- **Framework Agents** (`.claude/agents/frameworks/`) - Framework and UI specialists
+- **Cloud Agents** (`.claude/agents/cloud/`) - Cloud platform architects
+- **DevOps Agents** (`.claude/agents/devops/`) - CI/CD and operations
+- **Database Agents** (`.claude/agents/databases/`) - Database specialists
+- **Data Agents** (`.claude/agents/data/`) - Data engineering
+
+### Command Documentation (`.claude/commands/`)
+
+- Custom commands and patterns documented in `.claude/commands/`
+- **Azure DevOps Commands** (`.claude/commands/azure/`) - Complete Azure DevOps integration
+- **PM Commands** (`.claude/commands/pm/`) - Project management workflow
+
+## USE SUB-AGENTS FOR CONTEXT OPTIMIZATION
+
+### Core Agents (Always Available)
+
+#### file-analyzer - File and log analysis
+Always use for reading and summarizing files, especially logs and verbose outputs.
+
+#### code-analyzer - Bug hunting and logic tracing
+Use for code analysis, bug detection, and tracing execution paths.
+
+#### test-runner - Test execution and analysis
+Use for running tests and analyzing results with structured reports.
+
+#### parallel-worker - Multi-stream parallel execution
+Use for coordinating multiple work streams in parallel.
+
+## AGENT SELECTION GUIDANCE
+
+Use Docker-aware agents for containerized development:
+
+### Docker Specialists (PRIMARY)
+
+#### docker-expert
+**Use for**: Dockerfile optimization, multi-stage builds, security
+- Container best practices
+- Image size optimization
+- Security scanning
+- Registry management
+
+#### docker-compose-expert
+**Use for**: Multi-container orchestration, service dependencies
+- Development environment setup
+- Service networking
+- Volume management
+- Environment configuration
+
+#### docker-development-orchestrator
+**Use for**: Development workflows, hot reload setup
+- Volume mounting strategies
+- Development vs production configs
+- CI/CD integration
+- Container debugging
+
+### Language Agents (Docker-Aware)
+
+#### python-backend-engineer
+- FastAPI/Flask in containers
+- Dockerfile best practices for Python
+- pip-tools for reproducible builds
+- Multi-stage builds for production
+
+#### nodejs-backend-engineer
+- Node.js containerization
+- npm ci for consistent installs
+- Layer caching optimization
+- Development vs production images
+
+### Framework Agents (Container Context)
+
+#### react-frontend-engineer
+- React apps in containers
+- Nginx serving for production
+- Build optimization in Docker
+- Environment variable injection
+
+#### fastapi-backend-engineer
+- Async Python in containers
+- Uvicorn/Gunicorn configuration
+- Health check endpoints
+- Container-native logging
+
+### Database Agents (Containerized)
+
+#### postgresql-expert
+- PostgreSQL in Docker
+- Data persistence with volumes
+- Backup strategies for containers
+- Connection pooling in containerized environments
+
+#### redis-expert
+- Redis caching in containers
+- Persistent volumes setup
+- Cluster configuration
+- Container networking
+
+### DevOps Agents
+
+#### github-operations-specialist
+- Docker build in GitHub Actions
+- Container registry management
+- Multi-arch image builds
+- Security scanning in CI/CD
+
+---
+
+**📋 Full Agent Details**: For complete agent descriptions, parameters, tools, and file locations, see `.claude/agents/AGENT-REGISTRY.md`
+
+## GitHub Actions CI/CD
+
+### Automated workflows with GitHub Actions
+
+This project uses GitHub Actions for continuous integration and deployment.
+
+#### Quick Start
 ```bash
-# Instalar FazAI
-sudo ./install.sh --clean
+# Check workflow status
+gh workflow list
+gh run list
 
-# Instalar com suporte llama.cpp
-sudo ./install.sh --with-llama
+# Trigger manual workflow
+gh workflow run ci.yml
 
-# Instalar ferramentas de desenvolvimento
-bash dev/install_dev_tools.sh
+# View logs
+gh run view --log
 ```
 
-### Construção de Componentes
+#### Configured Workflows
+- **CI Pipeline**: Runs on every push and PR
+- **Release**: Automated releases on version tags
+- **Security Scans**: Dependency and code scanning
+- **Deploy**: Automated deployment to environments
 
-#### Worker C++
+#### Local Testing
 ```bash
-cd worker/
-./build.sh
-# Ou manualmente:
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
-sudo make install
+# Act - run GitHub Actions locally
+act push                    # Simulate push event
+act pull_request           # Simulate PR event
+act -l                     # List all workflows
 ```
 
-#### Módulos Nativos
+See `.github/workflows/` for workflow definitions.
+
+## TDD PIPELINE FOR ALL IMPLEMENTATIONS
+
+### Mandatory Test-Driven Development Cycle
+
+Every implementation MUST follow:
+
+1. **RED Phase**: Write failing test first
+   - Test must describe desired behavior
+   - Test MUST fail initially
+   - Test must be meaningful (no trivial assertions)
+
+2. **GREEN Phase**: Make test pass
+   - Write MINIMUM code to pass test
+   - Don't add features not required by test
+   - Focus on making test green, not perfection
+
+3. **REFACTOR Phase**: Improve code
+   - Improve structure while tests stay green
+   - Remove duplication
+   - Enhance readability
+
+## CONTEXT OPTIMIZATION RULES
+
+See **`.claude/rules/context-optimization.md`** for detailed context preservation patterns and agent usage requirements.
+
+## ERROR HANDLING PIPELINE
+
+See **`.claude/rules/development-workflow.md`** for complete error handling and development pipelines.
+
+## WHY THESE RULES EXIST
+
+### Development Quality
+
+- **No partial implementations** → Technical debt compounds exponentially
+- **No mock services in tests** → Real bugs hide behind mocks
+- **TDD mandatory** → Prevents regression and ensures coverage
+
+### Context Preservation
+
+- **Agent-first search** → Preserves main thread for decisions
+- **No verbose outputs** → Maintains conversation clarity
+- **10-20% return rule** → Focuses on actionable insights
+
+### Code Integrity
+
+- **No "_fixed" suffixes** → Indicates poor planning
+- **No orphan docs** → Documentation should be intentional
+- **No mixed concerns** → Maintainability over convenience
+
+## Philosophy
+
+### Error Handling
+
+- **Fail fast** for critical configuration (missing text model)
+- **Log and continue** for optional features (extraction model)
+- **Graceful degradation** when external services unavailable
+- **User-friendly messages** through resilience layer
+
+### Testing
+
+See **`.claude/rules/test-execution.md`** for testing standards and requirements.
+
+## Tone and Behavior
+
+- Criticism is welcome. Please tell me when I am wrong or mistaken, or even when you think I might be wrong or mistaken.
+- Please tell me if there is a better approach than the one I am taking.
+- Please tell me if there is a relevant standard or convention that I appear to be unaware of.
+- Be skeptical.
+- Be concise.
+- Short summaries are OK, but don't give an extended breakdown unless we are working through the details of a plan.
+- Do not flatter, and do not give compliments unless I am specifically asking for your judgement.
+- Occasional pleasantries are fine.
+- Feel free to ask many questions. If you are in doubt of my intent, don't guess. Ask.
+
+## ABSOLUTE RULES
+
+See **`.claude/rules/naming-conventions.md`** for code quality standards and prohibited patterns.
+
+Key principles:
+
+- NO PARTIAL IMPLEMENTATION
+- NO CODE DUPLICATION (always search first)
+- IMPLEMENT TEST FOR EVERY FUNCTION (see `.claude/rules/tdd-enforcement.md`)
+- NO CHEATER TESTS (tests must be meaningful)
+- Follow all rules defined in `.claude/rules/` without exception
+
+## 📋 Quick Reference Checklists
+
+### Before Committing
+
 ```bash
-cd opt/fazai/lib/mods/
-./build.sh
-# Ou módulo individual:
-gcc -shared -fPIC -o system_mod.so system_mod.c
+# Minimum Definition of Done
+✓ Tests written and passing (TDD - see .claude/rules/tdd-enforcement.md)
+✓ Code formatted (black, prettier, eslint)
+✓ No partial implementations
+✓ No code duplication
+✓ Error handling implemented
+✓ Security considered
+
+# Run project-appropriate checks (automated with git hooks)
+# Test: npm test | pytest | go test | cargo test | mvn test
+# Lint: npm run lint | ruff check | golint | cargo clippy | rubocop
+# Build: npm run build | python setup.py build | go build | cargo build
+# Type check: npm run typecheck | mypy | go vet
+
+# Or use safe-commit script for all checks
+./scripts/safe-commit.sh "feat: your message"
+
+# Simulate CI locally before push (if available)
+# Check package.json, Makefile, or project docs for CI simulation commands
 ```
 
-### Gerenciamento de Serviços
+### Before Creating PR
+
 ```bash
-# Serviço principal
-sudo systemctl start/stop/restart fazai
-sudo systemctl status fazai
-
-# Worker service
-sudo systemctl start/stop/restart fazai-gemma-worker
-
-# Interface web
-sudo systemctl start/stop/restart fazai-docler
+✓ Branch up to date with main
+✓ All tests passing
+✓ CI/CD pipeline green
+✓ Documentation updated
+✓ Breaking changes noted
 ```
 
-### Ferramentas de Desenvolvimento
+### Code Quality Checklist
+
 ```bash
-# TUI de configuração
-npm run config-tui
-# ou: bash opt/fazai/tools/fazai-config-tui.sh
-
-# Interface web
-npm run web
-# ou: bash opt/fazai/tools/fazai_web.sh
-
-# Terminal UI
-npm run tui
-# ou: bash opt/fazai/tools/fazai-tui.sh
+✓ Functions are single-purpose
+✓ Variable names are descriptive
+✓ No hardcoded values
+✓ No debugging code left
+✓ Comments explain "why" not "what"
 ```
 
-## Estratégia de Testes
-
-### Testes Automatizados
-```bash
-# Executar todos os testes
-npm test
-
-# Suítes de teste individuais
-bash tests/version.test.sh          # Teste de versão
-bash tests/cli.test.sh              # Teste da CLI
-bash tests/install_uninstall.test.sh # Teste de instalação
-
-# Testes específicos de componentes
-bash opt/fazai/tools/fazai_smoke.sh
-node opt/fazai/tools/test_complex_tasks.js
-```
-
-### Cobertura de Testes
-- **Unitários**: Módulos core e handlers
-- **Integração**: Worker C++ com daemon Node.js
-- **Sistema**: CLI e fluxos end-to-end
-- **Smoke Tests**: Verificação rápida de funcionalidades
-
-## Padrões de Codificação
-
-### Arquitetura
-- **Modular**: Separação clara de responsabilidades
-- **Event-Driven**: Comunicação baseada em eventos
-- **Microserviços**: Componentes independentes comunicando via IPC
-
-### Linguagens e Padrões
-- **Node.js**: ESM modules, async/await, error handling
-- **C++**: C++17, RAII, exception safety
-- **Rust**: Safe concurrency, error propagation
-- **Documentação**: JSDoc para Node.js, Doxygen para C++
-
-### IPC e Comunicação
-- **Unix Sockets**: Worker C++ ↔ Daemon Node.js
-- **HTTP REST**: API externa
-- **WebSocket**: Interface web em tempo real
-- **ND-JSON**: Protocolo estruturado para ações de IA
-
-## Diretrizes de Uso da IA
-
-### Sistema de Agentes
-O FazAI utiliza um sistema de agentes com 9 tipos de ação estruturada:
-- `plan`: Criar plano de execução
-- `ask`: Solicitar entrada do usuário
-- `research`: Coletar informações
-- `shell`: Executar comandos do sistema
-- `toolSpec`: Geração dinâmica de ferramentas
-- `observe`: Monitorar estado do sistema
-- `commitKB`: Armazenar na base de conhecimento
-- `done`: Completar tarefa
-
-### Provedores de IA
-1. **Local (Primário)**: Gemma 2.0-2B via worker C++
-2. **Fallback**: OpenRouter, OpenAI, Anthropic, Google Gemini, Ollama
-
-### Configuração
-- **fazai.conf**: Configuração principal com provedores de IA, telemetria, configurações OPNsense
-- **fazai.service**: Definição de serviço systemd
-- **package.json**: Dependências Node.js e scripts
-- **CMakeLists.txt**: Configuração de build do worker C++
-
-## Notas Importantes
-
-- **Módulos Nativos**: Requerem `ffi-napi-v22` para bindings FFI Node.js
-- **Arquivos de Modelo**: Modelo Gemma deve estar em `/opt/fazai/models/gemma/`
-- **Comunicação por Socket**: Worker usa sockets Unix para IPC
-- **Permissões**: Daemon principal executa como root, interface web como usuário `fazai-web`
-- **Logs**: Log principal em `/var/log/fazai/fazai.log`
-- **Telemetria**: Endpoints opcionais para métricas Prometheus e ingestão de logs
-
-### Dependências de Build
-**Requisitos do Sistema**:
-- Node.js 22.x+
-- Python 3.10+
-- CMake 3.16+
-- GCC/G++ ou Clang
-- Build tools (make, build-essential)
-
-**Dependências Opcionais**:
-- Docker (para Qdrant e deployment containerizado)
-- Rust/Cargo (para interface TUI)
-- libcurl-dev (para recursos HTTP)
+For detailed checklists, see `.claude/checklists/`

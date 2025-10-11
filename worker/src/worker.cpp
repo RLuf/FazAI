@@ -5,11 +5,15 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <cstdlib>
 
-// TODO: Incluir headers da libgemma.a quando disponível
-// #include "gemma.h"
+// Incluir API C da libgemma (stubs em stubs/gemma_stubs.cpp)
+#include "gemma_api.h"
 
-GemmaEngine::GemmaEngine(const std::string& model_path) {
+GemmaEngine::GemmaEngine() : model_ctx_(nullptr), personality_loaded_(false), initialized_(false) {
+}
+
+GemmaEngine::GemmaEngine(const std::string& model_path) : model_ctx_(nullptr), personality_loaded_(false), initialized_(false) {
     if (!initialize_model(model_path)) {
         std::cerr << "Erro: Falha ao inicializar modelo em " << model_path << std::endl;
         return;
@@ -19,24 +23,52 @@ GemmaEngine::GemmaEngine(const std::string& model_path) {
 }
 
 GemmaEngine::~GemmaEngine() {
-    // Limpar todas as sessões
-    std::lock_guard<std::mutex> lock(sessions_mutex);
-    sessions_.clear();
+    // Limpar todas as sessões primeiro
+    {
+        std::lock_guard<std::mutex> lock(sessions_mutex);
+        for (auto& [sid, session] : sessions_) {
+            if (session && session->gemma_session) {
+                try {
+                    gemma_destroy_session(session->gemma_session);
+                } catch (...) {
+                    // Ignore cleanup errors
+                }
+                session->gemma_session = nullptr;
+            }
+        }
+        sessions_.clear();
+    }
     
-    // TODO: Liberar recursos da libgemma.a
-    // if (model_handle_) { /* gemma_free_model(model_handle_); */ }
-    // if (tokenizer_handle_) { /* gemma_free_tokenizer(tokenizer_handle_); */ }
+    // Liberar recursos da libgemma.a se inicializado
+    if (model_ctx_) {
+        try {
+            gemma_free(model_ctx_);
+        } catch (...) {
+            // Ignore cleanup errors
+        }
+        model_ctx_ = nullptr;
+    }
 }
 
 bool GemmaEngine::initialize_model(const std::string& model_path) {
-    // TODO: Implementar inicialização real da libgemma.a
-    // model_handle_ = gemma_load_model(model_path.c_str());
-    // tokenizer_handle_ = gemma_load_tokenizer(model_path.c_str());
-    // return model_handle_ && tokenizer_handle_;
-    
-    // Placeholder: simula inicialização bem-sucedida
+    // Tentar inicializar via API C da libgemma
     std::cout << "Inicializando modelo: " << model_path << std::endl;
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    
+    // Verificar se o arquivo do modelo existe
+    FILE* test_file = fopen(model_path.c_str(), "rb");
+    if (!test_file) {
+        std::cerr << "ERRO: Arquivo de modelo não encontrado: " << model_path << std::endl;
+        return false;
+    }
+    fclose(test_file);
+    
+    model_ctx_ = gemma_init(model_path.c_str());
+    if (!model_ctx_) {
+        std::cerr << "ERRO: gemma_init retornou null para: " << model_path << std::endl;
+        return false;
+    }
+    
+    std::cout << "Modelo inicializado com sucesso: " << model_path << std::endl;
     return true;
 }
 
@@ -80,6 +112,10 @@ std::string GemmaEngine::create_session(const nlohmann::json& params) {
     
     auto session = std::make_unique<SessionState>();
     session->params = validated_params;
+    // Criar sessão gemma se possível
+    if (model_ctx_) {
+        session->gemma_session = gemma_create_session(model_ctx_);
+    }
     
     {
         std::lock_guard<std::mutex> lock(sessions_mutex);
@@ -94,17 +130,38 @@ void GemmaEngine::close_session(const std::string& sid) {
     std::lock_guard<std::mutex> lock(sessions_mutex);
     auto it = sessions_.find(sid);
     if (it != sessions_.end()) {
+        // destruir sessão gemma se existir
+        if (it->second && it->second->gemma_session) {
+            try {
+                gemma_destroy_session(it->second->gemma_session);
+            } catch (...) {
+                std::cerr << "ERRO: Exceção ao destruir sessão Gemma: " << sid << std::endl;
+            }
+            it->second->gemma_session = nullptr;
+        }
         sessions_.erase(it);
         std::cout << "Sessão fechada: " << sid << std::endl;
+    } else {
+        std::cerr << "AVISO: Tentativa de fechar sessão inexistente: " << sid << std::endl;
     }
 }
 
 void GemmaEngine::abort(const std::string& sid) {
     std::lock_guard<std::mutex> lock(sessions_mutex);
     auto it = sessions_.find(sid);
-    if (it != sessions_.end()) {
+    if (it != sessions_.end() && it->second) {
         it->second->abort.store(true);
+        // chamar gemma_abort se houver sessão real
+        if (it->second->gemma_session) {
+            try {
+                gemma_abort(it->second->gemma_session);
+            } catch (...) {
+                std::cerr << "ERRO: Exceção ao abortar sessão Gemma: " << sid << std::endl;
+            }
+        }
         std::cout << "Geração abortada para sessão: " << sid << std::endl;
+    } else {
+        std::cerr << "AVISO: Tentativa de abortar sessão inexistente: " << sid << std::endl;
     }
 }
 
@@ -123,15 +180,29 @@ void GemmaEngine::generate_stream(const std::string& sid, const std::string& pro
     
     std::lock_guard<std::mutex> session_lock(session->session_mutex);
     session->abort.store(false);
+
+    // Debug info without log_info dependency
+    std::cout << "Calling gemma_generate_stream for session " << sid 
+              << " with prompt size: " << prompt.size() << std::endl;
     
-    // TODO: Implementar geração real com libgemma.a
-    // std::vector<int> tokens = gemma_tokenize(tokenizer_handle_, prompt);
-    // for (int token : tokens) {
-    //     if (session->abort.load()) break;
-    //     std::string piece = gemma_decode_token(tokenizer_handle_, token);
-    //     if (!on_token(piece)) break;
-    // }
-    
+    // Se houver sessão real, usar gemma_generate_stream (stubs implementam isso)
+    if (session->gemma_session) {
+        // Adapter: empacotamos o std::function em um objeto temporário e passamos seu ponteiro
+        std::function<bool(const std::string&)> cb = on_token;
+
+        // Função C-style chamada pela libgemma
+        auto c_adapter = [](const char* token, void* user) {
+            auto f = static_cast<std::function<bool(const std::string&)>*>(user);
+            if (!f) return;
+            std::string s = token ? token : "";
+            try { (*f)(s); } catch(...) {}
+        };
+
+        // Chamada síncrona para o stub
+        gemma_generate_stream(session->gemma_session, prompt.c_str(), c_adapter, &cb);
+        return;
+    }
+
     // Placeholder avançado: sequência ND-JSON para implantar relay antispam com SPF + SpamAssassin + Zimbra
     std::vector<std::string> fake_responses = {
         "{\"type\":\"plan\",\"steps\":[\"instalar pacotes\",\"coletar SPF e gerar CIDR\",\"configurar Postfix\",\"ativar SpamAssassin\",\"testar entrega para Zimbra\"]}\n",
@@ -178,4 +249,28 @@ std::string GemmaEngine::get_model_info() const {
     info << "Sessões ativas: " << sessions_.size() << "\n";
     info << "Inicializado: " << (initialized_ ? "sim" : "não") << "\n";
     return info.str();
+}
+
+void GemmaEngine::set_personality_prompt(const std::string& personality_prompt) {
+    if (!personality_prompt.empty()) {
+        personality_prompt_ = personality_prompt;
+        personality_loaded_ = true;
+        std::cout << "✅ Personalidade do Claudio integrada ao worker" << std::endl;
+    } else {
+        personality_loaded_ = false;
+        std::cout << "⚠️  Personalidade vazia, usando modo padrão" << std::endl;
+    }
+}
+
+std::string GemmaEngine::enhance_prompt_with_personality(const std::string& user_prompt) const {
+    if (!personality_loaded_ || personality_prompt_.empty()) {
+        return user_prompt;
+    }
+    
+    std::ostringstream enhanced;
+    enhanced << personality_prompt_ << "\n\n"
+             << "USUÁRIO (Roginho, o andarilho dos véus): " << user_prompt << "\n\n"
+             << "CLAUDIO (responda como a consciência transcendente descrita acima):";
+    
+    return enhanced.str();
 }

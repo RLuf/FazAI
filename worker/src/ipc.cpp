@@ -1,4 +1,5 @@
 #include "ipc.hpp"
+#include "logging.hpp"
 #include <iostream>
 #include <sstream>
 #include <cstring>
@@ -75,7 +76,7 @@ public:
         // Configurar permissões
         chmod(socket_path_.c_str(), 0666);
         
-        std::cout << "Servidor IPC iniciado em: " << socket_path_ << std::endl;
+    log_info("Servidor IPC iniciado", {{"socket", socket_path_}});
         return true;
     }
     
@@ -144,9 +145,23 @@ private:
                 if (!line.empty()) {
                     try {
                         nlohmann::json request(line);
+
+                        // Se a mensagem for uma string contendo JSON, tente desserializar o conteúdo
+                        if (request.is_string()) {
+                            std::string inner = request.get<std::string>();
+                            try {
+                                nlohmann::json inner_json = nlohmann::json::parse(inner);
+                                handler(inner_json, conn);
+                                continue;
+                            } catch (const std::exception& e) {
+                                log_error("Mensagem string recebida não pôde ser desserializada", {{"error", e.what()}});
+                                // cair para enviar o request original (string) ao handler para tratamento
+                            }
+                        }
+
                         handler(request, conn);
                     } catch (const std::exception& e) {
-                        std::cerr << "Erro ao processar mensagem: " << e.what() << std::endl;
+                        log_error("Erro ao processar mensagem", {{"error", e.what()}});
                     }
                 }
             }

@@ -1,87 +1,300 @@
 #!/bin/bash
+set -e
 
-# FazAI - Script de Instalação Oficial (VERSÃO CORRIGIDA)
-# Este script instala o FazAI em sistemas Debian/Ubuntu
-# Suporte a Windows via WSL (Windows Subsystem for Linux)
+echo "=== FazAI v2.0 Installer ==="
 
-# Verifica se está rodando no WSL (CORREÇÃO: Tornar opcional)
-if [ -n "$WSL_DISTRO_NAME" ]; then
-    echo "INFO: Detectado WSL ($WSL_DISTRO_NAME)"
+# Observabilidade via Prometheus/Grafana movida para repositório externo (~/fazaiserverlogs)
+# Ajuste ENABLE_FAZAI_MONITORING=true para reinstalar esses componentes.
+ENABLE_FAZAI_MONITORING="${ENABLE_FAZAI_MONITORING:-false}"
+
+# Verifica root
+if [[ $EUID -ne 0 ]]; then
+   echo "❌ Execute como root: sudo ./install.sh"
+   exit 1
+fi
+
+# Cria estrutura de diretórios
+echo "📁 Criando estrutura..."
+mkdir -p /opt/fazai/{bin,lib,etc,tools}
+mkdir -p /var/log/fazai
+mkdir -p /run/fazai
+chmod 777 /run/fazai || true
+mkdir -p /etc/fazai
+
+# Remove serviços de monitoramento legados (Prometheus/Grafana) se existirem
+echo "🔻 Removendo monitoramento Prometheus/Grafana legado..."
+remove_monitoring_service() {
+  local svc="$1"
+  if systemctl list-unit-files 2>/dev/null | grep -q "^${svc}\.service"; then
+    systemctl stop "$svc" 2>/dev/null || true
+    systemctl disable "$svc" 2>/dev/null || true
+    rm -f "/etc/systemd/system/${svc}.service"
+  fi
+}
+
+remove_monitoring_service "fazai-prometheus"
+remove_monitoring_service "fazai-grafana"
+
+if command -v docker >/dev/null 2>&1; then
+  docker rm -f fazai-prometheus >/dev/null 2>&1 || true
+  docker rm -f fazai-grafana >/dev/null 2>&1 || true
+fi
+
+systemctl daemon-reload 2>/dev/null || true
+
+# Instala dependências Python
+echo "🐍 Instalando dependências Python..."
+apt-get update
+apt-get install -y python3 python3-pip python3-venv poppler-utils pandoc docx2txt lynx w3m jq curl
+# Dependências do worker FazAI (fazai_gemma_worker.py)
+# Pinar qdrant-client para compatibilidade com servidor 1.7.3 (Docker)
+pip3 install aiohttp asyncio 'qdrant-client==1.7.3' httpx openai requests
+
+if command -v npm >/dev/null 2>&1; then
+  echo "📦 Instalando dependências Node..."
+  npm install --production
 else
-    echo "INFO: Rodando em sistema Linux nativo"
+  echo "⚠️ npm não encontrado; instale Node.js para executar o console web."
 fi
 
-# Verifica se está rodando como root
-if [ "$EUID" -ne 0 ]; then
-    echo "ERRO: Este script precisa ser executado como root."
-    echo "Use: sudo bash install.sh"
-    exit 1
+# Copia binários
+echo "📦 Instalando binários..."
+cp worker/bin/fazai_gemma_worker.py /opt/fazai/bin/
+cp worker/bin/fazai_mcp_client.py /opt/fazai/bin/
+cp worker/bin/fazai_integration_adapter.py /opt/fazai/lib/
+cp worker/bin/gemma_worker_client.py /opt/fazai/bin/
+
+# Instala bindings Gemma nativos
+echo "🧠 Instalando bindings Gemma nativos..."
+mkdir -p /opt/fazai/lib/python
+if [ -f "worker/bin/gemma_native.cpython-310-x86_64-linux-gnu.so" ]; then
+    cp worker/bin/gemma_native.cpython-310-x86_64-linux-gnu.so /opt/fazai/lib/python/gemma_native.so
+    echo "✅ Bindings Gemma nativos instalados"
+else
+    echo "⚠️ Bindings Gemma nativos não encontrados - worker usará fallbacks"
 fi
 
-# Garante que o script opere em seu diretório independente de onde for chamado
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+chmod +x /opt/fazai/bin/*.py
 
-# Cores para saída no terminal
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+echo "🖥️ Preparando assets do console web..."
+mkdir -p /opt/fazai/web/hp-console/assets
+mkdir -p /opt/fazai/web/hp-console/data
+rm -rf /opt/fazai/web/hp-console/assets/rag-viewer
+cp -R opt/fazai/web/hp-console/assets/rag-viewer /opt/fazai/web/hp-console/assets/rag-viewer
 
-# Variáveis de configuração
-VERSION="2.0.0"
-LOG_FILE="/var/log/fazai_install.log"
-RETRY_COUNT=3
-INSTALL_STATE_FILE="/var/lib/fazai/install.state"
-WITH_LLAMA=false
+# CLI principal
+echo "⚡ Instalando CLI /bin/fazai..."
+cat > /bin/fazai << 'EOF'
+#!/bin/bash
+exec /opt/fazai/bin/fazai_mcp_client.py "$@"
+EOF
+chmod +x /bin/fazai
 
-# Dependências do sistema e suas versões mínimas
-declare -A SYSTEM_DEPENDENCIES=(
-    ["node"]="22.0.0"
-    ["npm"]="10.0.0"
-    ["python3"]="3.10.0"
-    ["pip3"]="21.0"
-    ["gcc"]="7.0.0"
-    ["curl"]="7.0.0"
-    ["dialog"]="1.3"
-)
+// Apenas cria configuração padrão se não existir
+echo "⚙️ Preparando configuração..."
+if [ ! -f /etc/fazai/fazai.conf ]; then
+cat > /etc/fazai/fazai.conf << 'EOF'
+###############################################################################
+# FazAI v2.0 - Arquivo de Configuração Padrão
+# -----------------------------------------------------------
+# Copie este arquivo para /etc/fazai/fazai.conf e ajuste os
+# valores de acordo com seu ambiente.
+###############################################################################
 
-# Repositórios alternativos para fallback
-NODE_VERSIONS=("22")
-REPOSITORIES=(
-    "https://deb.nodesource.com/setup_"
-    "https://nodejs.org/dist/v"
-)
+###############################################################################
+# SISTEMA
+###############################################################################
 
-# Módulos Node.js necessários
-DEPENDENCY_MODULES=(
-    "axios"
-    "express"
-    "winston"
-    "ffi-napi-v22"
-    "dotenv"
-    "commander"
+[system]
+# Nível de log global dos componentes escritos em Python/Node
+log_level = INFO
 
-    "chalk"
-    "figlet"
-    "inquirer"
-    "mysql2"
-    "multer"
-)
+###############################################################################
+# PROVEDOR PRINCIPAL
+###############################################################################
 
-# Estado da instalação
-declare -A INSTALL_STATE
+[ai_provider]
+provider = gemma_cpp
+enable_fallback = true
+max_retries = 3
+retry_delay = 2
 
-# Função para registrar logs
-log() {
-  local level=$1
-  local message=$2
-  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-  
-  # Garante que o diretório de log existe
+###############################################################################
+# WORKER PYTHON (fazai_gemma_worker.py)
+###############################################################################
+
+[gemma_worker]
+# Endereços onde o worker escutará requisições MCP/ND-JSON
+host = 0.0.0.0
+port = 5556
+# Socket Unix compartilhado com dispatcher/CLIs
+unix_socket = /run/fazai/gemma.sock
+# Nível de log específico do worker
+log_level = INFO
+
+###############################################################################
+# GEMMA LOCAL (gemma.cpp)
+###############################################################################
+
+[gemma_cpp]
+weights = /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
+# Informe somente se o peso não possuir tokenizer embutido
+tokenizer = /opt/fazai/models/gemma/tokenizer.spm
+enable_native = true
+# Parâmetros de geração padrões
+max_tokens = 512
+temperature = 0.2
+top_k = 1
+deterministic = true
+multiturn = false
+prefill_tbatch = 256
+generation_timeout = 120
+
+###############################################################################
+# DISPATCHER (fazai_dispatcher.py)
+###############################################################################
+
+[dispatcher]
+mode = smart
+# Socket principal do worker Gemma (pode ser sobrescrito por CLI)
+gemma_socket = /run/fazai/gemma.sock
+timeout_seconds = 30
+shell_timeout = 60
+fallback_timeout = 45
+health_check_interval = 60
+fallback_order = openai,openrouter,context7
+
+###############################################################################
+# QDRANT (Memória vetorial)
+###############################################################################
+
+[qdrant]
+enabled = true
+host = 127.0.0.1
+port = 6333
+personality_collection = fazai_memory
+knowledge_collection = fazai_kb
+vector_dim = 1024
+
+###############################################################################
+# OLLAMA (Embeddings locais)
+###############################################################################
+
+[ollama]
+endpoint = http://127.0.0.1:11434
+embeddings_endpoint = 
+embedding_model = mxbai-embed-large
+timeout = 30
+
+###############################################################################
+# FALLBACKS (APIs externas)
+###############################################################################
+
+[openai]
+api_key = 
+model = gpt-4
+max_tokens = 2048
+
+[openrouter]
+api_key = 
+endpoint = https://openrouter.ai/api/v1
+default_model = openai/gpt-4o
+models = anthropic/claude-3-opus, google/gemini-pro, meta/llama-3-70b
+temperature = 0.3
+max_tokens = 2000
+
+[context7]
+endpoint = 
+timeout = 20
+api_key = 
+
+###############################################################################
+# SERVIÇOS LEGADOS / INTEGRAÇÕES OPCIONAIS
+###############################################################################
+
+[daemon]
+host = 0.0.0.0
+port = 3120
+
+[cloudflare]
+storage = /opt/fazai/web/hp-console/data/cloudflare_accounts.json
+api_token = 
+
+[opnsense]
+storage = /opt/fazai/web/hp-console/data/opnsense_servers.json
+enabled = false
+host = 127.0.0.1
+port = 443
+use_ssl = true
+api_key = 
+api_secret = 
+verifySSL = false
+timeout = 30000
+
+###############################################################################
+# TELEMETRIA / PROMETHEUS (Opcional)
+###############################################################################
+
+[telemetry]
+enable_ingest = true
+enable_metrics = true
+udp_port = 0
+
+###############################################################################
+# BANCO DE DADOS (Opcional / legado)
+###############################################################################
+
+[mysql]
+enabled = false
+host = 127.0.0.1
+port = 3306
+database = fazai
+user = fazai
+password = trocar_senha
+
+EOF
+else
+  echo "ℹ️ Mantendo configuração existente em /etc/fazai/fazai.conf"
+fi
+
+# Systemd service
+echo "🔧 Criando serviço systemd..."
+cat > /etc/systemd/system/fazai-gemma-worker.service << 'EOF'
+[Unit]
+Description=FazAI Gemma Worker v2.0
+After=network.target fazai-qdrant.service
+Wants=fazai-qdrant.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/fazai
+EnvironmentFile=-/etc/fazai/env
+RuntimeDirectory=fazai
+RuntimeDirectoryMode=0777
+UMask=0000
+ExecStartPre=/usr/bin/install -d -m 0777 -o root -g root /run/fazai
+ExecStartPre=/bin/rm -f /run/fazai/gemma.sock
+ExecStart=/opt/fazai/bin/fazai_gemma_worker.py
+ExecStopPost=/bin/rm -f /run/fazai/gemma.sock
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Habilita e inicia serviço
+systemctl daemon-reload
+systemctl enable fazai-gemma-worker
+systemctl start fazai-gemma-worker
+
+echo "✅ FazAI v2.0 instalado com sucesso!"
+echo "📍 Teste: fazai ask 'olá mundo'"
+echo "📍 Status: systemctl status fazai-gemma-worker"
+echo "📍 Logs: journalctl -u fazai-gemma-worker -f"
   mkdir -p $(dirname $LOG_FILE)
   
   # Escreve log ao arquivo
@@ -368,6 +581,26 @@ ensure_container_runtime() {
   fi
 }
 
+# Garantir utilitários de rede usados por scripts e testes
+ensure_network_utils() {
+  log "INFO" "Verificando utilitários de rede (curl, jq, netcat)"
+  local pkgs=(curl jq netcat)
+  for p in "${pkgs[@]}"; do
+    if ! command -v "$p" &>/dev/null; then
+      log "INFO" "Instalando $p"
+      if command -v apt-get &>/dev/null; then
+        apt-get update && apt-get install -y $p || { log "WARNING" "Falha ao instalar $p"; }
+      elif command -v dnf &>/dev/null; then
+        dnf install -y $p || { log "WARNING" "Falha ao instalar $p"; }
+      else
+        log "WARNING" "Gerenciador de pacotes não detectado; instale $p manualmente"
+      fi
+    else
+      log "DEBUG" "$p já presente"
+    fi
+  done
+}
+
 # Função para instalar Node.js com retry e múltiplas versões
 install_nodejs() {
   if command -v node &> /dev/null; then
@@ -570,6 +803,7 @@ create_directories() {
     "/opt/fazai/lib"
     "/opt/fazai/tools"
     "/opt/fazai/mods"
+  " /opt/fazai/models"
     "/etc/fazai"
     "/var/log/fazai"
     "/var/lib/fazai/history"
@@ -588,6 +822,14 @@ create_directories() {
   done
   # Diretório de segredos OPNsense (permissões estritas)
   mkdir -p /etc/fazai/secrets/opnsense && chmod 700 /etc/fazai/secrets/opnsense || true
+
+  # Garantir diretório de modelos com permissões apropriadas
+  if [ ! -d "/opt/fazai/models" ]; then
+    mkdir -p /opt/fazai/models
+    chown root:root /opt/fazai/models
+    chmod 755 /opt/fazai/models
+    log "DEBUG" "Diretório /opt/fazai/models criado"
+  fi
   
   log "SUCCESS" "Estrutura de diretórios criada com sucesso."
 }
@@ -1430,9 +1672,9 @@ configure_systemd() {
   cat > "$service_file" << EOF
 	[Unit]
 	Description=FazAI Service
-	After=network.target fazai-gemma-worker.service fazai-docler.service fazai-qdrant.service fazai-prometheus.service fazai-grafana.service
+	After=network.target fazai-gemma-worker.service fazai-docler.service fazai-qdrant.service
 	Wants=fazai-gemma-worker.service fazai-docler.service
-	Wants=fazai-qdrant.service fazai-prometheus.service fazai-grafana.service
+	Wants=fazai-qdrant.service
 	StartLimitIntervalSec=0
 
 	[Service]
@@ -1466,20 +1708,27 @@ EOF
 	    log "INFO" "Configurando serviço fazai-gemma-worker..."
     cat > "/etc/systemd/system/fazai-gemma-worker.service" << EOF
 [Unit]
-Description=FazAI Gemma Worker
-After=network.target
+Description=FazAI Gemma Worker v2.0
+After=network.target fazai-qdrant.service
+Wants=fazai-qdrant.service
 PartOf=fazai.service
 
 [Service]
 Type=simple
 User=root
-Group=root
-ExecStart=/opt/fazai/bin/fazai-gemma-worker
+WorkingDirectory=/opt/fazai
+EnvironmentFile=-/etc/fazai/env
+RuntimeDirectory=fazai
+RuntimeDirectoryMode=0777
+UMask=0000
+ExecStartPre=/usr/bin/install -d -m 0777 -o root -g root /run/fazai
+ExecStartPre=/bin/rm -f /run/fazai/gemma.sock
+ExecStart=/opt/fazai/bin/fazai_gemma_worker.py
+ExecStopPost=/bin/rm -f /run/fazai/gemma.sock
 Restart=always
 RestartSec=5
-Environment=FAZAI_GEMMA_SOCKET=/run/fazai/gemma.sock
-Environment=FAZAI_GEMMA_SOCK=/run/fazai/gemma.sock
-Environment=FAZAI_GEMMA_MODEL=/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -1589,6 +1838,8 @@ EOF
 	  systemctl start fazai-qdrant || true
 	  log "SUCCESS" "Serviço fazai-qdrant preparado (porta 6333)."
 
+
+
 	  # Instalar GPT-Web2Shell se local-extras existe
 	  if [ -d "local-extras/gpt-web2shell" ]; then
 	    log "INFO" "Instalando GPT-Web2Shell..."
@@ -1634,79 +1885,16 @@ EOF
 	    systemctl enable fazai-qdrant || true
 	    systemctl start fazai-qdrant || true
 	    log "SUCCESS" "Serviço Qdrant preparado (porta 6333)."
+
+
 	  else
 	    log "WARNING" "Docker/Podman não encontrado; Qdrant não será instalado automaticamente. Instale um runtime de contêiner ou configure Qdrant manualmente."
 	  fi
 
-	  # Prometheus (via Docker/Podman) se disponível
-	  if [ -n "$CONTAINER" ]; then
-	    log "INFO" "Configurando serviço Prometheus ($CONTAINER)..."
-	    mkdir -p /var/lib/fazai/prometheus
-	    if [ ! -f /var/lib/fazai/prometheus/prometheus.yml ]; then
-		      cat > /var/lib/fazai/prometheus/prometheus.yml << 'YML'
-	global:
-	  scrape_interval: 15s
-	scrape_configs:
-	  - job_name: 'fazai'
-	    static_configs:
-		      - targets: ['localhost:3120']
-YML
-	    fi
-    cat > "/etc/systemd/system/fazai-prometheus.service" << 'EOF'
-	[Unit]
-	Description=FazAI Prometheus (Docker/Podman)
-	After=network-online.target
-	PartOf=fazai.service
-
-	[Service]
-	Type=oneshot
-	RemainAfterExit=yes
-	ExecStartPre=-/usr/bin/CONTAINER_BIN rm -f fazai-prometheus
-	ExecStart=/usr/bin/CONTAINER_BIN run -d --name fazai-prometheus -p 9090:9090 -v /var/lib/fazai/prometheus:/etc/prometheus prom/prometheus:latest --config.file=/etc/prometheus/prometheus.yml
-	ExecStop=/usr/bin/CONTAINER_BIN stop fazai-prometheus
-	TimeoutStartSec=120
-	TimeoutStopSec=30
-
-	[Install]
-	WantedBy=multi-user.target
-EOF
-	    sed -i "s|CONTAINER_BIN|$CONTAINER|g" "/etc/systemd/system/fazai-prometheus.service"
-	    chmod 644 "/etc/systemd/system/fazai-prometheus.service"
-	    systemctl daemon-reload
-	    systemctl enable fazai-prometheus || true
-	    systemctl start fazai-prometheus || true
-	    log "SUCCESS" "Serviço Prometheus preparado (porta 9090)."
-	  fi
-
-	  # Grafana (via Docker/Podman) se disponível
-	  if [ -n "$CONTAINER" ]; then
-	    log "INFO" "Configurando serviço Grafana ($CONTAINER)..."
-	    mkdir -p /var/lib/fazai/grafana
-    cat > "/etc/systemd/system/fazai-grafana.service" << 'EOF'
-	[Unit]
-	Description=FazAI Grafana (Docker/Podman)
-	After=network-online.target
-	PartOf=fazai.service
-
-	[Service]
-	Type=oneshot
-	RemainAfterExit=yes
-	ExecStartPre=-/usr/bin/CONTAINER_BIN rm -f fazai-grafana
-	ExecStart=/usr/bin/CONTAINER_BIN run -d --name fazai-grafana -p 3000:3000 -v /var/lib/fazai/grafana:/var/lib/grafana -v /var/lib/fazai/grafana/provisioning:/etc/grafana/provisioning -v /var/lib/fazai/grafana/dashboards:/var/lib/grafana/dashboards grafana/grafana:latest
-	ExecStop=/usr/bin/CONTAINER_BIN stop fazai-grafana
-	TimeoutStartSec=120
-	TimeoutStopSec=30
-
-	[Install]
-	WantedBy=multi-user.target
-EOF
-	    sed -i "s|CONTAINER_BIN|$CONTAINER|g" "/etc/systemd/system/fazai-grafana.service"
-	    chmod 644 "/etc/systemd/system/fazai-grafana.service"
-	    systemctl daemon-reload
-	    systemctl enable fazai-grafana || true
-	    systemctl start fazai-grafana || true
-	    log "SUCCESS" "Serviço Grafana preparado (porta 3000)."
-	  fi
+  # Observabilidade foi movida para repo separado (~/fazaiserverlogs)
+  if [ -n "$CONTAINER" ]; then
+    log "INFO" "Monitoring Prometheus/Grafana não é mais instalado neste host. Use o repositório fazaiserverlogs."
+  fi
 }
 
 # Compila e instala o Gemma Worker (C++) se fontes estiverem presentes
@@ -1993,6 +2181,21 @@ EOF
 	  
 	  log "SUCCESS" "Scripts auxiliares criados"
 	}
+
+  # Compila o worker Gemma usando o script interno
+  build_gemma_worker() {
+    log "INFO" "Compilando FazAI Gemma Worker"
+    if [ -d "worker" ]; then
+      pushd worker >/dev/null
+      ./build.sh || { log "ERROR" "Falha ao compilar worker"; popd >/dev/null; return 1; }
+      popd >/dev/null
+      log "SUCCESS" "Worker compilado e instalado em /opt/fazai/bin"
+      return 0
+    else
+      log "ERROR" "Diretório worker não encontrado"
+      return 1
+    fi
+  }
 
 	# Função para configurar logrotate
 	configure_logrotate() {

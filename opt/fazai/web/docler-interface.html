@@ -252,6 +252,134 @@
             height: 12px;
         }
 
+        /* Cabeça Wireframe Quadriculada */
+        .wireframe-head {
+            width: 100%;
+            height: 100%;
+            opacity: 0.8;
+            transition: all 0.5s ease;
+        }
+
+        .wireframe-line {
+            stroke: var(--docler-primary);
+            stroke-width: 1.5;
+            stroke-opacity: 0.7;
+            fill: none;
+            filter: drop-shadow(0 0 3px var(--docler-primary));
+            transition: all 0.3s ease;
+        }
+
+        .eye-point {
+            fill: var(--docler-primary);
+            stroke: var(--docler-primary);
+            stroke-width: 1;
+            filter: drop-shadow(0 0 5px var(--docler-primary));
+            transition: all 0.3s ease;
+        }
+
+        .mouth-line {
+            stroke: var(--docler-primary);
+            stroke-width: 2;
+            stroke-opacity: 0.8;
+            fill: none;
+            filter: drop-shadow(0 0 4px var(--docler-primary));
+            transition: all 0.3s ease;
+        }
+
+        /* Expressões da cabeça wireframe */
+        .wireframe-head.observing {
+            opacity: 0.8;
+        }
+
+        .wireframe-head.observing .wireframe-line {
+            stroke-opacity: 0.7;
+        }
+
+        .wireframe-head.thinking {
+            opacity: 0.9;
+            transform: scale(0.95);
+        }
+
+        .wireframe-head.thinking .wireframe-line {
+            stroke-opacity: 0.9;
+            stroke-width: 2;
+        }
+
+        .wireframe-head.happy {
+            opacity: 1;
+            transform: scale(1.05);
+        }
+
+        .wireframe-head.happy .wireframe-line {
+            stroke-opacity: 1;
+            stroke-width: 2;
+        }
+
+        .wireframe-head.happy .mouth-line {
+            stroke-width: 3;
+            stroke-opacity: 1;
+        }
+
+        .wireframe-head.focused {
+            opacity: 0.95;
+            transform: scale(1.02);
+        }
+
+        .wireframe-head.focused .wireframe-line {
+            stroke-opacity: 0.95;
+            stroke-width: 2;
+        }
+
+        .wireframe-head.focused .eye-point {
+            r: 4;
+            filter: drop-shadow(0 0 8px var(--docler-primary));
+        }
+
+        .wireframe-head.surprised {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .wireframe-head.surprised .wireframe-line {
+            stroke-opacity: 1;
+            stroke-width: 2.5;
+        }
+
+        .wireframe-head.surprised .eye-point {
+            r: 5;
+            filter: drop-shadow(0 0 10px var(--docler-primary));
+        }
+
+        .wireframe-head.determined {
+            opacity: 0.9;
+            transform: scale(1.03);
+        }
+
+        .wireframe-head.determined .wireframe-line {
+            stroke-opacity: 0.9;
+            stroke-width: 2.2;
+        }
+
+        .wireframe-head.determined .mouth-line {
+            stroke-width: 2.5;
+            stroke-opacity: 0.9;
+        }
+
+        .wireframe-head.satisfied {
+            opacity: 0.95;
+            transform: scale(1.02);
+        }
+
+        .wireframe-head.satisfied .wireframe-line {
+            stroke-opacity: 0.95;
+            stroke-width: 1.8;
+        }
+
+        .wireframe-head.satisfied .mouth-line {
+            stroke-width: 2.8;
+            stroke-opacity: 0.95;
+        }
+
         .docler-mood {
             font-size: 1.2rem;
             color: var(--docler-text-dim);
@@ -505,11 +633,70 @@
         <aside class="docler-face-panel">
             <div class="docler-face floating" id="doclerFace">
                 <div class="face-expression" id="faceExpression">
-                    <div class="face-eyes">
-                        <div class="eye left-eye"></div>
-                        <div class="eye right-eye"></div>
-                    </div>
-                    <div class="face-mouth" id="faceMouth"></div>
+                    <!-- Cabeça Wireframe Quadriculada -->
+                    <svg class="wireframe-head" id="wireframeHead" viewBox="0 0 200 200" width="160" height="160">
+                        <!-- Contorno da cabeça -->
+                        <g class="head-outline">
+                            <!-- Linhas horizontais da cabeça -->
+                            <line x1="50" y1="30" x2="150" y2="30" class="wireframe-line" />
+                            <line x1="45" y1="50" x2="155" y2="50" class="wireframe-line" />
+                            <line x1="40" y1="70" x2="160" y2="70" class="wireframe-line" />
+                            <line x1="35" y1="90" x2="165" y2="90" class="wireframe-line" />
+                            <line x1="30" y1="110" x2="170" y2="110" class="wireframe-line" />
+                            <line x1="25" y1="130" x2="175" y2="130" class="wireframe-line" />
+                            <line x1="20" y1="150" x2="180" y2="150" class="wireframe-line" />
+                            <line x1="25" y1="170" x2="175" y2="170" class="wireframe-line" />
+                            
+                            <!-- Linhas verticais da cabeça -->
+                            <line x1="50" y1="30" x2="45" y2="50" class="wireframe-line" />
+                            <line x1="70" y1="30" x2="65" y2="50" class="wireframe-line" />
+                            <line x1="90" y1="30" x2="85" y2="50" class="wireframe-line" />
+                            <line x1="110" y1="30" x2="115" y2="50" class="wireframe-line" />
+                            <line x1="130" y1="30" x2="135" y2="50" class="wireframe-line" />
+                            <line x1="150" y1="30" x2="155" y2="50" class="wireframe-line" />
+                            
+                            <!-- Linhas do rosto -->
+                            <line x1="40" y1="70" x2="35" y2="90" class="wireframe-line" />
+                            <line x1="60" y1="70" x2="55" y2="90" class="wireframe-line" />
+                            <line x1="80" y1="70" x2="85" y2="90" class="wireframe-line" />
+                            <line x1="100" y1="70" x2="105" y2="90" class="wireframe-line" />
+                            <line x1="120" y1="70" x2="125" y2="90" class="wireframe-line" />
+                            <line x1="140" y1="70" x2="145" y2="90" class="wireframe-line" />
+                            <line x1="160" y1="70" x2="165" y2="90" class="wireframe-line" />
+                            
+                            <!-- Linhas da mandíbula -->
+                            <line x1="30" y1="110" x2="25" y2="130" class="wireframe-line" />
+                            <line x1="50" y1="110" x2="45" y2="130" class="wireframe-line" />
+                            <line x1="70" y1="110" x2="75" y2="130" class="wireframe-line" />
+                            <line x1="90" y1="110" x2="95" y2="130" class="wireframe-line" />
+                            <line x1="110" y1="110" x2="115" y2="130" class="wireframe-line" />
+                            <line x1="130" y1="110" x2="135" y2="130" class="wireframe-line" />
+                            <line x1="150" y1="110" x2="155" y2="130" class="wireframe-line" />
+                            <line x1="170" y1="110" x2="175" y2="130" class="wireframe-line" />
+                            
+                            <!-- Linhas do queixo -->
+                            <line x1="25" y1="130" x2="20" y2="150" class="wireframe-line" />
+                            <line x1="45" y1="130" x2="40" y2="150" class="wireframe-line" />
+                            <line x1="65" y1="130" x2="70" y2="150" class="wireframe-line" />
+                            <line x1="85" y1="130" x2="90" y2="150" class="wireframe-line" />
+                            <line x1="105" y1="130" x2="110" y2="150" class="wireframe-line" />
+                            <line x1="125" y1="130" x2="130" y2="150" class="wireframe-line" />
+                            <line x1="145" y1="130" x2="150" y2="150" class="wireframe-line" />
+                            <line x1="165" y1="130" x2="170" y2="150" class="wireframe-line" />
+                            <line x1="175" y1="130" x2="180" y2="150" class="wireframe-line" />
+                        </g>
+                        
+                        <!-- Olhos (pontos de conexão) -->
+                        <g class="eyes">
+                            <circle cx="70" cy="80" r="3" class="eye-point" />
+                            <circle cx="130" cy="80" r="3" class="eye-point" />
+                        </g>
+                        
+                        <!-- Boca (path para permitir curvas) -->
+                        <g class="mouth">
+                            <path d="M 85 120 L 115 120" class="mouth-line" />
+                        </g>
+                    </svg>
                 </div>
             </div>
             <div class="docler-mood" id="doclerMood">DOCLER está observando...</div>
@@ -1077,8 +1264,13 @@
         function updateDoclerFace() {
             const faceExpression = document.getElementById('faceExpression');
             const doclerMoodElement = document.getElementById('doclerMood');
+            const wireframeHead = document.getElementById('wireframeHead');
             
-            faceExpression.textContent = faceExpressions[doclerMood];
+            // Remover classes de humor anteriores
+            wireframeHead.classList.remove('observing', 'thinking', 'happy', 'focused', 'surprised', 'determined', 'satisfied');
+            
+            // Adicionar nova classe de humor
+            wireframeHead.classList.add(doclerMood);
             
             const moods = {
                 observing: 'DOCLER está observando...',
@@ -1091,6 +1283,57 @@
             };
             
             doclerMoodElement.textContent = moods[doclerMood];
+            
+            // Atualizar expressões específicas da boca wireframe
+            updateWireframeMouth(doclerMood);
+        }
+
+        // Atualizar expressão da boca wireframe
+        function updateWireframeMouth(mood) {
+            const mouthLine = document.querySelector('.mouth-line');
+            if (!mouthLine) return;
+            
+            // Resetar transformações
+            mouthLine.style.transform = '';
+            mouthLine.style.strokeWidth = '';
+            
+            switch(mood) {
+                case 'happy':
+                    // Sorriso - curva para cima
+                    mouthLine.style.strokeWidth = '3';
+                    mouthLine.setAttribute('d', 'M 85 120 Q 100 130 115 120');
+                    break;
+                case 'thinking':
+                    // Boca neutra - linha reta
+                    mouthLine.style.strokeWidth = '2';
+                    mouthLine.setAttribute('d', 'M 85 120 L 115 120');
+                    break;
+                case 'surprised':
+                    // Boca aberta - oval
+                    mouthLine.style.strokeWidth = '2.5';
+                    mouthLine.setAttribute('d', 'M 95 120 A 10 5 0 0 1 105 120 A 10 5 0 0 1 95 120');
+                    break;
+                case 'determined':
+                    // Boca firme - linha reta mais grossa
+                    mouthLine.style.strokeWidth = '2.5';
+                    mouthLine.setAttribute('d', 'M 85 120 L 115 120');
+                    break;
+                case 'focused':
+                    // Boca concentrada - linha reta
+                    mouthLine.style.strokeWidth = '2';
+                    mouthLine.setAttribute('d', 'M 85 120 L 115 120');
+                    break;
+                case 'satisfied':
+                    // Sorriso suave
+                    mouthLine.style.strokeWidth = '2.8';
+                    mouthLine.setAttribute('d', 'M 85 120 Q 100 125 115 120');
+                    break;
+                default: // observing
+                    // Boca neutra
+                    mouthLine.style.strokeWidth = '2';
+                    mouthLine.setAttribute('d', 'M 85 120 L 115 120');
+                    break;
+            }
         }
 
         // Animação da face

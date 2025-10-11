@@ -1,0 +1,128 @@
+###############################################################################
+# CONFIGURAÇÃO DE TAREFAS COMPLEXAS
+###############################################################################
+
+[complex_tasks]
+# Habilita o módulo de tarefas complexas
+enabled = true
+
+# Configurações do servidor HTTP
+enable_server = true
+port = 8080
+host = 0.0.0.0
+
+# Diretórios para arquivos estáticos e dados
+static_dir = /var/www/fazai
+charts_dir = /var/cache/fazai/charts
+data_dir = /var/lib/fazai/data
+
+# Configurações de gráficos
+default_chart_format = png
+chart_dpi = 300
+chart_style = seaborn-v0_8
+
+# Configurações de cache
+chart_cache_size = 100
+data_cache_size = 50
+cache_ttl = 3600
+
+# Configurações de monitoramento
+monitoring_enabled = true
+default_monitoring_interval = 60
+max_monitoring_duration = 86400
+
+# Configurações de relatórios
+report_output_dir = /var/reports/fazai
+default_report_format = pdf
+enable_report_templates = true
+
+###############################################################################
+# CONFIGURAÇÃO OPNsense MCP
+###############################################################################
+
+[opnsense]
+# Habilita a integração MCP com OPNsense
+enabled = true
+
+# Configurações de conexão
+host = 192.168.1.1
+port = 443
+use_ssl = true
+
+# Autenticação (escolha uma das opções)
+username = admin
+password = your_password_here
+
+# OU use API Key (recomendado para produção)
+# api_key = your_api_key_here
+
+# Configurações de timeout
+timeout = 30000
+retry_attempts = 3
+retry_delay = 1000
+
+# Configurações de cache
+cache_enabled = true
+cache_ttl = 300
+max_cache_size = 100
+
+# Configurações de logging
+log_level = info
+log_requests = true
+log_responses = false
+
+# Configurações de segurança
+verify_ssl = true
+allow_self_signed = false
+max_connections = 10
+
+###############################################################################
+# EXEMPLOS DE USO
+###############################################################################
+
+# Para gerar um gráfico:
+# curl -X POST http://localhost:8080/api/tasks \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "type": "generate_chart",
+#     "params": {
+#       "type": "line",
+#       "title": "Vendas Mensais",
+#       "xLabel": "Mês",
+#       "yLabel": "Vendas (milhares)"
+#     }
+#   }'
+
+# Para publicar um gráfico:
+# curl -X POST http://localhost:8080/api/tasks \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "type": "publish_chart",
+#     "params": {
+#       "chartId": "chart_123",
+#       "publishType": "web",
+#       "destination": "https://exemplo.com/charts"
+#     }
+#   }'
+
+# Para extrair dados:
+# curl -X POST http://localhost:8080/api/tasks \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "type": "extract_data",
+#     "params": {
+#       "source": "https://api.exemplo.com/data",
+#       "format": "json",
+#       "outputFormat": "csv"
+#     }
+#   }'
+
+# Para gerenciar OPNsense:
+# curl -X POST http://localhost:8080/api/tasks \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "type": "opnsense",
+#     "params": {
+#       "command": "get_system_info"
+#     }
+#   }'
