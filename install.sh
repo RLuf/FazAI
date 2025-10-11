@@ -1,304 +1,41 @@
 #!/bin/bash
 set -e
 
-echo "=== FazAI v2.0 Installer ==="
-
-# Observabilidade via Prometheus/Grafana movida para repositório externo (~/fazaiserverlogs)
-# Ajuste ENABLE_FAZAI_MONITORING=true para reinstalar esses componentes.
-ENABLE_FAZAI_MONITORING="${ENABLE_FAZAI_MONITORING:-false}"
-
-# Verifica root
-if [[ $EUID -ne 0 ]]; then
-   echo "❌ Execute como root: sudo ./install.sh"
-   exit 1
-fi
-
-# Cria estrutura de diretórios
-echo "📁 Criando estrutura..."
-mkdir -p /opt/fazai/{bin,lib,etc,tools}
-mkdir -p /var/log/fazai
-mkdir -p /run/fazai
-chmod 777 /run/fazai || true
-mkdir -p /etc/fazai
-
-# Remove serviços de monitoramento legados (Prometheus/Grafana) se existirem
-echo "🔻 Removendo monitoramento Prometheus/Grafana legado..."
-remove_monitoring_service() {
-  local svc="$1"
-  if systemctl list-unit-files 2>/dev/null | grep -q "^${svc}\.service"; then
-    systemctl stop "$svc" 2>/dev/null || true
-    systemctl disable "$svc" 2>/dev/null || true
-    rm -f "/etc/systemd/system/${svc}.service"
-  fi
-}
-
-remove_monitoring_service "fazai-prometheus"
-remove_monitoring_service "fazai-grafana"
-
-if command -v docker >/dev/null 2>&1; then
-  docker rm -f fazai-prometheus >/dev/null 2>&1 || true
-  docker rm -f fazai-grafana >/dev/null 2>&1 || true
-fi
-
-systemctl daemon-reload 2>/dev/null || true
-
-# Instala dependências Python
-echo "🐍 Instalando dependências Python..."
-apt-get update
-apt-get install -y python3 python3-pip python3-venv poppler-utils pandoc docx2txt lynx w3m jq curl
-# Dependências do worker FazAI (fazai_gemma_worker.py)
-# Pinar qdrant-client para compatibilidade com servidor 1.7.3 (Docker)
-pip3 install aiohttp asyncio 'qdrant-client==1.7.3' httpx openai requests
-
-if command -v npm >/dev/null 2>&1; then
-  echo "📦 Instalando dependências Node..."
-  npm install --production
-else
-  echo "⚠️ npm não encontrado; instale Node.js para executar o console web."
-fi
-
-# Copia binários
-echo "📦 Instalando binários..."
-cp worker/bin/fazai_gemma_worker.py /opt/fazai/bin/
-cp worker/bin/fazai_mcp_client.py /opt/fazai/bin/
-cp worker/bin/fazai_integration_adapter.py /opt/fazai/lib/
-cp worker/bin/gemma_worker_client.py /opt/fazai/bin/
-
-# Instala bindings Gemma nativos
-echo "🧠 Instalando bindings Gemma nativos..."
-mkdir -p /opt/fazai/lib/python
-if [ -f "worker/bin/gemma_native.cpython-310-x86_64-linux-gnu.so" ]; then
-    cp worker/bin/gemma_native.cpython-310-x86_64-linux-gnu.so /opt/fazai/lib/python/gemma_native.so
-    echo "✅ Bindings Gemma nativos instalados"
-else
-    echo "⚠️ Bindings Gemma nativos não encontrados - worker usará fallbacks"
-fi
-
-chmod +x /opt/fazai/bin/*.py
-
-echo "🖥️ Preparando assets do console web..."
-mkdir -p /opt/fazai/web/hp-console/assets
-mkdir -p /opt/fazai/web/hp-console/data
-rm -rf /opt/fazai/web/hp-console/assets/rag-viewer
-cp -R opt/fazai/web/hp-console/assets/rag-viewer /opt/fazai/web/hp-console/assets/rag-viewer
-
-# CLI principal
-echo "⚡ Instalando CLI /bin/fazai..."
-cat > /bin/fazai << 'EOF'
-#!/bin/bash
-exec /opt/fazai/bin/fazai_mcp_client.py "$@"
-EOF
-chmod +x /bin/fazai
-
-// Apenas cria configuração padrão se não existir
-echo "⚙️ Preparando configuração..."
-if [ ! -f /etc/fazai/fazai.conf ]; then
-cat > /etc/fazai/fazai.conf << 'EOF'
 ###############################################################################
-# FazAI v2.0 - Arquivo de Configuração Padrão
-# -----------------------------------------------------------
-# Copie este arquivo para /etc/fazai/fazai.conf e ajuste os
-# valores de acordo com seu ambiente.
+# FazAI v2.0 Installer
+# Sistema de Agente Inteligente Cognitivo e Persistente
 ###############################################################################
 
-###############################################################################
-# SISTEMA
-###############################################################################
+# Variáveis globais
+VERSION="2.0.0"
+LOG_FILE="/var/log/fazai/install.log"
+INSTALL_STATE_FILE="/var/log/fazai/install_state.txt"
+DEBUG_MODE="${DEBUG_MODE:-false}"
+WITH_LLAMA="${WITH_LLAMA:-false}"
 
-[system]
-# Nível de log global dos componentes escritos em Python/Node
-log_level = INFO
+# Cores para output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
 
-###############################################################################
-# PROVEDOR PRINCIPAL
-###############################################################################
+# Array associativo para estado da instalação
+declare -A INSTALL_STATE
 
-[ai_provider]
-provider = gemma_cpp
-enable_fallback = true
-max_retries = 3
-retry_delay = 2
-
-###############################################################################
-# WORKER PYTHON (fazai_gemma_worker.py)
-###############################################################################
-
-[gemma_worker]
-# Endereços onde o worker escutará requisições MCP/ND-JSON
-host = 0.0.0.0
-port = 5556
-# Socket Unix compartilhado com dispatcher/CLIs
-unix_socket = /run/fazai/gemma.sock
-# Nível de log específico do worker
-log_level = INFO
-
-###############################################################################
-# GEMMA LOCAL (gemma.cpp)
-###############################################################################
-
-[gemma_cpp]
-weights = /opt/fazai/models/gemma/2.0-2b-it-sfp.sbs
-# Informe somente se o peso não possuir tokenizer embutido
-tokenizer = /opt/fazai/models/gemma/tokenizer.spm
-enable_native = true
-# Parâmetros de geração padrões
-max_tokens = 512
-temperature = 0.2
-top_k = 1
-deterministic = true
-multiturn = false
-prefill_tbatch = 256
-generation_timeout = 120
-
-###############################################################################
-# DISPATCHER (fazai_dispatcher.py)
-###############################################################################
-
-[dispatcher]
-mode = smart
-# Socket principal do worker Gemma (pode ser sobrescrito por CLI)
-gemma_socket = /run/fazai/gemma.sock
-timeout_seconds = 30
-shell_timeout = 60
-fallback_timeout = 45
-health_check_interval = 60
-fallback_order = openai,openrouter,context7
-
-###############################################################################
-# QDRANT (Memória vetorial)
-###############################################################################
-
-[qdrant]
-enabled = true
-host = 127.0.0.1
-port = 6333
-personality_collection = fazai_memory
-knowledge_collection = fazai_kb
-vector_dim = 1024
-
-###############################################################################
-# OLLAMA (Embeddings locais)
-###############################################################################
-
-[ollama]
-endpoint = http://127.0.0.1:11434
-embeddings_endpoint = 
-embedding_model = mxbai-embed-large
-timeout = 30
-
-###############################################################################
-# FALLBACKS (APIs externas)
-###############################################################################
-
-[openai]
-api_key = 
-model = gpt-4
-max_tokens = 2048
-
-[openrouter]
-api_key = 
-endpoint = https://openrouter.ai/api/v1
-default_model = openai/gpt-4o
-models = anthropic/claude-3-opus, google/gemini-pro, meta/llama-3-70b
-temperature = 0.3
-max_tokens = 2000
-
-[context7]
-endpoint = 
-timeout = 20
-api_key = 
-
-###############################################################################
-# SERVIÇOS LEGADOS / INTEGRAÇÕES OPCIONAIS
-###############################################################################
-
-[daemon]
-host = 0.0.0.0
-port = 3120
-
-[cloudflare]
-storage = /opt/fazai/web/hp-console/data/cloudflare_accounts.json
-api_token = 
-
-[opnsense]
-storage = /opt/fazai/web/hp-console/data/opnsense_servers.json
-enabled = false
-host = 127.0.0.1
-port = 443
-use_ssl = true
-api_key = 
-api_secret = 
-verifySSL = false
-timeout = 30000
-
-###############################################################################
-# TELEMETRIA / PROMETHEUS (Opcional)
-###############################################################################
-
-[telemetry]
-enable_ingest = true
-enable_metrics = true
-udp_port = 0
-
-###############################################################################
-# BANCO DE DADOS (Opcional / legado)
-###############################################################################
-
-[mysql]
-enabled = false
-host = 127.0.0.1
-port = 3306
-database = fazai
-user = fazai
-password = trocar_senha
-
-EOF
-else
-  echo "ℹ️ Mantendo configuração existente em /etc/fazai/fazai.conf"
-fi
-
-# Systemd service
-echo "🔧 Criando serviço systemd..."
-cat > /etc/systemd/system/fazai-gemma-worker.service << 'EOF'
-[Unit]
-Description=FazAI Gemma Worker v2.0
-After=network.target fazai-qdrant.service
-Wants=fazai-qdrant.service
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/fazai
-EnvironmentFile=-/etc/fazai/env
-RuntimeDirectory=fazai
-RuntimeDirectoryMode=0777
-UMask=0000
-ExecStartPre=/usr/bin/install -d -m 0777 -o root -g root /run/fazai
-ExecStartPre=/bin/rm -f /run/fazai/gemma.sock
-ExecStart=/opt/fazai/bin/fazai_gemma_worker.py
-ExecStopPost=/bin/rm -f /run/fazai/gemma.sock
-Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Habilita e inicia serviço
-systemctl daemon-reload
-systemctl enable fazai-gemma-worker
-systemctl start fazai-gemma-worker
-
-echo "✅ FazAI v2.0 instalado com sucesso!"
-echo "📍 Teste: fazai ask 'olá mundo'"
-echo "📍 Status: systemctl status fazai-gemma-worker"
-echo "📍 Logs: journalctl -u fazai-gemma-worker -f"
-  mkdir -p $(dirname $LOG_FILE)
+# Função de logging
+log() {
+  local level="$1"
+  local message="$2"
+  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+  
+  # Cria diretório de log se não existir
+  mkdir -p "$(dirname "$LOG_FILE")"
   
   # Escreve log ao arquivo
-  echo "[$timestamp] [$level] $message" >> $LOG_FILE
+  echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
   
   # Mostra no console com cores
   case $level in
@@ -321,6 +58,12 @@ echo "📍 Logs: journalctl -u fazai-gemma-worker -f"
       ;;
   esac
 }
+
+# Verifica root
+if [[ $EUID -ne 0 ]]; then
+   log "ERROR" "Execute como root: sudo ./install.sh"
+   exit 1
+fi
 # Consulta ajuda da IA em caso de erro (simplificada)
 ai_help() {
   local prompt="$1"

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Fixed
+- **install.sh**: Corrigidos erros críticos de sintaxe e estrutura
+  - Removido código órfão (linhas 298-323): corpo duplicado da função log() sem abertura
+  - Removido instalador simples legado (linhas 69-297) que conflitava com framework moderno
+  - Corrigido comentário estilo C++ (linha 93: `//` → estrutura adequada)
+  - Verificadas 42 funções incluindo main_install(), log(), copy_files(), build_gemma_worker()
+  - Reduzido de 2553 para 2296 linhas (-257 linhas quebradas)
+  - Sintaxe validada com `bash -n` e `shellcheck` (0 erros)
+
 ### Added
 - Installer: Post-start helper ensures `/run/fazai/gemma.sock` is chmod 0666 reliably.
 - Qdrant migration: added one‑time script `scripts/qdrant_migrate_persona.py` (claudio_soul → fazai_memory). Removed from installer.
