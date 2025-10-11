@@ -86,11 +86,11 @@ def load_fazai_config() -> Dict[str, Any]:
         # Gemma local - caminho obrigatório
         "gemma_model_path": config.get("gemma_cpp", "weights"),
         "gemma_tokenizer": config.get("gemma_cpp", "tokenizer", fallback=""),
-        "gemma_timeout": config.getint("gemma_cpp", "generation_timeout", fallback=220),
+        "gemma_timeout": config.getint("gemma_cpp", "generation_timeout", fallback=120),
 
         # Timeouts
-        "timeout_seconds": config.getint("dispatcher", "timeout_seconds", fallback=300),
-        "shell_timeout": config.getint("dispatcher", "shell_timeout", fallback=200),
+        "timeout_seconds": config.getint("dispatcher", "timeout_seconds", fallback=30),
+        "shell_timeout": config.getint("dispatcher", "shell_timeout", fallback=60),
 
         # Logging
         "log_level": config.get("gemma_worker", "log_level", fallback="INFO").upper()
@@ -127,7 +127,7 @@ def load_fazai_config() -> Dict[str, Any]:
         "ollama_embedding_model": embedding_model_cfg,
         "ollama_timeout": ollama_timeout_cfg,
         "fallback_order": fallback_order,
-        "fallback_timeout": config.getint("dispatcher", "fallback_timeout", fallback=245),
+        "fallback_timeout": config.getint("dispatcher", "fallback_timeout", fallback=45),
         "openai_model": config.get("openai", "default_model", fallback=config.get("openai", "model", fallback="gpt-4")),
         "openai_max_tokens": config.getint("openai", "max_tokens", fallback=2048),
         "openrouter_api_key": config.get("openrouter", "api_key", fallback=""),
@@ -162,7 +162,7 @@ def _create_default_config():
     
     # Gemma C++
     config.add_section('gemma_cpp')
-    config.set('gemma_cpp', 'weights', '/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs-org')
+    config.set('gemma_cpp', 'weights', '/opt/fazai/models/gemma/2.0-2b-it-sfp.sbs')
     config.set('gemma_cpp', 'tokenizer', '/opt/fazai/models/gemma/tokenizer.spm')
     config.set('gemma_cpp', 'enable_native', 'true')
     config.set('gemma_cpp', 'generation_timeout', '120')
@@ -281,10 +281,10 @@ class GemmaBindingsWrapper:
         self.enable_native = bool(config.get("gemma_enable_native", True))
         self.max_tokens = config.get("gemma_max_tokens", 512)
         self.temperature = config.get("gemma_temperature", 0.2)
-        self.top_k = None
+        self.top_k = config.get("gemma_top_k", 1)
         self.deterministic = bool(config.get("gemma_deterministic", True))
         self.multiturn = bool(config.get("gemma_multiturn", False))
-        self.prefill_tbatch = None
+        self.prefill_tbatch = config.get("gemma_prefill_tbatch", 256)
         self.model = None
         self.binding_version = None
         self._load_gemma_bindings()
@@ -377,26 +377,24 @@ class GemmaBindingsWrapper:
             return
         try:
             tokenizer = self.tokenizer_path or ""
-            top_k_arg = int(self.top_k) if self.top_k is not None else 1
-            prefill_arg = int(self.prefill_tbatch) if self.prefill_tbatch is not None else 256
             logger.info(
                 "Inicializando GemmaNative (max_tokens=%s, temperature=%s, top_k=%s, deterministic=%s, multiturn=%s, prefill_tbatch=%s)",
                 self.max_tokens,
                 self.temperature,
-                self.top_k if self.top_k is not None else "default",
+                self.top_k,
                 self.deterministic,
                 self.multiturn,
-                self.prefill_tbatch if self.prefill_tbatch is not None else "default"
+                self.prefill_tbatch
             )
             self.model.initialize(
                 self.model_path,
                 tokenizer,
                 int(self.max_tokens),
                 float(self.temperature),
-                top_k_arg,
+                int(self.top_k),
                 bool(self.deterministic),
                 bool(self.multiturn),
-                prefill_arg
+                int(self.prefill_tbatch)
             )
             status = self.model.status() if hasattr(self.model, "status") else {}
             if status:
@@ -416,18 +414,17 @@ class GemmaBindingsWrapper:
             
             # Usar timeout para evitar travamentos
             result = None
-            timeout_seconds = CONFIG.get("gemma_timeout", 220)
+            timeout_seconds = CONFIG.get("gemma_timeout", 120)
             effective_tokens = int(max_tokens if max_tokens else self.max_tokens)
             
             def generate_with_timeout():
                 nonlocal result
-                #result = self.model.generate(prompt, effective_tokens)
                 result = self.model.generate(prompt, effective_tokens)
-
-           # thread = threading.Thread(target=generate_with_timeout)
-           # thread.daemon = True
-           # thread.start()
-           # thread.join(timeout=timeout_seconds)
+            
+            thread = threading.Thread(target=generate_with_timeout)
+            thread.daemon = True
+            thread.start()
+            thread.join(timeout=timeout_seconds)
             
             if thread.is_alive():
                 logger.error(f"❌ Timeout na geração após {timeout_seconds}s")
@@ -563,7 +560,7 @@ class QdrantMemory:
         self.collection_name = collection_name or CONFIG.get("qdrant_personality_collection", "fazai_memory")
         self.label = label
         self.score_threshold = score_threshold
-        self.vector_dim = CONFIG.get("qdrant_vector_dim", 1024)
+        self.vector_dim = CONFIG.get("qdrant_vector_dim", 384)
         self.client = None
 
         if not QDRANT_AVAILABLE:
@@ -878,7 +875,7 @@ class NDJSONProcessor:
             
             message.result = result
             message.source = "gemma_local" if self.gemma and self.gemma.model else "fallback"
-            message.model = "gemma2-2b-it"
+            message.model = "gemma-2b-it"
             
             # Cache para idempotência
             self.active_actions[message.action_id] = message

@@ -117,7 +117,8 @@
       "Bash(sh)",
       "Bash(locate:*)",
       "Bash(source:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(kill:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,31 +2,6 @@
 
 > Think carefully and implement the most concise solution that changes as little code as possible.
 
-## 🚨 AGENT USAGE - MANDATORY
-
-**CRITICAL: You MUST use specialized agents for ALL non-trivial tasks.**
-
-See: `.claude/rules/agent-mandatory.md` for complete enforcement rules.
-
-### Quick Reference - When to Use Agents:
-
-| Task Type | Agent | Example |
-|-----------|-------|---------|
-| Python code | `python-backend-engineer` | Build FastAPI endpoint |
-| React/UI | `react-frontend-engineer` | Create dashboard component |
-| Testing | `test-runner` | Run test suite |
-| Database | `postgresql-expert`, `mongodb-expert` | Design schema |
-| DevOps | `kubernetes-orchestrator`, `docker-containerization-expert` | Deploy app |
-| Code review | `code-analyzer` | Find bugs/security issues |
-| Large files | `file-analyzer` | Parse logs >1000 lines |
-
-**Before doing ANY complex task**: Check if there's a specialized agent. If YES → USE IT!
-
-## Active Team Agents
-
-<!-- AGENTS_START -->
-<!-- AGENTS_END -->
-
 ## 🐳 DOCKER-FIRST DEVELOPMENT WORKFLOW
 
 This project enforces Docker-first development to ensure consistency and reproducibility across all environments.
@@ -93,14 +68,10 @@ Use: docker compose exec app <command>
 
 All rule files in `.claude/rules/` define mandatory behaviors and must be followed:
 
-### 🚨 HIGHEST PRIORITY Rules
-
-- **agent-mandatory.md** - MANDATORY agent usage for all non-trivial tasks. READ THIS FIRST!
-- **tdd.enforcement.md** - Test-Driven Development cycle (RED-GREEN-REFACTOR)
-- **pipeline-mandatory.md** - Required pipelines for errors, features, bugs, code search, and log analysis
-
 ### Core Development Rules
 
+- **tdd-enforcement.md** - Test-Driven Development cycle (RED-GREEN-REFACTOR). HIGHEST PRIORITY for all code changes
+- **pipeline-mandatory.md** - Required pipelines for errors, features, bugs, code search, and log analysis
 - **naming-conventions.md** - Naming standards, code quality requirements, and prohibited patterns
 - **context-optimization.md** - Agent usage patterns for context preservation (<20% data return)
 - **development-workflow.md** - Development patterns, search-before-create, and best practices
@@ -180,21 +151,21 @@ Use Docker-aware agents for containerized development:
 
 ### Docker Specialists (PRIMARY)
 
-#### docker-containerization-expert
+#### docker-expert
 **Use for**: Dockerfile optimization, multi-stage builds, security
 - Container best practices
 - Image size optimization
 - Security scanning
 - Registry management
 
-#### docker-containerization-expert
+#### docker-compose-expert
 **Use for**: Multi-container orchestration, service dependencies
 - Development environment setup
 - Service networking
 - Volume management
 - Environment configuration
 
-#### docker-containerization-expert
+#### docker-development-orchestrator
 **Use for**: Development workflows, hot reload setup
 - Volume mounting strategies
 - Development vs production configs
@@ -223,7 +194,7 @@ Use Docker-aware agents for containerized development:
 - Build optimization in Docker
 - Environment variable injection
 
-#### python-backend-engineer
+#### fastapi-backend-engineer
 - Async Python in containers
 - Uvicorn/Gunicorn configuration
 - Health check endpoints
@@ -255,36 +226,40 @@ Use Docker-aware agents for containerized development:
 
 **📋 Full Agent Details**: For complete agent descriptions, parameters, tools, and file locations, see `.claude/agents/AGENT-REGISTRY.md`
 
-## Project Management
+## GitHub Actions CI/CD
 
-This project uses local development workflow without CI/CD automation.
+### Automated workflows with GitHub Actions
 
-### Development Workflow
+This project uses GitHub Actions for continuous integration and deployment.
 
-1. **Local Development**
-   - Make changes locally
-   - Run tests manually
-   - Commit when ready
-
-2. **Manual Testing**
-   - Test changes locally before committing
-   - Use project-specific test commands
-   - Verify functionality manually
-
-3. **Deployment**
-   - Deploy manually as needed
-   - Follow project-specific deployment procedures
-   - Coordinate with team for releases
-
-### Version Control
+#### Quick Start
 ```bash
-# Standard git workflow
-git add .
-git commit -m "Your message"
-git push origin main
+# Check workflow status
+gh workflow list
+gh run list
+
+# Trigger manual workflow
+gh workflow run ci.yml
+
+# View logs
+gh run view --log
 ```
 
-Focus on code quality and manual verification before commits.
+#### Configured Workflows
+- **CI Pipeline**: Runs on every push and PR
+- **Release**: Automated releases on version tags
+- **Security Scans**: Dependency and code scanning
+- **Deploy**: Automated deployment to environments
+
+#### Local Testing
+```bash
+# Act - run GitHub Actions locally
+act push                    # Simulate push event
+act pull_request           # Simulate PR event
+act -l                     # List all workflows
+```
+
+See `.github/workflows/` for workflow definitions.
 
 ## TDD PIPELINE FOR ALL IMPLEMENTATIONS
 
@@ -368,7 +343,7 @@ Key principles:
 
 - NO PARTIAL IMPLEMENTATION
 - NO CODE DUPLICATION (always search first)
-- IMPLEMENT TEST FOR EVERY FUNCTION (see `.claude/rules/tdd.enforcement.md`)
+- IMPLEMENT TEST FOR EVERY FUNCTION (see `.claude/rules/tdd-enforcement.md`)
 - NO CHEATER TESTS (tests must be meaningful)
 - Follow all rules defined in `.claude/rules/` without exception
 
@@ -378,7 +353,7 @@ Key principles:
 
 ```bash
 # Minimum Definition of Done
-✓ Tests written and passing (TDD - see .claude/rules/tdd.enforcement.md)
+✓ Tests written and passing (TDD - see .claude/rules/tdd-enforcement.md)
 ✓ Code formatted (black, prettier, eslint)
 ✓ No partial implementations
 ✓ No code duplication
@@ -419,245 +394,3 @@ Key principles:
 ```
 
 For detailed checklists, see `.claude/checklists/`
-
-## AGENT SELECTION GUIDANCE
-
-Use specialized agents for Docker + Kubernetes workflows:
-
-### Kubernetes Specialists (PRIMARY)
-
-#### kubernetes-orchestrator
-**Use for**: K8s manifests, deployments, services
-- Deployment strategies
-- Service mesh configuration
-- Ingress and networking
-- RBAC and security policies
-
-#### terraform-infrastructure-expert
-**Use for**: Infrastructure as Code
-- Multi-cloud deployments
-- State management
-- Module development
-- GitOps workflows
-
-### Container Specialists
-
-#### docker-containerization-expert
-**Use for**: Production-grade images
-- Multi-stage builds
-- Security hardening
-- Base image selection
-- Layer optimization
-
-#### docker-containerization-expert
-**Use for**: Local development orchestration
-- Development parity with K8s
-- Service dependencies
-- Local testing environments
-
-### Cloud Platform Specialists
-
-#### gcp-cloud-architect
-**Use for**: GKE deployments
-- GKE cluster configuration
-- Cloud Build pipelines
-- Artifact Registry
-- Workload Identity
-
-#### aws-cloud-architect
-**Use for**: EKS deployments
-- EKS cluster setup
-- ECR registry
-- IAM roles for service accounts
-- ALB ingress controller
-
-#### azure-cloud-architect
-**Use for**: AKS deployments
-- AKS cluster management
-- Azure Container Registry
-- Azure AD integration
-- Application Gateway ingress
-
-### DevOps & CI/CD Agents
-
-#### github-operations-specialist
-**Use for**: GitHub Actions pipelines
-- KIND cluster testing
-- Multi-environment deployments
-- Helm chart automation
-- GitOps with ArgoCD
-
-#### azure-devops-specialist
-**Use for**: Enterprise pipelines
-- Azure Pipelines for K8s
-- Multi-stage deployments
-- Approval gates
-- Integration with AKS
-
-### Monitoring & Observability
-
-#### prometheus-grafana-expert (implied)
-- Metrics collection
-- Dashboard creation
-- Alert configuration
-- SLO/SLI tracking
-
-### Security Agents
-
-#### security-scanning-expert (implied)
-- Container vulnerability scanning
-- SAST/DAST in pipelines
-- Policy as code
-- Compliance validation
-
----
-
-**📋 Full Agent Details**: For complete agent descriptions, parameters, tools, and file locations, see `.claude/agents/AGENT-REGISTRY.md`
-
-## 🚀 FULL DEVOPS WORKFLOW (DOCKER + KUBERNETES)
-
-This project uses a hybrid strategy: Docker for local development, Kubernetes for CI/CD and production.
-
-### 🎯 HYBRID STRATEGY
-
-#### Why Hybrid?
-**The Problem**: 
-- ✅ Docker works perfectly for local development
-- ❌ CI/CD runners use containerd (no Docker daemon)
-- ❌ `docker build` and `docker run` fail in Kubernetes runners
-
-**The Solution**:
-- 🏠 **Local**: Pure Docker (unchanged for developers)
-- ☸️ **CI/CD**: Kubernetes-native using Kaniko for builds
-- 🐳 **Shared**: Dockerfiles remain source of truth
-
-#### Local Development: Docker-First
-- All local development happens in Docker containers
-- Use `docker compose` for service orchestration
-- Hot reload enabled for rapid iteration
-
-#### CI/CD & Production: Kubernetes-Native
-- GitHub Actions automatically test in KIND clusters
-- Kaniko builds images without Docker daemon
-- Helm charts for production deployments
-- Multi-environment support (dev/staging/prod)
-
-### 🐳 Local Development (Docker)
-
-1. **Start development environment**
-   ```bash
-   docker compose up -d
-   ```
-
-2. **Run commands in containers**
-   ```bash
-   # Commands depend on your project type:
-   # Node.js: docker compose exec app npm install
-   # Python: docker compose exec app pip install -r requirements.txt
-   # Go: docker compose exec app go mod download
-   # Ruby: docker compose exec app bundle install
-   # PHP: docker compose exec app composer install
-   ```
-
-3. **Simulate CI locally before push**
-   ```bash
-   # Test commands depend on project type:
-   # Node.js: npm ci && npm run build && npm test
-   # Python: pip install . && pytest && ruff check
-   # Go: go test ./... && go build
-   # Ruby: bundle exec rspec && rubocop
-
-   # Check for project-specific CI scripts in:
-   # - package.json scripts
-   # - Makefile targets
-   # - .github/workflows/
-   ```
-
-### ☸️ Kubernetes Testing (CI/CD)
-
-Automated via GitHub Actions:
-
-1. **KIND Cluster Setup**
-   - Spins up Kubernetes in Docker
-   - Tests deployment manifests
-   - Validates Helm charts
-
-2. **Building Images with Kaniko**
-   ```yaml
-   # In GitHub Actions (no Docker daemon)
-   - name: Build with Kaniko
-     run: |
-       kubectl apply -f - <<EOF
-       apiVersion: batch/v1
-       kind: Job
-       metadata:
-         name: kaniko-build
-       spec:
-         template:
-           spec:
-             containers:
-             - name: kaniko
-               image: gcr.io/kaniko-project/executor:latest
-               args:
-                 - "--dockerfile=Dockerfile"
-                 - "--context=git://github.com/user/repo"
-                 - "--destination=registry/image:tag"
-       EOF
-   ```
-
-3. **Integration Tests**
-   ```yaml
-   # Runs automatically on push
-   - Tests in real K8s environment
-   - Multi-version K8s testing
-   - Security scanning with Trivy
-   ```
-
-4. **Production Deployment**
-   ```bash
-   # Helm deployment (automated)
-   helm upgrade --install app ./charts/app
-   ```
-
-### 📋 DevOps Rules
-
-#### Local Development
-- **ALWAYS** use Docker Compose locally
-- **NEVER** run code on host machine
-- **MAINTAIN** hot reload for productivity
-
-#### CI/CD Pipeline
-- **AUTOMATE** K8s testing in GitHub Actions
-- **VALIDATE** manifests before deployment
-- **SCAN** images for vulnerabilities
-
-#### Production
-- **DEPLOY** via Helm charts
-- **MONITOR** with Prometheus/Grafana
-- **SCALE** based on metrics
-
-### 🔧 Required Files
-
-```
-project/
-├── docker-compose.yml      # Local development
-├── Dockerfile             # Container build
-├── k8s/                   # Kubernetes manifests
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   └── ingress.yaml
-├── charts/                # Helm charts
-│   └── app/
-│       ├── Chart.yaml
-│       └── values.yaml
-└── .github/workflows/     # CI/CD pipelines
-    └── kubernetes-tests.yml
-```
-
-### ⚠️ Important Notes
-
-- Local Docker ≠ Production Kubernetes
-- Test in KIND before production
-- Use namespaces for isolation
-- Enable resource limits
-- Implement health checks
