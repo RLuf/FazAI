@@ -64,6 +64,49 @@ if [[ $EUID -ne 0 ]]; then
    log "ERROR" "Execute como root: sudo ./install.sh"
    exit 1
 fi
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Habilita e inicia serviço
+systemctl daemon-reload
+systemctl enable fazai-gemma-worker
+systemctl start fazai-gemma-worker
+
+echo "✅ FazAI v2.0 instalado com sucesso!"
+echo "📍 Teste: fazai ask 'olá mundo'"
+echo "📍 Status: systemctl status fazai-gemma-worker"
+echo "📍 Logs: journalctl -u fazai-gemma-worker -f"
+  mkdir -p $(dirname $LOG_FILE)
+  
+  # Escreve log ao arquivo
+  echo "[$timestamp] [$level] $message" >> $LOG_FILE
+  
+  # Mostra no console com cores
+  case $level in
+    "INFO")
+      echo -e "${BLUE}[INFO]${NC} $message"
+      ;;
+    "SUCCESS")
+      echo -e "${GREEN}[SUCESSO]${NC} $message"
+      ;;
+    "ERROR")
+      echo -e "${RED}[ERRO]${NC} $message"
+      ;;
+    "WARNING")
+      echo -e "${YELLOW}[AVISO]${NC} $message"
+      ;;
+    "DEBUG")
+      if [ "$DEBUG_MODE" = true ]; then
+        echo -e "${PURPLE}[DEBUG]${NC} $message"
+      fi
+      ;;
+  esac
+}
 # Consulta ajuda da IA em caso de erro (simplificada)
 ai_help() {
   local prompt="$1"
