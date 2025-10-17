@@ -1,63 +1,49 @@
 export const models: {
   name: string;
-  provider: "anthropic" | "openai" | "fireworks";
+  provider: "anthropic" | "openai" | "ollama";
   nickName: string;
-  outputCPM: number;
-  inputCPM: number;
-  outputLength: number;
-  contextWindow: number;
-  verifyModel?: boolean;
 }[] = [
+  // OpenAI models (DEFAULT)
+  {
+    name: "gpt-4o-mini",
+    provider: "openai",
+    nickName: "gpt4mini",
+  },
+  {
+    name: "gpt-4o",
+    provider: "openai",
+    nickName: "gpt4o",
+  },
+  {
+    name: "gpt-4-turbo",
+    provider: "openai",
+    nickName: "gpt4turbo",
+  },
+  // Anthropic Claude models
   {
     name: "claude-3-5-sonnet-latest",
     provider: "anthropic",
     nickName: "sonnet35",
-    outputCPM: 15,
-    inputCPM: 3,
-    outputLength: 8092,
-    contextWindow: 200000,
-    // verifyModel: true,
   },
   {
     name: "claude-3-haiku-20240307",
     provider: "anthropic",
     nickName: "haiku",
-    outputCPM: 1.25,
-    inputCPM: 0.25,
-    outputLength: 4096,
-    contextWindow: 200000,
-    verifyModel: true,
+  },
+  // Ollama models (local)
+  {
+    name: "llama3.2",
+    provider: "ollama",
+    nickName: "llama32",
   },
   {
-    name: "gpt-4o-mini",
-    provider: "openai",
-    nickName: "4omini",
-    outputCPM: 0.6,
-    inputCPM: 0.15,
-    outputLength: 16384,
-    contextWindow: 128000,
-    verifyModel: true,
+    name: "qwen2.5:7b",
+    provider: "ollama",
+    nickName: "qwen",
   },
   {
-    name: "gpt-4-turbo",
-    provider: "openai",
-    nickName: "4turbo",
-    outputCPM: 30,
-    inputCPM: 10,
-    outputLength: 4096,
-    contextWindow: 128000,
-  },
-  {
-    name: "accounts/fireworks/models/llama-v3p1-405b-instruct",
-    provider: "fireworks",
-    nickName: "llama405b",
-    outputCPM: 3,
-    inputCPM: 3,
-    outputLength: 16384,
-    contextWindow: 262144,
+    name: "mistral",
+    provider: "ollama",
+    nickName: "mistral",
   },
 ];
-
-export const preferredVerifierModel = models.find(
-  (model) => model.nickName === "4omini"
-)!;

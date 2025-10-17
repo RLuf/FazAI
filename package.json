@@ -1,45 +1,45 @@
 {
-  "name": "mandark",
-  "version": "0.2.0",
-  "author": "Hrishi Olickel <twitter-@hrishioa> (https://olickel.com)",
-  "description": "Super simple, easily modifiable AI Coder",
+  "name": "fazai",
+  "version": "3.0.0-rc",
+  "author": "Roger Luft (VeilWalker) <roger@webstorage.com.br> (fork from Mandark by Hrishi Olickel)",
+  "description": "Administrador Linux Inteligente com IA - Gerenciador de sistemas Linux com modelos híbridos",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hrishioa/mandark.git"
+    "url": "git+https://github.com/seu-usuario/fazai.git"
   },
   "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.3",
-    "@anthropic-ai/tokenizer": "^0.0.4",
     "chalk": "4.1.2",
-    "clipboardy": "^4.0.0",
-    "fast-glob": "^3.3.2",
     "inquirer": "^10.0.3",
-    "oboe": "^2.1.5",
-    "openai": "^4.52.7",
+    "oboe": "^2.1.7",
+    "openai": "^6.3.0",
     "ora": "5.4.1",
     "zod": "^3.23.8"
   },
   "scripts": {
-    "package": "tsup"
+    "build": "tsup",
+    "dev": "tsx src/app.ts",
+    "start": "node dist/app.cjs"
   },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "engines": {
     "node": ">=18.17.0"
   },
   "main": "./dist/app.cjs",
   "bin": {
-    "mandark": "dist/app.cjs"
+    "fazai": "bin/fazai.js"
   },
   "engineStrict": true,
   "devDependencies": {
     "@swc/core": "^1.7.0",
-    "@types/bun": "^1.1.6",
     "@types/node": "^20.14.11",
     "tsup": "^8.2.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.5.3"
   }
 }

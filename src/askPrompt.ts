@@ -13,3 +13,15 @@ filePath.ts:123
 
 Question: ${question}
 `;
+
+// prettier-ignore
+export const generalAskPrompt = (question: string) =>
+`Responda à pergunta de forma clara, objetiva e informativa. Seja abrangente mas conciso.
+
+Para perguntas técnicas, inclua exemplos práticos quando relevante.
+Para comandos ou procedimentos, forneça exemplos de uso.
+Para conceitos, explique de forma acessível.
+
+Pergunta: ${question}
+
+Resposta:`;

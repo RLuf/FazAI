@@ -1,29 +1,60 @@
 #!/usr/bin/env node
-import { askAI } from "./askAI";
-import { input, confirm, password } from "@inquirer/prompts";
+import { input } from "@inquirer/prompts";
 import chalk from "chalk";
-import { getAIEditsFromClaude } from "./call-ai-claude";
-import { getAIEditsFromGPT } from "./call-ai-gpt";
-import { processFiles } from "./process-files";
-import fs from "node:fs";
-import { EditProcessor } from "./edit-processor";
-import { countTokens } from "@anthropic-ai/tokenizer";
-import { taskPrompt } from "./prompt";
-import { models, preferredVerifierModel } from "./models";
-import { getAIEditsFromFireworks } from "./call-fireworks";
-import { verifyEditStream } from "./verify-edits";
-import { checkAPIKey, getAndSetAPIKey } from "./apiKeyUtils";
-import { revertLastChanges } from "./edit-history";
-import { extractGitHubUrl } from "./github-utils";
+import { models } from "./models";
+import { checkAPIKey, getAndSetAPIKey, listConfiguredKeys } from "./apiKeyUtils-fazai";
+import { getLinuxCommandsFromAI } from "./linux-admin";
+import { collectSystemInfo } from "./system-info";
+import { LinuxCommandExecutor } from "./linux-executor";
+import { askAI } from "./askAI";
+import { LinuxCommand } from "./types-linux";
+import { ResearchCoordinator } from "./research";
+import { runCliMode } from "./cli-mode";
 
-function listAvailableModels() {
-  console.log(
-    "\nAvailable models:",
-    models.map((model) => model.nickName).join(", ")
-  );
-  console.log(
-    "\nYou can append the model nickname to the end of your command to use a specific model."
-  );
+function displayHelp() {
+  const helpText = `
+🖥️  FAZAI - Administrador Linux Inteligente com IA
+
+Usage:
+  fazai [options] [model-nickname]           # Linux Admin Mode (default)
+  fazai ask "Your question here"             # General AI questions
+  fazai config                               # List configured API keys
+  fazai completion                           # Print available CLI completions
+
+Options:
+  --dry-run                Simulate commands without executing
+  --cli                    Open interactive CLI (chat + /exec)
+  --help, -h               Show this help message
+
+Examples:
+  # Admin mode (default)
+  fazai
+  fazai --dry-run           # Safe simulation mode
+  fazai haiku               # Use Claude Haiku (faster/cheaper)
+
+  # General questions
+  fazai ask "Como configurar nginx como proxy reverso?"
+  fazai ask "Explicar diferença entre systemctl e service"
+
+  # Configuration
+  fazai config              # Show configured API keys
+
+Available Models:
+  OpenAI (requer API key):
+    gpt4mini    - GPT-4o-mini (DEFAULT - rápido e barato)
+    gpt4o       - GPT-4o (mais recente e inteligente)
+    gpt4turbo   - GPT-4 Turbo
+
+  Claude (Anthropic - requer API key):
+    sonnet35    - Claude 3.5 Sonnet (mais inteligente)
+    haiku       - Claude 3 Haiku (rápido e barato)
+
+  Ollama (local - configure OLLAMA_BASE_URL no fazai.conf):
+    llama32     - Llama 3.2
+    qwen        - Qwen 2.5:7b
+    mistral     - Mistral
+`;
+  console.log(helpText);
 }
 
 async function checkAndSetAPIKey(selectedModel: (typeof models)[number]) {
@@ -34,49 +65,16 @@ async function checkAndSetAPIKey(selectedModel: (typeof models)[number]) {
     await getAndSetAPIKey(provider);
   }
 
-  console.log(chalk.green(`API key for ${provider} has been set.`));
-}
-
-function checkContextWindowOverflow(
-  inputTokens: number,
-  selectedModel: (typeof models)[number]
-): { overflow: boolean; overflowTokens?: number; overflowPercentage?: number } {
-  const availableTokens =
-    selectedModel.contextWindow - selectedModel.outputLength;
-  if (inputTokens > availableTokens) {
-    const overflowTokens = inputTokens - availableTokens;
-    const overflowPercentage = (overflowTokens / availableTokens) * 100;
-    return { overflow: true, overflowTokens, overflowPercentage };
-  }
-  return { overflow: false };
-}
-
-function displayHelp() {
-  const helpText = `
-Mandark - Super simple, easily modifiable AI Coder
-
-Usage:
-  npx mandark [options] <file(s)/dir(s)/github-url(s)> [model-nickname]
-  npx mandark ask <github-url1> <github-url2> ... "Your question here"
-  npx mandark pipe <github-url1> <github-url2> ... | another-command
-  npx mandark copy <github-url1> <github-url2> ...
-
-Options:
-  --include-imports, -a    Include import statements in the code
-  --print, -p              Save processed code to compiled-code.txt and exit
-  --copy, -c               Copy processed code to clipboard and exit
-  --no-line-numbers, -n    Don't add line numbers to the code
-  --pattern=<glob>         Specify the glob pattern for file types (default: **/*.{ts,tsx,js,jsx,mjs,cjs,py,rs,go,c,cpp,h,hpp,java,rb,php,cs,swift,kt,scala,sh,md,json,yaml,yml,html,css,scss,less,txt})
-  --help, -h               Show this help message
-
-Models:
-`;
-  console.log(helpText);
-  listAvailableModels();
+  console.log(chalk.green(`✅ API key configurada (${provider})`));
 }
 
 async function main() {
   let inputs = process.argv.slice(2);
+
+  if (inputs.includes("--cli")) {
+    await runCliMode();
+    return;
+  }
 
   // Show help if no arguments or help flag is present
   if (
@@ -88,37 +86,38 @@ async function main() {
     return;
   }
 
-  if (inputs[0] === "revert") {
-    revertLastChanges();
+  // Config command
+  if (inputs[0] === "config") {
+    listConfiguredKeys();
     return;
   }
 
-  let includeImports = false;
-  let printCodeAndExit = false;
-  let copyToClipboard = false;
-  let noLineNumbers = false;
-  let filePattern: string | undefined = undefined;
+  if (inputs[0] === "completion") {
+    const suggestions = [
+      "ask",
+      "config",
+      "completion",
+      "--help",
+      "--dry-run",
+      "--cli",
+      "--yolo",
+      ...models.map((model) => model.nickName),
+    ];
+    console.log(suggestions.join("\n"));
+    return;
+  }
+
+  let dryRun = false;
+  let yoloMode = false;
 
   // Parse special arguments
   inputs = inputs.filter((input) => {
-    if (input === "--include-imports" || input === "-a") {
-      includeImports = true;
+    if (input === "--dry-run") {
+      dryRun = true;
       return false;
     }
-    if (input === "--print" || input === "-p") {
-      printCodeAndExit = true;
-      return false;
-    }
-    if (input === "--copy" || input === "-c") {
-      copyToClipboard = true;
-      return false;
-    }
-    if (input === "--no-line-numbers" || input === "-n") {
-      noLineNumbers = true;
-      return false;
-    }
-    if (input.startsWith("--pattern=")) {
-      filePattern = input.slice("--pattern=".length);
+    if (input === "--yolo" || input === "-y") {
+      yoloMode = true;
       return false;
     }
     if (input === "--help" || input === "-h") {
@@ -128,37 +127,28 @@ async function main() {
     return true;
   });
 
-  // Handle new modes: ask, copy, pipe
+  // Ask mode (general questions)
   if (inputs[0] === "ask") {
-    const githubUrls = inputs.slice(1).filter(extractGitHubUrl);
-    const question = inputs.slice(githubUrls.length + 1).join(" ");
+    const question = inputs.slice(1).join(" ");
 
-    if (githubUrls.length === 0 || !question) {
-      console.error(
-        'Usage: npx mandark ask <github-url1> <github-url2> ... "Your question here"'
-      );
+    if (!question) {
+      console.error('Usage: fazai ask "Your question here"');
       process.exit(1);
-    }
-    let combinedCode = "";
-    for (const url of githubUrls) {
-      const processedFiles = await processFiles(
-        [url],
-        includeImports,
-        noLineNumbers,
-        filePattern
-      );
-      combinedCode += processedFiles.code;
     }
 
     const selectedModel = models[0]; // Default model for ask
     await checkAndSetAPIKey(selectedModel);
 
+    console.log(chalk.blue("🤔 Fazendo pergunta..."));
+
     const answerStream = askAI(
-      combinedCode,
+      "",
       question,
       selectedModel.name,
-      selectedModel.provider
+      selectedModel.provider,
+      true
     );
+
     for await (const chunk of answerStream) {
       process.stdout.write(chunk);
     }
@@ -166,195 +156,184 @@ async function main() {
     return;
   }
 
-  if (inputs[0] === "copy") {
-    const githubUrls = inputs.slice(1).filter(extractGitHubUrl);
-    if (githubUrls.length === 0) {
-      console.error("Usage: npx mandark copy <github-url1> <github-url2> ...");
-      process.exit(1);
-    }
-    let combinedCode = "";
-    for (const url of githubUrls) {
-      const processedFiles = await processFiles(
-        [url],
-        includeImports,
-        noLineNumbers,
-        filePattern
-      );
-      combinedCode += processedFiles.code;
-    }
-    await import("clipboardy").then((clipboardy) =>
-      clipboardy.default.writeSync(combinedCode)
-    );
-    console.log("Line tagged code copied to clipboard");
-    return;
-  }
+  // Admin Mode (DEFAULT!)
+  console.log(chalk.cyan("\n🖥️  FAZAI - MODO ADMINISTRADOR LINUX"));
+  console.log(chalk.gray("Administração inteligente de sistemas Linux\n"));
 
-  if (inputs[0] === "pipe") {
-    const githubUrls = inputs.slice(1).filter(extractGitHubUrl);
-    if (githubUrls.length === 0) {
-      console.error(
-        "Usage: npx mandark pipe <github-url1> <github-url2> ... | another-command"
-      );
-      process.exit(1);
-    }
-
-    let combinedCode = "";
-    for (const url of githubUrls) {
-      const processedFiles = await processFiles(
-        [url],
-        includeImports,
-        noLineNumbers,
-        filePattern
-      );
-      combinedCode += processedFiles.code;
-    }
-    process.stdout.write(combinedCode);
-    return;
-  }
-
-  const modelNickname = inputs.pop()!;
+  // Check if direct command mode (first arg is not a model nickname and not a flag)
+  let directCommand: string | null = null;
+  const modelNickname = inputs[inputs.length - 1]; // Model is always last if provided
   let selectedModel = models.find((model) => model.nickName === modelNickname);
 
-  if (!selectedModel) {
-    if (modelNickname) inputs.push(modelNickname);
-    selectedModel = models[0];
+  if (!selectedModel && inputs.length > 0) {
+    // No model specified, all inputs are the command
+    directCommand = inputs.join(" ");
+    selectedModel = models[0]; // Use default
+  } else if (selectedModel && inputs.length > 1) {
+    // Model specified, everything before it is the command
+    directCommand = inputs.slice(0, -1).join(" ");
   }
 
-  if (inputs.length === 0) {
-    console.error("Problem: No files or folders to process");
-    process.exit(1);
-  }
-
-  const processedFiles = await processFiles(
-    inputs,
-    includeImports,
-    noLineNumbers,
-    filePattern
-  );
-
-  if (printCodeAndExit || copyToClipboard) {
-    if (printCodeAndExit) {
-      fs.writeFileSync("compiled-code.txt", processedFiles.code);
-      console.log("Line tagged code saved to compiled-code.txt");
-    }
-    if (copyToClipboard) {
-      await import("clipboardy").then((clipboardy) =>
-        clipboardy.default.writeSync(processedFiles.code)
-      );
-      console.log("Line tagged code copied to clipboard");
-    }
-    process.exit(0);
-  }
-
-  console.log("\n\nWelcome to Mandark!");
-
-  listAvailableModels();
-
-  console.log(
-    `Selected model: ${selectedModel.nickName} (${selectedModel.name} from ${selectedModel.provider})\n`
-  );
+  console.log(`Modelo: ${selectedModel ? selectedModel.nickName : models[0].nickName} (${selectedModel ? selectedModel.name : models[0].name})\n`);
+  if (!selectedModel) selectedModel = models[0];
 
   await checkAndSetAPIKey(selectedModel);
+  const researchCoordinator = new ResearchCoordinator();
 
-  const estimatedTokens = countTokens(
-    processedFiles.code + taskPrompt("x".repeat(100))
-  );
+  // Collect system info
+  console.log(chalk.gray("Coletando informações do sistema..."));
+  const systemInfo = await collectSystemInfo();
+  console.log(chalk.green("✅ Sistema analisado\n"));
 
-  const overflowCheck = checkContextWindowOverflow(
-    estimatedTokens,
-    selectedModel
-  );
-  if (overflowCheck.overflow) {
-    console.log(
-      chalk.yellow(
-        `Warning: Input exceeds model's context window by ${
-          overflowCheck.overflowTokens
-        } tokens (${overflowCheck.overflowPercentage?.toFixed(2)}%).`
-      )
-    );
-    const continueAnyway = await confirm({
-      message:
-        "Do you want to continue anyway? (This may result in incomplete processing)",
-      default: false,
-    });
-    if (!continueAnyway) {
-      console.log("Please reduce the input size and try again.");
-      process.exit(0);
-    }
+  if (dryRun) {
+    console.log(chalk.yellow("🔍 MODO DRY-RUN - Simulação apenas\n"));
   }
 
-  const estimatedCosts =
-    (estimatedTokens / 1000000) * selectedModel.inputCPM +
-    selectedModel.outputCPM * (selectedModel.outputLength / 10000000);
+  if (yoloMode) {
+    console.log(chalk.red("⚡ MODO YOLO - Execução automática sem confirmações!\n"));
+  }
 
-  console.log(
-    `Loaded ${
-      processedFiles.count
-    } files (${estimatedTokens} tokens). Estimated max cost: $${estimatedCosts.toFixed(
-      4
-    )}`
-  );
-
-  const task = await input({
-    message:
-      "What do you need me to do? (Type 'ask' followed by your question to ask a question instead): ",
-    validate: (input: string) => input.trim() !== "" || "Task cannot be empty",
+  // Get task (either from direct command or prompt)
+  const task = directCommand || await input({
+    message: "O que você precisa fazer? ",
+    validate: (input: string) => input.trim() !== "" || "Tarefa não pode estar vazia",
   });
 
-  if (task.toLowerCase().startsWith("ask ")) {
-    const question = task.slice(4).trim();
-    const answerStream = askAI(
-      processedFiles.code,
-      question,
+  // Generate Linux commands
+  const commandStream = getLinuxCommandsFromAI(
+    systemInfo,
+    task,
+    selectedModel.name,
+    selectedModel.provider
+  );
+
+  // Execute commands
+  const executor = new LinuxCommandExecutor(dryRun, researchCoordinator);
+  let commandCount = 0;
+  const attemptedCommands = new Set<string>();
+  const maxRetryCycles = 2;
+
+  const requestAlternativeCommands = async (
+    failureContext: {
+      command: LinuxCommand;
+      output: string;
+      attempts: number;
+    }
+  ): Promise<LinuxCommand[]> => {
+    const attemptedList = Array.from(attemptedCommands);
+    const attemptedSection =
+      attemptedList.length > 0
+        ? `\n\nComandos já tentados (não repita estes exatamente):\n- ${attemptedList.join("\n- ")}`
+        : "";
+
+    const retryTask = `${task}
+
+O comando abaixo falhou:
+Comando: ${failureContext.command.command}
+Erro/saída:
+${failureContext.output}
+
+Gere uma nova sequência de comandos para atingir o mesmo objetivo, evitando repetir os comandos já usados e propondo uma abordagem alternativa.${attemptedSection}
+`;
+
+    const altStream = getLinuxCommandsFromAI(
+      systemInfo,
+      retryTask,
       selectedModel.name,
       selectedModel.provider
     );
-    for await (const chunk of answerStream) {
-      process.stdout.write(chunk);
-    }
-    console.log("\n");
-  } else {
-    let editPacketStream;
-    if (selectedModel.provider === "anthropic") {
-      editPacketStream = await getAIEditsFromClaude(
-        processedFiles.code,
-        task,
-        selectedModel.name as
-          | "claude-3-5-sonnet-20240620"
-          | "claude-3-haiku-20240307"
-      );
-    } else if (selectedModel.provider === "openai") {
-      editPacketStream = await getAIEditsFromGPT(
-        processedFiles.code,
-        task,
-        selectedModel.name
-      );
-    } else if (selectedModel.provider === "fireworks") {
-      editPacketStream = await getAIEditsFromFireworks(
-        processedFiles.code,
-        task,
-        selectedModel.name
-      );
-    } else {
-      console.error(`Unsupported provider: ${selectedModel.provider}`);
-      process.exit(1);
+
+    const alternatives: LinuxCommand[] = [];
+
+    for await (const packet of altStream) {
+      if (packet.type === "command") {
+        alternatives.push(packet.command);
+      } else if (packet.type === "allcommands") {
+        break;
+      } else if (packet.type === "error") {
+        console.error(`❌ Erro ao gerar alternativa: ${packet.error}`);
+      }
     }
 
-    const editProcessor = new EditProcessor();
-    const verifiedEditStream = await verifyEditStream(
-      editPacketStream,
-      checkAPIKey(preferredVerifierModel.provider)
-        ? preferredVerifierModel.provider
-        : selectedModel.provider
-    );
-    await editProcessor.processEditStream(verifiedEditStream);
+    return alternatives;
+  };
+
+  const tryAlternativeApproach = async (
+    failedCommand: LinuxCommand,
+    failureOutput: string
+  ): Promise<boolean> => {
+    let lastOutput = failureOutput;
+    let lastCommand = failedCommand;
+
+    for (let cycle = 1; cycle <= maxRetryCycles; cycle++) {
+      console.log(chalk.yellow(`\n⚙️  Tentando abordagem alternativa (${cycle}/${maxRetryCycles})...`));
+      const alternatives = await requestAlternativeCommands({
+        command: lastCommand,
+        output: lastOutput,
+        attempts: cycle,
+      });
+
+      if (alternatives.length === 0) {
+        console.log(chalk.red("Nenhuma alternativa fornecida pela IA."));
+        return false;
+      }
+
+      for (const alternative of alternatives) {
+        if (attemptedCommands.has(alternative.command)) {
+          continue;
+        }
+
+        attemptedCommands.add(alternative.command);
+        commandCount++;
+        console.log(chalk.blue(`\n🔧 Comando ${commandCount} (alternativa):`));
+        const altResult = await executor.executeCommand(alternative);
+
+        if (altResult.success) {
+          console.log(chalk.green("✅ Abordagem alternativa executada com sucesso"));
+          return true;
+        }
+
+        console.log(chalk.red("❌ Alternativa falhou. Avaliando próxima opção..."));
+        lastOutput = altResult.output;
+        lastCommand = alternative;
+      }
+    }
+
+    console.log(chalk.red("⚠️  Nenhuma alternativa teve sucesso após múltiplas tentativas."));
+    return false;
+  };
+
+  for await (const commandPacket of commandStream) {
+    if (commandPacket.type === "command") {
+      commandCount++;
+      console.log(chalk.blue(`\n🔧 Comando ${commandCount}:`));
+      attemptedCommands.add(commandPacket.command.command);
+      const result = await executor.executeCommand(commandPacket.command);
+
+      if (!result.success && !dryRun) {
+        await tryAlternativeApproach(commandPacket.command, result.output);
+      }
+    } else if (commandPacket.type === "allcommands") {
+      console.log(chalk.green(`\n✅ ${commandCount} comandos processados`));
+
+      if (!dryRun) {
+        const history = executor.getExecutionHistory();
+        if (history.length > 0) {
+          console.log(chalk.gray("\n📋 Histórico:"));
+          history.forEach((entry, index) => {
+            const status = entry.success ? chalk.green("✅") : chalk.red("❌");
+            console.log(`  ${index + 1}. ${status} ${entry.command.command}`);
+          });
+        }
+      }
+      break;
+    } else if (commandPacket.type === "error") {
+      console.error(`❌ Erro: ${commandPacket.error}`);
+      break;
+    }
   }
 
-  console.log(
-    chalk.cyan(
-      "Leave a star if you like it! https://github.com/hrishioa/mandark"
-    )
-  );
+  console.log(chalk.cyan("\n⭐ FAZAI - Administração Linux com IA"));
 }
 
 main().catch(console.error);

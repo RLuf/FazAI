@@ -5,6 +5,12 @@ packages/*/*.wasm
 *.a
 profile.json
 dist
+.fazai/
+fazai.conf
+fazai.conf.*
+!fazai.conf.example
+*.history
+.history
 
 mandark-history.json
 

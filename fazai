@@ -1,0 +1,25 @@
+#!/bin/bash
+# FazAI CLI launcher
+# Executa o binário compilado do projeto FazAI
+
+# Resolve localização real do script, seguindo links simbólicos
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+    LINK_TARGET="$(readlink "$SOURCE")"
+    if [[ "$LINK_TARGET" != /* ]]; then
+        SOURCE="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)/$LINK_TARGET"
+    else
+        SOURCE="$LINK_TARGET"
+    fi
+done
+DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+NODE_PATH="$DIR/node_modules/.bin:$PATH"
+
+# Verificar se o arquivo compilado existe no repositório real
+if [ ! -f "$DIR/dist/app.cjs" ]; then
+    echo "❌ Arquivo compilado não encontrado. Execute o script de instalação novamente."
+    exit 1
+fi
+
+# Executar com node
+exec node "$DIR/dist/app.cjs" "$@"
