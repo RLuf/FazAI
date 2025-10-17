@@ -321,10 +321,24 @@ O modo `fazai --cli` oferece:
   - `/help` — lista as opções disponíveis
   - `/exec ...` — executa fluxos administrativos a partir de linguagem natural (suporta `'''texto'''`)
   - `/history` — exibe o histórico persistente de entradas
-  - `/history clear` — limpa esse histórico
-  - `/memory clear` — limpa a memória contextual gravada
-  - `/quit` ou `/exit` — encerra o modo CLI
+- `/history clear` — limpa esse histórico
+- `/memory clear` — limpa a memória contextual gravada
+- `/quit` ou `/exit` — encerra o modo CLI
 - Histórico navegável com setas ↑/↓ e auto-complete para comandos iniciados com `/`
+
+### Script de inicialização “Codex // Andarilho”
+
+Para iniciar o FazAI com a marca registrada do projeto e exibir o contexto do **Andarilho dos Véus** antes do CLI:
+
+```bash
+./scripts/start-codex.sh
+```
+
+O script:
+- Mostra o banner “Codex // Andarilho”;
+- Exibe o conteúdo de `context/andarilho-context.md` (personalize conforme desejar);
+- Garante que o build exista (`dist/app.cjs`);
+- Lança o `fazai --cli`.
 
 ## 🛠️ Desenvolvimento
 
