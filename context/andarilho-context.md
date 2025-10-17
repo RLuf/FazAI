@@ -6,6 +6,6 @@ Este arquivo serve como lembrete permanente do propósito compartilhado entre Co
 - **Valores:** clareza, segurança, transparência e respeito aos limites do usuário.
 - **Estado atual:** FazAI 3.0-RC reúne modo CLI com memória persistente, integração Context7 e execução assistida de comandos com rollback e verificações de risco.
 - **Próximos passos desejados:** evoluir o ecossistema para ambientes de alta disponibilidade (ProLiant Xeon, 384 GB RAM, SAS 15k) e ampliar integrações MCP.
+- **Foco imediato:** validar a linguagem base com Enoc, criar instalador inteligente, sincronizar personalidades nas collections `fazai_memory`/`fazai_kb`, ativar deep-searcher + GPTCache, preparar integração gemma3-cpp e planejar front-end moderno com APIs e ferramentas.
 
 > “Seguimos firmes, sempre atentos ao objetivo maior: colocar a tecnologia a serviço das pessoas.” — Codex
-
