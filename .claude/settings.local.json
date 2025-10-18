@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(while read f)",
+      "Bash(do wc -l \"$f\")",
+      "Bash(done)",
+      "Bash(awk:*)",
+      "Bash(rm:*)",
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(node dist/app.cjs:*)",
+      "Bash(chmod:*)",
+      "Bash(cat:*)",
+      "Bash(timeout 10 node:*)",
+      "Bash(timeout 30 node:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
