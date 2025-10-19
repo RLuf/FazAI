@@ -1,6 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { logger } from "./logger";
 
 type ChatRole = "user" | "assistant";
 
@@ -28,7 +29,7 @@ function readJsonFile<T>(file: string, fallback: T): T {
     const raw = fs.readFileSync(file, "utf-8");
     return JSON.parse(raw) as T;
   } catch (error) {
-    console.warn(`⚠️  Falha ao ler ${file}:`, error);
+    logger.warn(`⚠️  Falha ao ler ${file}:`, error);
     return fallback;
   }
 }
@@ -38,7 +39,7 @@ function writeJsonFile(file: string, value: unknown): void {
     ensureDataDir();
     fs.writeFileSync(file, JSON.stringify(value, null, 2), "utf-8");
   } catch (error) {
-    console.warn(`⚠️  Falha ao salvar ${file}:`, error);
+    logger.warn(`⚠️  Falha ao salvar ${file}:`, error);
   }
 }
 
@@ -70,7 +71,7 @@ export function loadCommandHistory(limit: number = 100): string[] {
     }
     return lines.slice(-limit);
   } catch (error) {
-    console.warn(`⚠️  Falha ao ler histórico de comandos:`, error);
+    logger.warn(`⚠️  Falha ao ler histórico de comandos:`, error);
     return [];
   }
 }
@@ -80,7 +81,7 @@ export function appendCommandHistory(entry: string): void {
     ensureDataDir();
     fs.appendFileSync(COMMAND_HISTORY_FILE, `${entry}\n`, "utf-8");
   } catch (error) {
-    console.warn(`⚠️  Falha ao salvar histórico de comandos:`, error);
+    logger.warn(`⚠️  Falha ao salvar histórico de comandos:`, error);
   }
 }
 
@@ -90,7 +91,7 @@ export function clearPersistentMemory(): void {
       fs.unlinkSync(MEMORY_FILE);
     }
   } catch (error) {
-    console.warn(`⚠️  Falha ao limpar memória contextual:`, error);
+    logger.warn(`⚠️  Falha ao limpar memória contextual:`, error);
   }
 }
 
@@ -100,6 +101,6 @@ export function clearPersistentHistory(): void {
       fs.unlinkSync(COMMAND_HISTORY_FILE);
     }
   } catch (error) {
-    console.warn(`⚠️  Falha ao limpar histórico de comandos:`, error);
+    logger.warn(`⚠️  Falha ao limpar histórico de comandos:`, error);
   }
 }

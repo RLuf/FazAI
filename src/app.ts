@@ -10,6 +10,7 @@ import { askAI } from "./askAI";
 import { LinuxCommand } from "./types-linux";
 import { ResearchCoordinator } from "./research";
 import { runCliMode } from "./cli-mode";
+import { initLogger, logger } from "./logger";
 
 function displayHelp() {
   const helpText = `
@@ -25,6 +26,9 @@ Usage:
 Options:
   --dry-run                Simulate commands without executing
   --cli                    Open interactive CLI (chat + /exec)
+  --debug                  Ativa logs detalhados (equivalente a --verbose)
+  --verbose                Alias para --debug
+  --log-file <path>        Define caminho explícito para o arquivo de log
   --auto-research          Reativar pesquisa automática após falhas
   --help, -h               Show this help message
 
@@ -56,7 +60,7 @@ Available Models:
     qwen        - Qwen 2.5:7b
     mistral     - Mistral
 `;
-  console.log(helpText);
+  logger.info(helpText);
 }
 
 async function checkAndSetAPIKey(selectedModel: (typeof models)[number]) {
@@ -67,10 +71,32 @@ async function checkAndSetAPIKey(selectedModel: (typeof models)[number]) {
     await getAndSetAPIKey(provider);
   }
 
-  console.log(chalk.green(`✅ API key configurada (${provider})`));
+  logger.info(chalk.green(`✅ API key configurada (${provider})`));
 }
 
 async function main() {
+  const rawArgs = process.argv.slice(2);
+  const debugFlag = rawArgs.includes("--debug") || rawArgs.includes("--verbose");
+  const verboseFlag = rawArgs.includes("--verbose");
+
+  let logFileOverride: string | undefined;
+  for (let i = 0; i < rawArgs.length; i++) {
+    const arg = rawArgs[i];
+    if (arg === "--log-file" && rawArgs[i + 1]) {
+      logFileOverride = rawArgs[i + 1];
+      break;
+    }
+    if (arg.startsWith("--log-file=")) {
+      logFileOverride = arg.split("=")[1];
+      break;
+    }
+  }
+
+  initLogger({
+    levelOverride: debugFlag || verboseFlag ? "debug" : undefined,
+    logFilePathOverride: logFileOverride,
+  });
+
   let inputs = process.argv.slice(2);
 
   if (inputs.includes("--cli")) {
@@ -100,6 +126,9 @@ async function main() {
       "config",
       "completion",
       "search",
+      "--debug",
+      "--verbose",
+      "--log-file",
       "--help",
       "--dry-run",
       "--cli",
@@ -107,7 +136,7 @@ async function main() {
       "--yolo",
       ...models.map((model) => model.nickName),
     ];
-    console.log(suggestions.join("\n"));
+    logger.info(suggestions.join("\n"));
     return;
   }
 
@@ -125,6 +154,15 @@ async function main() {
       yoloMode = true;
       return false;
     }
+    if (input === "--debug" || input === "--verbose") {
+      return false;
+    }
+    if (input === "--log-file") {
+      return false;
+    }
+    if (input.startsWith("--log-file=")) {
+      return false;
+    }
     if (input === "--auto-research") {
       autoResearchOnFailure = true;
       return false;
@@ -140,7 +178,7 @@ async function main() {
   if (inputs[0] === "search") {
     const query = inputs.slice(1).join(" ");
     if (!query) {
-      console.error('Usage: fazai search "Your query here"');
+      logger.error('Usage: fazai search "Your query here"');
       process.exit(1);
     }
 
@@ -154,14 +192,14 @@ async function main() {
     const question = inputs.slice(1).join(" ");
 
     if (!question) {
-      console.error('Usage: fazai ask "Your question here"');
+      logger.error('Usage: fazai ask "Your question here"');
       process.exit(1);
     }
 
     const selectedModel = models[0]; // Default model for ask
     await checkAndSetAPIKey(selectedModel);
 
-    console.log(chalk.blue("🤔 Fazendo pergunta..."));
+    logger.info(chalk.blue("🤔 Fazendo pergunta..."));
 
     const answerStream = askAI(
       "",
@@ -174,13 +212,13 @@ async function main() {
     for await (const chunk of answerStream) {
       process.stdout.write(chunk);
     }
-    console.log("\n");
+    logger.info("");
     return;
   }
 
   // Admin Mode (DEFAULT!)
-  console.log(chalk.cyan("\n🖥️  FAZAI - MODO ADMINISTRADOR LINUX"));
-  console.log(chalk.gray("Administração inteligente de sistemas Linux\n"));
+  logger.info(chalk.cyan("\n🖥️  FAZAI - MODO ADMINISTRADOR LINUX"));
+  logger.info(chalk.gray("Administração inteligente de sistemas Linux\n"));
 
   // Check if direct command mode (first arg is not a model nickname and not a flag)
   let directCommand: string | null = null;
@@ -196,23 +234,23 @@ async function main() {
     directCommand = inputs.slice(0, -1).join(" ");
   }
 
-  console.log(`Modelo: ${selectedModel ? selectedModel.nickName : models[0].nickName} (${selectedModel ? selectedModel.name : models[0].name})\n`);
+  logger.info(`Modelo: ${selectedModel ? selectedModel.nickName : models[0].nickName} (${selectedModel ? selectedModel.name : models[0].name})\n`);
   if (!selectedModel) selectedModel = models[0];
 
   await checkAndSetAPIKey(selectedModel);
   const researchCoordinator = new ResearchCoordinator({ researchOnFailure: autoResearchOnFailure });
 
   // Collect system info
-  console.log(chalk.gray("Coletando informações do sistema..."));
+  logger.info(chalk.gray("Coletando informações do sistema..."));
   const systemInfo = await collectSystemInfo();
-  console.log(chalk.green("✅ Sistema analisado\n"));
+  logger.info(chalk.green("✅ Sistema analisado\n"));
 
   if (dryRun) {
-    console.log(chalk.yellow("🔍 MODO DRY-RUN - Simulação apenas\n"));
+    logger.info(chalk.yellow("🔍 MODO DRY-RUN - Simulação apenas\n"));
   }
 
   if (yoloMode) {
-    console.log(chalk.red("⚡ MODO YOLO - Execução automática sem confirmações!\n"));
+    logger.warn(chalk.red("⚡ MODO YOLO - Execução automática sem confirmações!\n"));
   }
 
   // Get task (either from direct command or prompt)
@@ -273,7 +311,7 @@ Gere uma nova sequência de comandos para atingir o mesmo objetivo, evitando rep
       } else if (packet.type === "allcommands") {
         break;
       } else if (packet.type === "error") {
-        console.error(`❌ Erro ao gerar alternativa: ${packet.error}`);
+        logger.error(`❌ Erro ao gerar alternativa: ${packet.error}`);
       }
     }
 
@@ -288,7 +326,7 @@ Gere uma nova sequência de comandos para atingir o mesmo objetivo, evitando rep
     let lastCommand = failedCommand;
 
     for (let cycle = 1; cycle <= maxRetryCycles; cycle++) {
-      console.log(chalk.yellow(`\n⚙️  Tentando abordagem alternativa (${cycle}/${maxRetryCycles})...`));
+      logger.info(chalk.yellow(`\n⚙️  Tentando abordagem alternativa (${cycle}/${maxRetryCycles})...`));
       const alternatives = await requestAlternativeCommands({
         command: lastCommand,
         output: lastOutput,
@@ -296,7 +334,7 @@ Gere uma nova sequência de comandos para atingir o mesmo objetivo, evitando rep
       });
 
       if (alternatives.length === 0) {
-        console.log(chalk.red("Nenhuma alternativa fornecida pela IA."));
+        logger.warn(chalk.red("Nenhuma alternativa fornecida pela IA."));
         return false;
       }
 
@@ -307,28 +345,28 @@ Gere uma nova sequência de comandos para atingir o mesmo objetivo, evitando rep
 
         attemptedCommands.add(alternative.command);
         commandCount++;
-        console.log(chalk.blue(`\n🔧 Comando ${commandCount} (alternativa):`));
+        logger.info(chalk.blue(`\n🔧 Comando ${commandCount} (alternativa):`));
         const altResult = await executor.executeCommand(alternative);
 
         if (altResult.success) {
-          console.log(chalk.green("✅ Abordagem alternativa executada com sucesso"));
+          logger.info(chalk.green("✅ Abordagem alternativa executada com sucesso"));
           return true;
         }
 
-        console.log(chalk.red("❌ Alternativa falhou. Avaliando próxima opção..."));
+        logger.warn(chalk.red("❌ Alternativa falhou. Avaliando próxima opção..."));
         lastOutput = altResult.output;
         lastCommand = alternative;
       }
     }
 
-    console.log(chalk.red("⚠️  Nenhuma alternativa teve sucesso após múltiplas tentativas."));
+    logger.warn(chalk.red("⚠️  Nenhuma alternativa teve sucesso após múltiplas tentativas."));
     return false;
   };
 
   for await (const commandPacket of commandStream) {
     if (commandPacket.type === "command") {
       commandCount++;
-      console.log(chalk.blue(`\n🔧 Comando ${commandCount}:`));
+      logger.info(chalk.blue(`\n🔧 Comando ${commandCount}:`));
       attemptedCommands.add(commandPacket.command.command);
       const result = await executor.executeCommand(commandPacket.command);
 
@@ -336,26 +374,29 @@ Gere uma nova sequência de comandos para atingir o mesmo objetivo, evitando rep
         await tryAlternativeApproach(commandPacket.command, result.output);
       }
     } else if (commandPacket.type === "allcommands") {
-      console.log(chalk.green(`\n✅ ${commandCount} comandos processados`));
+      logger.info(chalk.green(`\n✅ ${commandCount} comandos processados`));
 
       if (!dryRun) {
         const history = executor.getExecutionHistory();
         if (history.length > 0) {
-          console.log(chalk.gray("\n📋 Histórico:"));
+          logger.info(chalk.gray("\n📋 Histórico:"));
           history.forEach((entry, index) => {
             const status = entry.success ? chalk.green("✅") : chalk.red("❌");
-            console.log(`  ${index + 1}. ${status} ${entry.command.command}`);
+            logger.info(`  ${index + 1}. ${status} ${entry.command.command}`);
           });
         }
       }
       break;
     } else if (commandPacket.type === "error") {
-      console.error(`❌ Erro: ${commandPacket.error}`);
+      logger.error(`❌ Erro: ${commandPacket.error}`);
       break;
     }
   }
 
-  console.log(chalk.cyan("\n⭐ FAZAI - Administração Linux com IA"));
+  logger.info(chalk.cyan("\n⭐ FAZAI - Administração Linux com IA"));
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  logger.error("Unhandled error:", error);
+  process.exit(1);
+});

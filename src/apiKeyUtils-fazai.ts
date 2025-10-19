@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { password } from "@inquirer/prompts";
 import { configFileExists, getConfigFilePath, getConfigValue, listConfigEntries, setConfigValue } from "./config";
+import { logger } from "./logger";
 
 export function checkAPIKey(provider: string): boolean {
   // Ollama não precisa de API key
@@ -27,9 +28,9 @@ export async function getAndSetAPIKey(provider: string): Promise<string> {
     const baseUrl = getOllamaBaseUrl();
     if (baseUrl) {
       process.env.OLLAMA_BASE_URL = baseUrl;
-      console.log(chalk.green(`✅ Ollama configurado: ${baseUrl}`));
+      logger.info(chalk.green(`✅ Ollama configurado: ${baseUrl}`));
     } else {
-      console.log(chalk.yellow(`⚠️  OLLAMA_BASE_URL não configurado no ${configFileLabel()}, usando http://localhost:11434`));
+      logger.warn(chalk.yellow(`⚠️  OLLAMA_BASE_URL não configurado no ${configFileLabel()}, usando http://localhost:11434`));
       process.env.OLLAMA_BASE_URL = "http://localhost:11434";
     }
     return "ollama"; // Retorna string dummy
@@ -38,7 +39,7 @@ export async function getAndSetAPIKey(provider: string): Promise<string> {
   let apiKey = getAPIKeyFromConfig(provider);
 
   if (!apiKey) {
-    console.log(chalk.yellow(`\nAPI key para ${provider} não encontrada no ${configFileLabel()}.`));
+    logger.warn(chalk.yellow(`\nAPI key para ${provider} não encontrada no ${configFileLabel()}.`));
     const key = await password({
       message: `Digite sua chave API do ${provider.charAt(0).toUpperCase() + provider.slice(1)}:`,
       mask: "*",
@@ -65,9 +66,9 @@ function saveAPIKeyToConfig(provider: string, apiKey: string): void {
   const envVar = getEnvVarName(provider);
   try {
     setConfigValue(envVar, apiKey);
-    console.log(chalk.green(`✅ Chave API salva em ${configFileLabel()}`));
+    logger.info(chalk.green(`✅ Chave API salva em ${configFileLabel()}`));
   } catch (error) {
-    console.error(`❌ Erro ao salvar chave API em ${configFileLabel()}:`, error);
+    logger.error(`❌ Erro ao salvar chave API em ${configFileLabel()}:`, error);
   }
 }
 
@@ -94,12 +95,12 @@ function getOllamaBaseUrl(): string | undefined {
 export function listConfiguredKeys(): void {
   try {
     if (!configFileExists()) {
-      console.log(chalk.yellow(`Arquivo ${configFileLabel()} não encontrado.`));
+      logger.warn(chalk.yellow(`Arquivo ${configFileLabel()} não encontrado.`));
       return;
     }
 
     const entries = listConfigEntries();
-    console.log(chalk.cyan(`\n🔑 Configurações em ${configFileLabel()}:`));
+    logger.info(chalk.cyan(`\n🔑 Configurações em ${configFileLabel()}:`));
 
     const providers = ["anthropic", "openai", "ollama"];
     let found = false;
@@ -110,21 +111,21 @@ export function listConfiguredKeys(): void {
 
       if (value) {
         if (provider === "ollama") {
-          console.log(`  ${provider}: ${value || "não definida"}`);
+          logger.info(`  ${provider}: ${value || "não definida"}`);
         } else {
           const masked = "*".repeat(Math.min(value.length, 20));
-          console.log(`  ${provider}: ${masked}`);
+          logger.info(`  ${provider}: ${masked}`);
         }
         found = true;
       }
     }
 
     if (!found) {
-      console.log(chalk.gray("  Nenhuma configuração encontrada."));
+      logger.info(chalk.gray("  Nenhuma configuração encontrada."));
     }
 
   } catch (error) {
-    console.error(`Erro ao listar chaves:`, error);
+    logger.error(`Erro ao listar chaves:`, error);
   }
 }
 

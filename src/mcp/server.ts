@@ -1,6 +1,7 @@
 import http from "http";
 import chalk from "chalk";
 import { ResearchCoordinator } from "../research";
+import { logger } from "../logger";
 
 export interface MCPServerOptions {
   host?: string;
@@ -58,7 +59,7 @@ export class MCPServer {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ query, result }));
       } catch (error) {
-        console.error(chalk.red(`❌ Erro no MCP server: ${String(error)}`));
+        logger.error(chalk.red(`❌ Erro no MCP server: ${String(error)}`));
         res.writeHead(500);
         res.end(JSON.stringify({ error: "internal_error" }));
       }
@@ -66,7 +67,7 @@ export class MCPServer {
 
     await new Promise<void>((resolve) => {
       this.server!.listen(this.options.port, this.options.host, () => {
-        console.log(chalk.green(`🛰️  MCP server ativo em http://${this.options.host}:${this.options.port}`));
+        logger.info(chalk.green(`🛰️  MCP server ativo em http://${this.options.host}:${this.options.port}`));
         resolve();
       });
     });

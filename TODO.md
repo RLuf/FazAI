@@ -4,9 +4,9 @@
    - Garantir que `fazai.conf` seja buscado de forma relativa ao diretório de trabalho ou via `FAZAI_CONFIG_PATH`. *(Implementado: busca multi-path + fallback em ~/.config/fazai)*  
    - Opcional: exibir mensagem inicial indicando diretório atual/contexto para evitar confusões. *(avaliar necessidade)*
 
-2. Tratamento de logs  
-   - Implementar `--debug/--verbose` com diferentes níveis de log definidos no `.conf`.  
-   - Registrar saída estruturada em `/var/log/fazai.log` (ou caminho configurável).
+2. Tratamento de logs ✅  
+   - Implementado `--debug/--verbose`, leitura de `LOG_LEVEL` no `.conf`/env e `--log-file`.  
+   - Logs gravados em `/var/log/fazai.log` com fallback automático e saída estruturada.
 
 3. Revisar linguagem base com Enoc  
    - Confirmar permanência do orquestrador em TypeScript ou planejar módulo complementar em outra linguagem.

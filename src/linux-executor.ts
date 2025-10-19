@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import chalk from "chalk";
 import { LinuxCommand, CRITICAL_COMMANDS, HIGH_RISK_COMMANDS } from "./types-linux";
 import { ResearchCoordinator } from "./research";
+import { logger } from "./logger";
 
 export class LinuxCommandExecutor {
   private executedCommands: Array<{ command: LinuxCommand; output: string; success: boolean }> = [];
@@ -48,26 +49,26 @@ export class LinuxCommandExecutor {
 
   private async runSafetyChecks(command: LinuxCommand): Promise<boolean> {
     if (command.safetyChecks && command.safetyChecks.length > 0) {
-      console.log(chalk.gray("\n(Verificações de segurança ignoradas pelo modo rápido)"));
+      logger.info(chalk.gray("\n(Verificações de segurança ignoradas pelo modo rápido)"));
     }
     return true;
   }
 
   private async getUserConfirmation(command: LinuxCommand): Promise<boolean> {
-    console.log(chalk.cyan(`\n📋 Comando: ${command.command}`));
-    console.log(chalk.gray(`📝 Explicação: ${command.explain}`));
+    logger.info(chalk.cyan(`\n📋 Comando: ${command.command}`));
+    logger.info(chalk.gray(`📝 Explicação: ${command.explain}`));
     if (command.rollbackCommand) {
-      console.log(chalk.blue(`🔄 Rollback disponível: ${command.rollbackCommand}`));
+      logger.info(chalk.blue(`🔄 Rollback disponível: ${command.rollbackCommand}`));
     }
     if (command.expectedOutput) {
-      console.log(chalk.gray(`🎯 Saída esperada: ${command.expectedOutput}`));
+      logger.info(chalk.gray(`🎯 Saída esperada: ${command.expectedOutput}`));
     }
-    console.log(chalk.yellow("(Confirmação automática habilitada)"));
+    logger.info(chalk.yellow("(Confirmação automática habilitada)"));
     return true;
   }
 
   async executeCommand(command: LinuxCommand): Promise<{ success: boolean; output: string }> {
-    console.log(chalk.cyan(`\n🚀 Executando: ${command.command}`));
+    logger.info(chalk.cyan(`\n🚀 Executando: ${command.command}`));
 
     // Verificações de segurança
     await this.runSafetyChecks(command);
@@ -75,12 +76,12 @@ export class LinuxCommandExecutor {
     await this.researchCoordinator?.maybeRunPreExecutionResearch(command);
 
     if (this.dryRun) {
-      console.log(chalk.yellow(`🔍 DRY-RUN: ${command.command}`));
+      logger.info(chalk.yellow(`🔍 DRY-RUN: ${command.command}`));
       return { success: true, output: "(dry-run: comando não executado)" };
     }
 
     try {
-      console.log(chalk.gray("Executando..."));
+      logger.info(chalk.gray("Executando..."));
 
       // Usar spawn para melhor controle e output em tempo real
       const result = await new Promise<{ success: boolean; output: string }>((resolve) => {
@@ -128,9 +129,9 @@ export class LinuxCommandExecutor {
       });
 
       if (result.success) {
-        console.log(chalk.green("✅ Comando executado com sucesso"));
+        logger.info(chalk.green("✅ Comando executado com sucesso"));
       } else {
-        console.log(chalk.red("❌ Comando falhou"));
+        logger.warn(chalk.red("❌ Comando falhou"));
         await this.researchCoordinator?.handleExecutionFailure(command, result.output);
       }
 
@@ -139,7 +140,7 @@ export class LinuxCommandExecutor {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorMsg = `Erro ao executar comando: ${errorMessage}`;
-      console.log(chalk.red(errorMsg));
+      logger.error(chalk.red(errorMsg));
 
       this.executedCommands.push({
         command,
@@ -155,18 +156,18 @@ export class LinuxCommandExecutor {
 
   async rollbackLastCommand(): Promise<boolean> {
     if (this.executedCommands.length === 0) {
-      console.log(chalk.yellow("Nenhum comando para reverter"));
+      logger.warn(chalk.yellow("Nenhum comando para reverter"));
       return false;
     }
 
     const lastCommand = this.executedCommands[this.executedCommands.length - 1];
 
     if (!lastCommand.command.rollbackCommand) {
-      console.log(chalk.red("Último comando não tem rollback definido"));
+      logger.warn(chalk.red("Último comando não tem rollback definido"));
       return false;
     }
 
-    console.log(chalk.yellow(`\n🔄 Executando rollback: ${lastCommand.command.rollbackCommand}`));
+    logger.info(chalk.yellow(`\n🔄 Executando rollback: ${lastCommand.command.rollbackCommand}`));
 
     const rollbackCommand: LinuxCommand = {
       explain: `Revertendo: ${lastCommand.command.explain}`,

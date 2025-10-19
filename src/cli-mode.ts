@@ -8,6 +8,7 @@ import { LinuxCommand } from "./types-linux";
 import { LinuxCommandExecutor } from "./linux-executor";
 import { ResearchCoordinator } from "./research";
 import { checkAPIKey, getAndSetAPIKey } from "./apiKeyUtils-fazai";
+import { logger } from "./logger";
 import {
   appendCommandHistory,
   appendConversationEntry,
@@ -62,14 +63,14 @@ function createCompleter() {
 
 export async function runCliMode(): Promise<void> {
   const defaultModel = models[0];
-  console.log(chalk.cyan.bold("\n🤖 FazAI CLI interativo"));
-  console.log(chalk.gray("Digite mensagens livres para conversar ou use comandos especiais começando com '/'"));
-  console.log(chalk.gray("Comandos disponíveis: /help, /exec, /history, /quit, /exit\n"));
+  logger.info(chalk.cyan.bold("\n🤖 FazAI CLI interativo"));
+  logger.info(chalk.gray("Digite mensagens livres para conversar ou use comandos especiais começando com '/'"));
+  logger.info(chalk.gray("Comandos disponíveis: /help, /exec, /history, /quit, /exit\n"));
 
   if (!checkAPIKey(defaultModel.provider)) {
     await getAndSetAPIKey(defaultModel.provider);
   }
-  console.log(chalk.green(`✅ API key configurada (${defaultModel.provider})`));
+  logger.info(chalk.green(`✅ API key configurada (${defaultModel.provider})`));
 
   const storedConversation = loadConversationHistory();
   const conversationHistory: ConversationTurn[] = storedConversation.map((entry) => ({
@@ -103,7 +104,7 @@ export async function runCliMode(): Promise<void> {
       timestamp: new Date().toISOString(),
     });
     const prompt = buildChatPrompt(conversationHistory);
-    console.log(chalk.blueBright("\n🤖 FazAI:"));
+    logger.info(chalk.blueBright("\n🤖 FazAI:"));
 
     let response = "";
     try {
@@ -119,9 +120,9 @@ export async function runCliMode(): Promise<void> {
         process.stdout.write(chunk);
         response += chunk;
       }
-      console.log("");
+      logger.info("");
     } catch (error) {
-      console.error(chalk.red("\n❌ Erro ao conversar com o modelo:"), error);
+      logger.error(chalk.red("\n❌ Erro ao conversar com o modelo:"), error);
     } finally {
       conversationHistory.push({
         role: "assistant",
@@ -137,11 +138,11 @@ export async function runCliMode(): Promise<void> {
 
   const handleExec = async (task: string) => {
     if (!task) {
-      console.log(chalk.yellow("Forneça uma instrução após /exec. Ex: /exec limpar /tmp"));
+      logger.warn(chalk.yellow("Forneça uma instrução após /exec. Ex: /exec limpar /tmp"));
       return;
     }
 
-    console.log(chalk.magentaBright("\n⚙️  Gerando comandos para: "), chalk.magenta(task));
+    logger.info(chalk.magentaBright("\n⚙️  Gerando comandos para: "), chalk.magenta(task));
 
     const commandStream = getLinuxCommandsFromAI(
       systemInfo,
@@ -159,7 +160,7 @@ export async function runCliMode(): Promise<void> {
     }
 
     if (!collectedCommands.length) {
-      console.log(chalk.yellow("Nenhum comando gerado para a tarefa informada."));
+      logger.warn(chalk.yellow("Nenhum comando gerado para a tarefa informada."));
       return;
     }
 
@@ -182,40 +183,40 @@ export async function runCliMode(): Promise<void> {
 
     if (line.startsWith("/")) {
       if (line === "/help") {
-        console.log(chalk.cyan("\nComandos disponíveis:"));
-        console.log("/help           Mostra esta ajuda");
-        console.log("/exec ...       Converte instrução natural em comandos Linux e executa");
-        console.log("/history        Lista entradas anteriores (persistente)");
-        console.log("/history clear  Limpa histórico persistente");
-        console.log("/memory clear   Limpa memória contextual persistente");
-        console.log("/quit           Encerra o modo CLI");
-        console.log("/exit           Mesmo que /quit\n");
+        logger.info(chalk.cyan("\nComandos disponíveis:"));
+        logger.info("/help           Mostra esta ajuda");
+        logger.info("/exec ...       Converte instrução natural em comandos Linux e executa");
+        logger.info("/history        Lista entradas anteriores (persistente)");
+        logger.info("/history clear  Limpa histórico persistente");
+        logger.info("/memory clear   Limpa memória contextual persistente");
+        logger.info("/quit           Encerra o modo CLI");
+        logger.info("/exit           Mesmo que /quit\n");
       } else if (line === "/quit" || line === "/exit") {
         rl.close();
         return;
       } else if (line === "/history") {
         if (!historyBuffer.length) {
-          console.log(chalk.gray("Sem histórico registrado nesta sessão."));
+          logger.info(chalk.gray("Sem histórico registrado nesta sessão."));
         } else {
-          console.log(chalk.cyan("\nHistórico recente:"));
+          logger.info(chalk.cyan("\nHistórico recente:"));
           historyBuffer.slice(-20).forEach((entry, index) => {
-            console.log(`${index + 1}. ${entry}`);
+            logger.info(`${index + 1}. ${entry}`);
           });
         }
       } else if (line === "/history clear") {
         clearPersistentHistory();
         historyBuffer.length = 0;
         rl.history = [];
-        console.log(chalk.green("✅ Histórico de comandos limpo."));
+        logger.info(chalk.green("✅ Histórico de comandos limpo."));
       } else if (line === "/memory clear") {
         clearPersistentMemory();
         conversationHistory.length = 0;
-        console.log(chalk.green("✅ Memória contextual limpa."));
+        logger.info(chalk.green("✅ Memória contextual limpa."));
       } else if (line.startsWith("/exec")) {
         const task = parseExecPayload(line);
         await handleExec(task ?? "");
       } else {
-        console.log(chalk.yellow("Comando não reconhecido. Use /help para ver as opções."));
+        logger.warn(chalk.yellow("Comando não reconhecido. Use /help para ver as opções."));
       }
       rl.prompt();
       return;
@@ -226,7 +227,7 @@ export async function runCliMode(): Promise<void> {
   });
 
   rl.on("close", () => {
-    console.log(chalk.green("\nAté breve!"));
+    logger.info(chalk.green("\nAté breve!"));
     process.exit(0);
   });
 }

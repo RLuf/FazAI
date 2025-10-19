@@ -1,6 +1,7 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import chalk from "chalk";
+import { logger } from "../logger";
 
 const execAsync = promisify(exec);
 
@@ -90,7 +91,7 @@ export class Context7Client {
 
       if (!response.ok) {
         const text = await response.text().catch(() => "");
-        console.warn(chalk.yellow(`⚠️  Context7 HTTP retornou status ${response.status}: ${text}`));
+        logger.warn(chalk.yellow(`⚠️  Context7 HTTP retornou status ${response.status}: ${text}`));
         return null;
       }
 
@@ -107,7 +108,7 @@ export class Context7Client {
         findings,
       };
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️  Falha ao consultar Context7 via HTTP: ${String(error)}`));
+      logger.warn(chalk.yellow(`⚠️  Falha ao consultar Context7 via HTTP: ${String(error)}`));
       return null;
     }
   }
@@ -132,7 +133,7 @@ export class Context7Client {
         findings: this.parseCommandOutput(stdout),
       };
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️  Falha ao executar comando Context7: ${String(error)}`));
+      logger.warn(chalk.yellow(`⚠️  Falha ao executar comando Context7: ${String(error)}`));
       return null;
     }
   }

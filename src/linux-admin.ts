@@ -5,6 +5,7 @@ import { Readable, Transform } from "stream";
 import oboe from "oboe";
 import { linuxAdminPrompt } from "./linux-prompt";
 import { LinuxCommandGenerator, LinuxCommandSchema, LinuxCommand } from "./types-linux";
+import { logger } from "./logger";
 
 export async function* getLinuxCommandsFromAI(
   systemInfo: string,
@@ -43,7 +44,7 @@ async function* getLinuxCommandsFromClaude(
     },
   ];
 
-  console.log("\n\n🖥️  Gerando comandos Linux com Claude...");
+  logger.info("\n\n🖥️  Gerando comandos Linux com Claude...");
 
   const tokens = model.includes("sonnet") ? 8192 : 4096;
 
@@ -81,7 +82,7 @@ async function* getLinuxCommandsFromClaude(
           collectedCommands.push(validatedCommand);
         } catch (error) {
           if (error instanceof z.ZodError) {
-            console.warn("⚠️  Comando Linux inválido encontrado:", error.issues);
+            logger.warn("⚠️  Comando Linux inválido encontrado:", error.issues);
           }
         }
       })
@@ -90,7 +91,7 @@ async function* getLinuxCommandsFromClaude(
         resolve();
       })
       .on("fail", (error: any) => {
-        console.error("❌ Erro ao fazer parse dos comandos:", error);
+        logger.error("❌ Erro ao fazer parse dos comandos:", error);
         reject(error);
       });
   });
@@ -104,7 +105,7 @@ async function* getLinuxCommandsFromClaude(
       }
     }
   } catch (error) {
-    console.error("❌ Erro no stream:", error);
+    logger.error("❌ Erro no stream:", error);
   }
 
   tokenStream.push(null);
@@ -130,7 +131,7 @@ async function* getLinuxCommandsFromOpenAI(
 ): LinuxCommandGenerator {
   const openai = new OpenAI();
 
-  console.log("\n\n🖥️  Gerando comandos Linux com OpenAI...");
+  logger.info("\n\n🖥️  Gerando comandos Linux com OpenAI...");
 
   const systemMessage = `INFORMAÇÕES DO SISTEMA:\n${systemInfo}\n\nVocê é um administrador de sistemas Linux. Sempre priorize segurança e inclua verificações apropriadas.
 
@@ -174,13 +175,13 @@ Cada comando deve ter a estrutura exata definida no prompt do usuário.`;
           collectedCommands.push(validatedCommand);
         } catch (error) {
           if (error instanceof z.ZodError) {
-            console.warn("⚠️  Comando Linux inválido encontrado:", error.issues);
+            logger.warn("⚠️  Comando Linux inválido encontrado:", error.issues);
           }
         }
       })
       .on("done", () => resolve())
       .on("fail", (error: any) => {
-        console.error("❌ Erro ao fazer parse dos comandos:", error);
+        logger.error("❌ Erro ao fazer parse dos comandos:", error);
         reject(error);
       });
   });
@@ -194,7 +195,7 @@ Cada comando deve ter a estrutura exata definida no prompt do usuário.`;
       }
     }
   } catch (error) {
-    console.error("❌ Erro no stream:", error);
+    logger.error("❌ Erro no stream:", error);
   }
 
   tokenStream.push(null);
@@ -224,7 +225,7 @@ async function* getLinuxCommandsFromOllama(
     apiKey: "ollama", // Ollama não precisa de API key real
   });
 
-  console.log(`\n\n🖥️  Gerando comandos Linux com Ollama (${model})...`);
+  logger.info(`\n\n🖥️  Gerando comandos Linux com Ollama (${model})...`);
 
   const systemMessage = `INFORMAÇÕES DO SISTEMA:\n${systemInfo}\n\nVocê é um administrador de sistemas Linux. Sempre priorize segurança e inclua verificações apropriadas.
 
@@ -267,13 +268,13 @@ Cada comando deve ter a estrutura exata definida no prompt do usuário.`;
           collectedCommands.push(validatedCommand);
         } catch (error) {
           if (error instanceof z.ZodError) {
-            console.warn("⚠️  Comando Linux inválido encontrado:", error.issues);
+            logger.warn("⚠️  Comando Linux inválido encontrado:", error.issues);
           }
         }
       })
       .on("done", () => resolve())
       .on("fail", (error: any) => {
-        console.error("❌ Erro ao fazer parse dos comandos:", error);
+        logger.error("❌ Erro ao fazer parse dos comandos:", error);
         reject(error);
       });
   });
@@ -287,7 +288,7 @@ Cada comando deve ter a estrutura exata definida no prompt do usuário.`;
       }
     }
   } catch (error) {
-    console.error("❌ Erro no stream:", error);
+    logger.error("❌ Erro no stream:", error);
   }
 
   tokenStream.push(null);

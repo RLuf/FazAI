@@ -3,6 +3,7 @@ import { MCPClient } from "./mcp/client";
 import { Context7Result } from "./mcp/context7";
 import { getConfigValue } from "./config";
 import { LinuxCommand } from "./types-linux";
+import { logger } from "./logger";
 
 export interface ResearchFinding {
   title: string;
@@ -103,7 +104,7 @@ export class ResearchCoordinator {
       return web;
     }
 
-    console.log(chalk.gray(`\n🤷  Nenhum resultado de pesquisa encontrado para "${query}" (${reason}).`));
+    logger.info(chalk.gray(`\n🤷  Nenhum resultado de pesquisa encontrado para "${query}" (${reason}).`));
     return null;
   }
 
@@ -142,7 +143,7 @@ export class ResearchCoordinator {
       };
     }
 
-    console.warn(chalk.yellow(`⚠️  Provedor de busca "${provider}" não suportado. Configure WEB_SEARCH_PROVIDER=duckduckgo.`));
+    logger.warn(chalk.yellow(`⚠️  Provedor de busca "${provider}" não suportado. Configure WEB_SEARCH_PROVIDER=duckduckgo.`));
     return null;
   }
 
@@ -154,7 +155,7 @@ export class ResearchCoordinator {
       });
 
       if (!response.ok) {
-        console.warn(chalk.yellow(`⚠️  DuckDuckGo retornou status ${response.status}`));
+        logger.warn(chalk.yellow(`⚠️  DuckDuckGo retornou status ${response.status}`));
         return null;
       }
 
@@ -200,7 +201,7 @@ export class ResearchCoordinator {
 
       return findings.length ? findings : null;
     } catch (error) {
-      console.warn(chalk.yellow(`⚠️  Falha ao consultar DuckDuckGo: ${String(error)}`));
+      logger.warn(chalk.yellow(`⚠️  Falha ao consultar DuckDuckGo: ${String(error)}`));
       return null;
     }
   }
@@ -227,24 +228,24 @@ export class ResearchCoordinator {
   }
 
   private logResearch(result: ResearchResult): void {
-    console.log(chalk.magentaBright(`\n🧠 Pesquisa (${result.provider})`));
-    console.log(chalk.gray(`Motivo: ${result.reason}`));
+    logger.info(chalk.magentaBright(`\n🧠 Pesquisa (${result.provider})`));
+    logger.info(chalk.gray(`Motivo: ${result.reason}`));
     if (result.summary) {
-      console.log(chalk.magenta(`Resumo: ${result.summary}`));
+      logger.info(chalk.magenta(`Resumo: ${result.summary}`));
     }
 
     if (!result.findings.length) {
-      console.log(chalk.gray("Nenhuma referência retornada."));
+      logger.info(chalk.gray("Nenhuma referência retornada."));
       return;
     }
 
     result.findings.slice(0, 5).forEach((finding, index) => {
-      console.log(chalk.magenta(` ${index + 1}. ${finding.title}`));
+      logger.info(chalk.magenta(` ${index + 1}. ${finding.title}`));
       if (finding.snippet) {
-        console.log(chalk.gray(`    ${finding.snippet}`));
+        logger.info(chalk.gray(`    ${finding.snippet}`));
       }
       if (finding.url) {
-        console.log(chalk.blue(`    ${finding.url}`));
+        logger.info(chalk.blue(`    ${finding.url}`));
       }
     });
   }

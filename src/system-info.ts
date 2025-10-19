@@ -1,4 +1,5 @@
 import { execSync } from "child_process";
+import { logger } from "./logger";
 
 export interface SystemInfo {
   os: string;
@@ -86,7 +87,7 @@ export async function collectSystemInfo(): Promise<string> {
     }
 
   } catch (error) {
-    console.warn("Erro ao coletar informações do sistema:", error);
+    logger.warn("Erro ao coletar informações do sistema:", error);
   }
 
   // Formatar como texto legível
