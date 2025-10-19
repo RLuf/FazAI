@@ -35,6 +35,7 @@ export interface ResearchCoordinatorOptions {
   context7Command?: string;
   context7ApiKey?: string;
   webSearchProvider?: string;
+  researchOnFailure?: boolean;
 }
 
 export class ResearchCoordinator {
@@ -66,6 +67,10 @@ export class ResearchCoordinator {
   }
 
   async handleExecutionFailure(command: LinuxCommand, errorOutput: string): Promise<ResearchResult | null> {
+    if (!this.isFailureResearchEnabled()) {
+      return null;
+    }
+
     const condensedError = errorOutput.replace(/\s+/g, " ").trim().slice(0, 220);
     const query = `${command.command} erro ${condensedError}`.trim();
     const reason = "Fallback automático após falha na execução do comando";
@@ -248,6 +253,28 @@ export class ResearchCoordinator {
     const disabledEnv = resolveFlag(process.env.FAZAI_DISABLE_RESEARCH ?? null);
     const disabledConfig = resolveFlag(getConfigValue("FAZAI_DISABLE_RESEARCH"));
     return this.options.enabled && !disabledEnv && !disabledConfig;
+  }
+
+  private isFailureResearchEnabled(): boolean {
+    if (!this.isEnabled()) {
+      return false;
+    }
+
+    if (typeof this.options.researchOnFailure === "boolean") {
+      return this.options.researchOnFailure;
+    }
+
+    const envRaw = process.env.FAZAI_RESEARCH_ON_FAILURE;
+    if (envRaw !== undefined) {
+      return resolveFlag(envRaw);
+    }
+
+    const configRaw = getConfigValue("FAZAI_RESEARCH_ON_FAILURE");
+    if (configRaw !== undefined) {
+      return resolveFlag(configRaw);
+    }
+
+    return false;
   }
 
   private buildClient(): MCPClient {

@@ -20,10 +20,12 @@ Usage:
   fazai ask "Your question here"             # General AI questions
   fazai config                               # List configured API keys
   fazai completion                           # Print available CLI completions
+  fazai search "query"                       # Manual research via Context7/Web
 
 Options:
   --dry-run                Simulate commands without executing
   --cli                    Open interactive CLI (chat + /exec)
+  --auto-research          Reativar pesquisa automática após falhas
   --help, -h               Show this help message
 
 Examples:
@@ -97,9 +99,11 @@ async function main() {
       "ask",
       "config",
       "completion",
+      "search",
       "--help",
       "--dry-run",
       "--cli",
+      "--auto-research",
       "--yolo",
       ...models.map((model) => model.nickName),
     ];
@@ -109,6 +113,7 @@ async function main() {
 
   let dryRun = false;
   let yoloMode = false;
+  let autoResearchOnFailure = false;
 
   // Parse special arguments
   inputs = inputs.filter((input) => {
@@ -120,12 +125,29 @@ async function main() {
       yoloMode = true;
       return false;
     }
+    if (input === "--auto-research") {
+      autoResearchOnFailure = true;
+      return false;
+    }
     if (input === "--help" || input === "-h") {
       displayHelp();
       process.exit(0);
     }
     return true;
   });
+
+  // Manual research command
+  if (inputs[0] === "search") {
+    const query = inputs.slice(1).join(" ");
+    if (!query) {
+      console.error('Usage: fazai search "Your query here"');
+      process.exit(1);
+    }
+
+    const researchCoordinator = new ResearchCoordinator();
+    await researchCoordinator.research(query, { reason: "Pesquisa manual", trigger: "pre-execution" });
+    return;
+  }
 
   // Ask mode (general questions)
   if (inputs[0] === "ask") {
@@ -178,7 +200,7 @@ async function main() {
   if (!selectedModel) selectedModel = models[0];
 
   await checkAndSetAPIKey(selectedModel);
-  const researchCoordinator = new ResearchCoordinator();
+  const researchCoordinator = new ResearchCoordinator({ researchOnFailure: autoResearchOnFailure });
 
   // Collect system info
   console.log(chalk.gray("Coletando informações do sistema..."));
