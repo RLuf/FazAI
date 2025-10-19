@@ -2,7 +2,14 @@
 
 ## ⚡ Configuração em 3 Passos
 
-### 1️⃣ Configure sua API Key da OpenAI
+### 1️⃣ Instale o FazAI rapidamente
+
+```bash
+curl -fsSL https://github.com/RLuf/FazAI/raw/master/scripts/install.sh | bash
+start-codex
+```
+
+### 2️⃣ Configure sua API Key da OpenAI
 
 ```bash
 # Copie o arquivo de exemplo
@@ -17,14 +24,14 @@ Cole sua chave OpenAI no arquivo:
 OPENAI_API_KEY=sk-sua-chave-aqui
 ```
 
-### 2️⃣ Build
+### 3️⃣ Build manual (opcional)
 
 ```bash
 npm install
 npm run build
 ```
 
-### 3️⃣ Teste!
+### 4️⃣ Teste!
 
 ```bash
 # Modo ask (seguro, não executa nada)

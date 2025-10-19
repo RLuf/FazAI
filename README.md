@@ -16,12 +16,18 @@
 
 ## 🚀 Instalação
 
+### Script (recomendado)
+```bash
+curl -fsSL https://github.com/RLuf/FazAI/raw/master/scripts/install.sh | bash
+start-codex
+```
+
 ### Via NPX (sem instalação)
 ```bash
 npx fazai
 ```
 
-### Instalação Global
+### Instalação Global (npm)
 ```bash
 npm install -g fazai
 fazai

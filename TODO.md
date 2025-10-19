@@ -11,9 +11,9 @@
 3. Revisar linguagem base com Enoc  
    - Confirmar permanência do orquestrador em TypeScript ou planejar módulo complementar em outra linguagem.
 
-4. Criar instalador inteligente  
-   - Protótipo `curl https://github.com/RLuf/FazAI/.../install.sh | bash`.  
-   - Avaliar empacotamento (`npm install fazai` ou similar).
+4. Criar instalador inteligente ✅  
+   - Script `scripts/install.sh` agora baixa o repositório se necessário, executa build e instala em `~/.local/share/fazai` com symlink em `~/.local/bin`.  
+   - README/Quick-Start atualizados com `curl ... | bash`. (Empacotamento npm pode ser feito depois, se desejarmos).
 
 5. Integração de personalidades/coleções  
    - Validar collections `fazai_memory` e `fazai_kb` em Qdrant (docker) e Zilliz/Milvus.  
