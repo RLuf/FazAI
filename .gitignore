@@ -185,3 +185,6 @@ x64
 test
 
 tests/test-code.txt
+
+# Claude Code generated context
+CLAUDE.md
