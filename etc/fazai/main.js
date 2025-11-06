@@ -17,7 +17,7 @@ const execPromise = util.promisify(exec);
 
 // Configurações
 const PORT = process.env.FAZAI_PORT || 3000;
-const LOG_FILE = '/var/log/fazai.log';
+const LOG_FILE = '/var/log/fazai/fazai.log';
 const TOOLS_DIR = path.join(__dirname, 'tools');
 
 // Inicialização do Express

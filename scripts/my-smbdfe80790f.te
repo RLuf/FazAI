@@ -1,0 +1,28 @@
+
+module my-smbdfe80790f 1.0;
+
+require {
+	type unlabeled_t;
+	type smbd_t;
+	type container_file_t;
+	type default_t;
+	class dir { add_name create open read remove_name rename search setattr write };
+	class file { create getattr open read setattr unlink write };
+}
+
+#============= smbd_t ==============
+
+#!!!! This avc is allowed in the current policy
+allow smbd_t container_file_t:file read;
+
+#!!!! This avc is allowed in the current policy
+allow smbd_t default_t:dir { add_name create remove_name rename setattr write };
+
+#!!!! This avc is allowed in the current policy
+allow smbd_t default_t:file { getattr read };
+
+#!!!! This avc is allowed in the current policy
+allow smbd_t unlabeled_t:dir { add_name create open read remove_name rename search setattr write };
+
+#!!!! This avc is allowed in the current policy
+allow smbd_t unlabeled_t:file { create getattr open read setattr unlink write };

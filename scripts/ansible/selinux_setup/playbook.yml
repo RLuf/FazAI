@@ -1,0 +1,8 @@
+---
+- name: Aplicar configurações SELinux
+  hosts: localhost
+  become: true
+  collections:
+    - ansible.posix
+  roles:
+    - selinux_config

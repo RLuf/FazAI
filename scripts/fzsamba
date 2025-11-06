@@ -1,0 +1,147 @@
+#!/bin/bash
+
+# Funcao: criar ou atualizar usuario
+criauser() {
+    local user="$1"
+    
+    if [ -z "$user" ]; then
+        echo "Erro: informe o nome do usuario"
+        return 1
+    fi
+    
+    if id "$user" &>/dev/null; then
+        echo "Usuario $user ja existe. Redefinindo senha..."
+    else
+        echo "Criando usuario $user..."
+        useradd -m "$user" || return 1
+    fi
+
+    echo "Definindo senha Samba para $user..."
+    smbpasswd -a "$user" || return 1
+
+    echo "Compartilhamentos existentes:"
+    grep '^\[' /etc/samba/smb.conf | tr -d '[]'
+    
+    read -p "Atribuir permissao a qual compartilhamento (deixe em branco para pular)? " share
+
+    if [ -n "$share" ]; then
+        path=$(grep -A5 "^\[$share\]$" /etc/samba/smb.conf | grep 'path =' | cut -d= -f2 | xargs)
+        
+        if [ -z "$path" ]; then
+            read -p "Compartilhamento nao existe. Criar novo? (s/n): " resp
+            if [ "$resp" = "s" ]; then
+                read -p "Caminho do novo diretorio: " path
+                mkdir -p "$path" || return 1
+                chown "$user":"$user" "$path"
+                chmod 770 "$path"
+                echo "" >> /etc/samba/smb.conf
+                echo "[$share]" >> /etc/samba/smb.conf
+                echo "   path = $path" >> /etc/samba/smb.conf
+                echo "   valid users = $user" >> /etc/samba/smb.conf
+                echo "   writable = yes" >> /etc/samba/smb.conf
+                echo "   browseable = yes" >> /etc/samba/smb.conf
+            fi
+        else
+            setfacl -m u:$user:rwx "$path" || echo "Aviso: falha ao definir ACL"
+        fi
+    fi
+}
+
+# Funcao: criar diretorio e adicionar ao smb.conf
+criadir() {
+    local dir="$1"
+    
+    if [ -z "$dir" ]; then
+        echo "Erro: informe o caminho do diretorio"
+        return 1
+    fi
+    
+    read -p "Usuario dono: " dono
+    read -p "Grupo dono: " grupo
+
+    if [ -z "$dono" ] || [ -z "$grupo" ]; then
+        echo "Erro: dono e grupo sao obrigatorios"
+        return 1
+    fi
+
+    id "$dono" &>/dev/null || useradd -m "$dono"
+    getent group "$grupo" &>/dev/null || groupadd "$grupo"
+
+    mkdir -p "$dir" || return 1
+    chown "$dono":"$grupo" "$dir"
+    chmod 2770 "$dir"
+    setfacl -m g:$grupo:rwx "$dir" || echo "Aviso: falha ao definir ACL"
+    setfacl -d -m g:$grupo:rwx "$dir" || echo "Aviso: falha ao definir ACL padrao"
+
+    nome=$(basename "$dir")
+    echo "" >> /etc/samba/smb.conf
+    echo "[$nome]" >> /etc/samba/smb.conf
+    echo "   path = $dir" >> /etc/samba/smb.conf
+    echo "   valid users = $dono" >> /etc/samba/smb.conf
+    echo "   writable = yes" >> /etc/samba/smb.conf
+    echo "   browseable = yes" >> /etc/samba/smb.conf
+}
+
+# Funcao: criar grupo e aplicar em diretorio
+criagroup() {
+    local grupo="$1"
+    
+    if [ -z "$grupo" ]; then
+        echo "Erro: informe o nome do grupo"
+        return 1
+    fi
+    
+    getent group "$grupo" &>/dev/null || groupadd "$grupo"
+
+    read -p "Usuarios para adicionar ao grupo (separados por espaco): " usuarios
+    
+    for u in $usuarios; do
+        id "$u" &>/dev/null || useradd -m "$u"
+        usermod -aG "$grupo" "$u"
+    done
+
+    read -p "Aplicar permissoes em qual diretorio? (deixe em branco para pular): " dir
+    
+    if [ -n "$dir" ]; then
+        mkdir -p "$dir" || return 1
+        chown root:"$grupo" "$dir"
+        chmod 2770 "$dir"
+        setfacl -m g:$grupo:rwx "$dir" || echo "Aviso: falha ao definir ACL"
+        setfacl -d -m g:$grupo:rwx "$dir" || echo "Aviso: falha ao definir ACL padrao"
+
+        nome=$(basename "$dir")
+        echo "" >> /etc/samba/smb.conf
+        echo "[$nome]" >> /etc/samba/smb.conf
+        echo "   path = $dir" >> /etc/samba/smb.conf
+        echo "   force group = $grupo" >> /etc/samba/smb.conf
+        echo "   writable = yes" >> /etc/samba/smb.conf
+        echo "   browseable = yes" >> /etc/samba/smb.conf
+    fi
+}
+
+# Dispatcher
+case "$1" in
+    criauser)
+        criauser "$2"
+        ;;
+    criadir)
+        criadir "$2"
+        ;;
+    criagroup)
+        criagroup "$2"
+        ;;
+    *)
+        echo "Uso: fzsamba [criauser|criadir|criagroup] [argumento]"
+        exit 1
+        ;;
+esac
+
+# Reiniciando samba
+if [ $? -eq 0 ]; then
+    echo "Reiniciando Samba..."
+    systemctl restart smb.service nmb.service
+    echo "Pronto!"
+else
+    echo "Erro na execucao. Samba nao foi reiniciado."
+    exit 1
+fi

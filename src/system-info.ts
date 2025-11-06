@@ -1,4 +1,5 @@
-import { execSync } from "child_process";
+import fs from "fs";
+import { execSync, spawnSync } from "child_process";
 import { logger } from "./logger";
 
 export interface SystemInfo {
@@ -24,15 +25,7 @@ export async function collectSystemInfo(): Promise<string> {
     systemInfo.architecture = execSync("uname -m", { encoding: "utf8" }).trim();
 
     // Distribuição Linux
-    try {
-      systemInfo.distribution = execSync("lsb_release -d -s", { encoding: "utf8" }).trim();
-    } catch {
-      try {
-        systemInfo.distribution = execSync("cat /etc/os-release | grep PRETTY_NAME | cut -d'=' -f2 | tr -d '\"'", { encoding: "utf8" }).trim();
-      } catch {
-        systemInfo.distribution = "Unknown";
-      }
-    }
+    systemInfo.distribution = detectDistribution();
 
     // Gerenciador de pacotes
     const packageManagers = ["apt", "yum", "dnf", "pacman", "zypper", "emerge"];
@@ -109,4 +102,65 @@ ${(systemInfo.services || []).slice(0, 5).map(s => `- ${s}`).join("\n")}
 INTERFACES DE REDE:
 ${(systemInfo.network || []).slice(0, 3).map(n => `- ${n}`).join("\n")}
 `.trim();
+}
+
+function detectDistribution(): string {
+  try {
+    const commandPath = findExecutable(["/usr/bin/lsb_release", "/bin/lsb_release", "/sbin/lsb_release", "lsb_release"]);
+    if (commandPath) {
+      const result = spawnSync(commandPath, ["-d", "-s"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+      const output = result.stdout?.trim();
+      if (result.status === 0 && output) {
+        return output;
+      }
+    }
+  } catch {
+    // Ignora ENOENT / erros do spawnSync e avança para fallback
+  }
+
+  try {
+    const contents = fs.readFileSync("/etc/os-release", "utf8");
+    for (const line of contents.split("\n")) {
+      if (line.startsWith("PRETTY_NAME=")) {
+        return line.split("=")[1]?.replace(/^"+|"+$/g, "").trim() || "Unknown";
+      }
+    }
+  } catch {
+    // Ignora e usa valor padrão
+  }
+
+  return "Unknown";
+}
+
+function findExecutable(candidates: string[]): string | null {
+  for (const candidate of candidates) {
+    try {
+      if (candidate.includes("/") && fs.existsSync(candidate) && isExecutable(candidate)) {
+        return candidate;
+      }
+      if (!candidate.includes("/")) {
+        const whichResult = spawnSync("which", [candidate], { encoding: "utf8" });
+        const resolved = whichResult.stdout?.trim();
+        if (whichResult.status === 0 && resolved && fs.existsSync(resolved) && isExecutable(resolved)) {
+          return resolved;
+        }
+      }
+    } catch {
+      // Ignora candidato inválido
+    }
+  }
+  return null;
+}
+
+function isExecutable(path: string): boolean {
+  try {
+    const stats = fs.statSync(path);
+    if (!stats.isFile()) {
+      return false;
+    }
+    fs.accessSync(path, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }

@@ -22,6 +22,18 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # Web search fallback provider (currently DuckDuckGo)
 # WEB_SEARCH_PROVIDER=duckduckgo
 
+# Vector store integration (Qdrant or Milvus/Zilliz)
+# VECTOR_PROVIDER=qdrant
+# VECTOR_DIMENSION=1536
+# VECTOR_DISTANCE=cosine
+# QDRANT_URL=http://localhost:6333
+# QDRANT_API_KEY=coloque_seu_token
+# MILVUS_ADDRESS=localhost:19530
+# MILVUS_USERNAME=root
+# MILVUS_PASSWORD=Milvus
+# MILVUS_SSL=false
+# MILVUS_TOKEN=token_opcional_para_zilliz
+
 # Disable research if running offline (set to true/1)
 # FAZAI_DISABLE_RESEARCH=true
 

@@ -43,6 +43,11 @@ npm link
 fazai
 ```
 
+#### Auto-build para desenvolvimento
+- O launcher (`bin/fazai.js`) detecta alterações em `src/` e executa `npm run build` automaticamente antes de iniciar o CLI.
+- Para forçar um rebuild manual, basta apagar `dist/` ou rodar `npm run build`.
+- Se quiser desativar o comportamento (por exemplo em CI), exporte `FAZAI_AUTO_BUILD=0` antes de executar `fazai`.
+
 ### Instalador Local
 ```bash
 git clone https://github.com/seu-usuario/fazai.git
@@ -102,7 +107,21 @@ fazai --help
 
 # Listar sugestões para auto-complete
 fazai completion
+
+# Validar/alinhar collections no vetor store
+fazai vector validate
+fazai vector recreate --provider qdrant
 ```
+
+- Durante a instalação/build o FazAI tenta preparar `/var/log/fazai/fazai.log`; se falhar (permissão), execute `sudo mkdir -p /var/log/fazai && sudo chmod 775 /var/log/fazai`.
+
+### Vetor Store (Qdrant / Milvus)
+
+- Defina `VECTOR_PROVIDER=qdrant` ou `VECTOR_PROVIDER=milvus` no `fazai.conf`.
+- Ajuste `QDRANT_URL` e `QDRANT_API_KEY` quando usar Qdrant (docker/local ou cloud).
+- Para Milvus/Zilliz, configure `MILVUS_ADDRESS`, `MILVUS_USERNAME`, `MILVUS_PASSWORD` (ou `MILVUS_TOKEN`).
+- `VECTOR_DIMENSION` e `VECTOR_DISTANCE` (cosine, euclid, dot) controlam o espaço vetorial esperado pelos embeddings.
+- Rode `fazai vector validate` após atualizar configurações para garantir que as collections `fazai_memory` e `fazai_kb` existam com o schema correto.
 
 ### Fallback Automático (MCP Context7 + Busca Web)
 

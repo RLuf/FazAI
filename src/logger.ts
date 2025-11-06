@@ -135,7 +135,7 @@ export function initLogger(options: LoggerInitOptions = {}): void {
   const level = options.levelOverride ?? envLevel ?? configLevel ?? currentLevel;
   currentLevel = level;
 
-  const defaultLogPath = "/var/log/fazai.log";
+  const defaultLogPath = "/var/log/fazai/fazai.log";
   const fallbackLogPath = path.join(process.cwd(), "fazai.log");
   const logPathCandidate = options.logFilePathOverride ?? envLogPath ?? configLogPath ?? defaultLogPath;
 

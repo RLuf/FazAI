@@ -1,0 +1,11 @@
+---
+selinux_booleans:
+  - name: samba_export_all_rw
+  - name: virt_sandbox_use_all_caps
+  - name: virt_use_nfs
+
+selinux_fcontext:
+  target: "/dados"
+  setype: "samba_share_t"
+  ftype: "a"
+  selevel: "s0"

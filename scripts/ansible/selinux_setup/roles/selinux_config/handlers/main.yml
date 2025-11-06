@@ -1,0 +1,3 @@
+---
+- name: Aplicar restorecon
+  command: restorecon -Rv {{ selinux_fcontext.target }}

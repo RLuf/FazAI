@@ -1,0 +1,88 @@
+{
+  "name": "fazai-gmail-mcp-server",
+  "version": "1.0.0",
+  "description": "Servidor MCP para integração Gmail + FazAI + Claude Desktop",
+  "main": "dist/server.js",
+  "type": "module",
+  "bin": {
+    "fazai-gmail-mcp": "./dist/server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx src/server.ts",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "clean": "rimraf dist",
+    "auth:setup": "node dist/auth-setup.js",
+    "auth:reset": "rm -f gmail-token.json && node dist/auth-setup.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "googleapis": "^128.0.0",
+    "google-auth-library": "^9.4.0",
+    "express": "^4.18.2",
+    "ws": "^8.14.2",
+    "dotenv": "^16.3.1",
+    "winston": "^3.11.0",
+    "node-cron": "^3.0.3",
+    "axios": "^1.6.2",
+    "zod": "^3.22.4",
+    "chalk": "^5.3.0",
+    "inquirer": "^9.2.12",
+    "ora": "^7.0.1",
+    "fs-extra": "^11.2.0",
+    "archiver": "^6.0.1",
+    "unzipper": "^0.10.14"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/express": "^4.17.21",
+    "@types/ws": "^8.5.10",
+    "@types/fs-extra": "^11.0.4",
+    "@types/archiver": "^6.0.2",
+    "@types/unzipper": "^0.10.9",
+    "typescript": "^5.3.2",
+    "tsx": "^4.6.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.8",
+    "rimraf": "^5.0.5"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol", 
+    "gmail",
+    "fazai",
+    "claude",
+    "desktop",
+    "ai",
+    "linux",
+    "administration",
+    "chat-export",
+    "automation"
+  ],
+  "author": "FazAI Community <roger@webstorage.com.br>",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/RLuf/fazai-gmail-mcp-server#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RLuf/fazai-gmail-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RLuf/fazai-gmail-mcp-server/issues"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "engineStrict": true,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    ".env.example"
+  ]
+}

@@ -195,6 +195,24 @@ if [[ -f "$INSTALL_DIR/scripts/start-codex.sh" ]]; then
   ln -sf "$INSTALL_DIR/scripts/start-codex.sh" "$BIN_DIR/start-codex"
 fi
 
+prepare_log_dir() {
+  local target_dir="/var/log/fazai"
+  local target_file="${target_dir}/fazai.log"
+
+  if mkdir -p "$target_dir" 2>/dev/null; then
+    chmod 775 "$target_dir" 2>/dev/null || true
+    if [[ ! -f "$target_file" ]]; then
+      touch "$target_file" 2>/dev/null || true
+    fi
+    echo "→ Diretório de log preparado em ${target_dir}"
+  else
+    echo "⚠️  Não foi possível criar ${target_dir}. Para habilitar logs globais, execute manualmente:" >&2
+    echo "    sudo mkdir -p ${target_dir} && sudo chmod 775 ${target_dir}" >&2
+  fi
+}
+
+prepare_log_dir
+
 cat <<EOF
 
 ✔ FazAI instalado em: $INSTALL_DIR
